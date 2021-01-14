@@ -45,7 +45,7 @@ type BoardAccess struct {
 func main() {
 
 	if _, err := os.Stat("./public"); os.IsNotExist(err) {
-    os.Mkdir("./public", os.ModeDir)
+    os.Mkdir("./public", 0755)
 	}	
 
 	db := ConnectDB();
