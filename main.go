@@ -555,7 +555,8 @@ func ParseCommentForReplies(comment string) []ObjectBase {
 		str := strings.Replace(match[i][0], ">>", "", 1)
 		str = strings.Replace(str, "www.", "", 1)		
 		str = strings.Replace(str, "http://", "", 1)
-		str = TP + "://" + str
+		str = strings.Replace(str, "https://", "", 1)		
+		str = TP + "" + str
 		links = append(links, str)
 	}
 
