@@ -2,6 +2,7 @@ package main
 
 import "fmt"
 import "strings"
+import "strconv"
 import "net/http"
 import "net/url"
 import "database/sql"
@@ -15,23 +16,15 @@ import "encoding/json"
 import "io/ioutil"
 import "mime/multipart"
 import "os"
+import "bufio"
 
-const (
-	host     = "localhost"
-	port     = 5432
-	user     = "postgres"
-	password = "password"
-	dbname   = "fchan_server"
-)
-
-var Port = ":3000"
-var TP   = "https://"
-var Domain = TP + "server.fchan.xyz"
+var Port = ":" + GetConfigValue("instanceport")
+var TP   = "http://" 
+var Domain = TP + "" + GetConfigValue("instance")
 
 var authReq = []string{"captcha","email","passphrase"}
 
 var supportedFiles = []string{"image/gif","image/jpeg","image/png","image/svg+xml","image/webp","image/avif","image/apng","video/mp4","video/ogg","video/webm","audio/mpeg","audio/ogg","audio/wav"}
-
 
 var SiteEmail string        //contact@fchan.xyz
 var SiteEmailPassword string 
@@ -54,9 +47,12 @@ func main() {
 
 	go MakeCaptchas(db, 100)
 	
-                                   	 // root actor is used to follow remote feeds that are not local
-                                     //name, prefname, summary, auth requirements, restricted
-	CreateNewBoardDB(db, *CreateNewActor("", "FChan", "FChan is a federated image board instance.", authReq, false))
+	// root actor is used to follow remote feeds that are not local
+	//name, prefname, summary, auth requirements, restricted
+	if GetConfigValue("instancename") != "" {
+		CreateNewBoardDB(db, *CreateNewActor("", GetConfigValue("instancename"), GetConfigValue("instancesummary"), authReq, false))
+	}
+
 
 	// Allow access to public media folder
 	fileServer := http.FileServer(http.Dir("./public"))
@@ -205,16 +201,27 @@ func main() {
 	http.HandleFunc("/delete", func(w http.ResponseWriter, r *http.Request){
 		values := r.URL.Query().Get("id")
 
-		if len(values) < 1 || !IsIDLocal(db, values) {
+		header := r.Header.Get("Authorization")
+
+		auth := strings.Split(header, " ")
+
+		if len(values) < 1 || !IsIDLocal(db, values) || len(auth) < 2 {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(""))
 			return
 		}
 
+		actor := GetActorFromPath(db, values, "/")
+
+		if !HasAuth(db, auth[1], actor.Id) {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(""))
+			return
+		}		
+
 		id := values
 		DeleteObject(db, id)
 		w.Write([]byte(""))
-		
 	})
 
 	http.HandleFunc("/deleteattach", func(w http.ResponseWriter, r *http.Request){
@@ -225,43 +232,46 @@ func main() {
 
 		auth := strings.Split(header, " ")
 
-		if len(values) < 1 || len(auth) < 2 {
+		if len(values) < 1 || !IsIDLocal(db, values) || len(auth) < 2 {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(""))
 			return
-		}				
-		
+		}
+
+		actor := GetActorFromPath(db, values, "/")
+
+		if !HasAuth(db, auth[1], actor.Id) {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(""))
+			return
+		}
+
 		id := values
-
-		if !IsIDLocal(db, id) {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(""))
-			return
-		}
-
-		actor := GetActorFromPath(db, id, "/")
-
-		if HasAuth(db, auth[1], actor.Id) {
-			DeleteAttachmentFromFile(db, id)						
-			DeleteAttachmentFromDB(db, id)
-			w.Write([]byte(""))
-			return 
-		}
-
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))
+		DeleteAttachmentFromFile(db, id)
+		w.Write([]byte(""))		
 	})
 
 	http.HandleFunc("/report", func(w http.ResponseWriter, r *http.Request){
 		
 		id := r.URL.Query().Get("id")
 		close := r.URL.Query().Get("close")
+		header := r.Header.Get("Authorization")
+
+		auth := strings.Split(header, " ")		
 
 		if close == "1" {
-			if !IsIDLocal(db, id) {
+			if !IsIDLocal(db, id) || len(auth) < 2 {
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte(""))					
 				return				
+			}
+
+			actor := GetActorFromPath(db, id, "/")
+
+			if !HasAuth(db, auth[1], actor.Id) {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(""))
+				return
 			}
 			
 			reported := DeleteReportActivity(db, id)
@@ -269,6 +279,10 @@ func main() {
 				w.Write([]byte(""))			
 				return
 			}
+
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(""))
+			return
 		}
 		
 		reported := ReportActivity(db, id)
@@ -280,7 +294,6 @@ func main() {
 
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(""))					
-
 	})
 
 	http.HandleFunc("/verify", func(w http.ResponseWriter, r *http.Request){
@@ -304,12 +317,18 @@ func main() {
 		w.Write([]byte(""))		
 	})
 
+	fmt.Println("Server for " + Domain + " running on port " + Port)
+	
+	PrintAdminAuth(db)
+	
 	http.ListenAndServe(Port, nil)	
 }
 
 func CheckError(e error, m string) error{
 	if e != nil {
+		fmt.Println()		
 		fmt.Println(m)
+		fmt.Println()		
 		panic(e)
 	}
 
@@ -317,6 +336,13 @@ func CheckError(e error, m string) error{
 }
 
 func ConnectDB() *sql.DB {
+
+	host     := GetConfigValue("dbhost")
+	port,_   := strconv.Atoi(GetConfigValue("dbport"))
+	user     := GetConfigValue("dbuser")
+	password := GetConfigValue("dbpass")
+	dbname   := GetConfigValue("dbname")
+	
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s " +
 		"dbname=%s sslmode=disable", host, port, user, password, dbname)
 
@@ -448,7 +474,7 @@ func CreateNewActor(board string, prefName string, summary string, authReq []str
 		path = Domain + "/" + board
 		actor.Name = board
 	}
-	
+
 	actor.Type = "Service"
 	actor.Id = fmt.Sprintf("%s", path)
 	actor.Following = fmt.Sprintf("%s/following", actor.Id)
@@ -935,4 +961,40 @@ func GetActorFromID(id string) Actor {
 	CheckError(err, "error getting actor resp from json body")
 
 	return *respCollection.OrderedItems[0].Actor
+}
+
+func GetConfigValue(value string) string{
+	file, err := os.Open("config")
+
+	CheckError(err, "there was an error opening the config file")
+
+	defer file.Close()
+
+	lines := bufio.NewScanner(file)
+
+	for lines.Scan() {
+		line := strings.SplitN(lines.Text(), ":", 2)
+		if line[0] == value {
+			return line[1]
+		}
+	}
+
+	return ""
+}
+
+
+func PrintAdminAuth(db *sql.DB){
+	query := fmt.Sprintf("select identifier, code from boardaccess where board='%s' and type='admin'", Domain)
+
+	rows, err := db.Query(query)
+
+	CheckError(err, "Error getting Domain auth")
+
+	var code string
+	var identifier string
+	
+	rows.Next()
+	rows.Scan(&identifier, &code)
+
+	fmt.Println("Admin Login: " + identifier + ", Code: " + code) 
 }

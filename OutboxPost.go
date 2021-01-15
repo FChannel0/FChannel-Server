@@ -111,7 +111,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 				var rActivity Activity
 
-				if validActor && validLocalActor && verification.Board == activity.Actor.Id  {
+				if validActor && validLocalActor && verification.Board == activity.Actor.Id || verification.Board == Domain {
 					rActivity = AcceptFollow(activity, actor)
 				} else {
 					rActivity = RejectFollow(activity, actor)

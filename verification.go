@@ -301,10 +301,10 @@ func IsEmailSetup() bool {
 }
 
 func HasAuth(db *sql.DB, code string, board string) bool {
-	
+
 	verify := GetVerificationByCode(db, code)
 
-	if HasBoardAccess(db, verify) {
+	if verify.Board == Domain || (HasBoardAccess(db, verify) && verify.Board == board) {
 		return true
 	}
 
