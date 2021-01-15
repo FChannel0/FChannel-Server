@@ -19,7 +19,7 @@ import "os"
 import "bufio"
 
 var Port = ":" + GetConfigValue("instanceport")
-var TP   = "http://" 
+var TP   = GetConfigValue("instancetp")
 var Domain = TP + "" + GetConfigValue("instance")
 
 var authReq = []string{"captcha","email","passphrase"}
