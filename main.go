@@ -583,7 +583,9 @@ func ParseCommentForReplies(comment string) []ObjectBase {
 		str = strings.Replace(str, "http://", "", 1)
 		str = strings.Replace(str, "https://", "", 1)		
 		str = TP + "" + str
-		links = append(links, str)
+		if !IsInStringArray(links, str) {
+			links = append(links, str)
+		}
 	}
 
 	var validLinks []ObjectBase
@@ -997,4 +999,13 @@ func PrintAdminAuth(db *sql.DB){
 	rows.Scan(&identifier, &code)
 
 	fmt.Println("Admin Login: " + identifier + ", Code: " + code) 
+}
+
+func IsInStringArray(array []string, value string) bool {
+	for _, e := range array {
+		if e == value {
+			return true
+		}
+	}
+	return false
 }

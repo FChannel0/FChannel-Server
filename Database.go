@@ -6,6 +6,7 @@ import _ "github.com/lib/pq"
 import "time"
 import "os"
 import "strings"
+import "regexp"
 
 func GetActorFromDB(db *sql.DB, id string) Actor {
 
@@ -822,8 +823,11 @@ func DeleteCaptchaCodeDB(db *sql.DB, verify string) {
 }
 
 func EscapeString(text string) string {
+	re := regexp.MustCompile("(?i)(n)(\\s+)?(i)(\\s+)?(g)(\\s+)?(g)?(\\s+)?(e)(\\s+)?(r)(\\s+)?")	
+	text = re.ReplaceAllString(text, "I love black people")
+	re = regexp.MustCompile("(?i)(n)(\\s+)?(i)(\\s+)?(g)(\\s+)?(g)(\\s+)?")
+	text = re.ReplaceAllString(text, "I love black people")		
 	text = strings.Replace(text, "'", "''", -1)
-	text = strings.Replace(text, "&", "&amp;", -1)
 	text = strings.Replace(text, "<", "&lt;", -1)
 	return text
 }

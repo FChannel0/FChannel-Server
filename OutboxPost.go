@@ -25,9 +25,9 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		if(BoardHasAuthType(db, actor.Name, "captcha") && CheckCaptcha(db, r.FormValue("captcha"))) {		
 			f, header, _ := r.FormFile("file")
 			if(header != nil) {
-				if(header.Size > (5 << 20)){
+				if(header.Size > (7 << 20)){
 					w.WriteHeader(http.StatusRequestEntityTooLarge)
-					w.Write([]byte("5MB max file size"))
+					w.Write([]byte("7MB max file size"))
 					return
 				}
 				
@@ -43,7 +43,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 			var nObj = CreateObject("Note")
 			nObj = ObjectFromForm(r, db, nObj)
-			
+
 			var act Actor
 			nObj.Actor = &act
 			nObj.Actor.Id = Domain + "/" + actor.Name
@@ -83,9 +83,6 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(id))
 		}
-
-
-
 	} else {
 		activity = GetActivityFromJson(r, db)
 		if IsActivityLocal(db, activity) {
@@ -356,14 +353,19 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 	obj.InReplyTo = append(obj.InReplyTo, originalPost)
 
 	var activity Activity
-	
-	activity.To = append(activity.To, originalPost.Id)
+
+	if !IsInStringArray(activity.To, originalPost.Id) {
+		activity.To = append(activity.To, originalPost.Id)
+	}	
+
 
 	if originalPost.Id != "" {
 		if !IsActivityLocal(db, activity) {
 			id := GetActorFromID(originalPost.Id).Id
-			
-			obj.To = append(obj.To, GetActor(id).Id)
+			actor := GetActor(id)
+			if !IsInStringArray(obj.To, actor.Id) {
+				obj.To = append(obj.To, actor.Id)
+			}
 		}
 	}
 
@@ -389,8 +391,10 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 			
 			if !IsActivityLocal(db, activity) {
 				id := GetActorFromID(e.Id).Id
-				
-				obj.To = append(obj.To, GetActor(id).Id)				
+				actor := GetActor(id)
+				if !IsInStringArray(obj.To, actor.Id) {
+					obj.To = append(obj.To, actor.Id)
+				}				
 			}
 		}
 	}
