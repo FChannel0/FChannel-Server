@@ -228,7 +228,7 @@ func writeActivitytoDB(db *sql.DB, obj ObjectBase) {
 	obj.Content = EscapeString(obj.Content)
 	obj.AttributedTo = EscapeString(obj.AttributedTo)		
 	
-	query := fmt.Sprintf("insert into activitystream (id, type, name, content, published, updated, attributedto, actor) values ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')", obj.Id ,obj.Type, obj.Name, obj.Content, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor.Id)
+	query := fmt.Sprintf("insert into activitystream (id, type, name, content, published, updated, attributedto, actor) values ('%s', '%s', E'%s', E'%s', '%s', '%s', E'%s', '%s')", obj.Id ,obj.Type, obj.Name, obj.Content, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor.Id)
 
 	_, e := db.Exec(query)
 	
@@ -244,7 +244,7 @@ func writeActivitytoDBWithAttachment(db *sql.DB, obj ObjectBase, attachment Obje
 	obj.Content = EscapeString(obj.Content)
 	obj.AttributedTo = EscapeString(obj.AttributedTo)
 	
-	query := fmt.Sprintf("insert into activitystream (id, type, name, content, attachment, published, updated, attributedto, actor) values ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')", obj.Id ,obj.Type, obj.Name, obj.Content, attachment.Id, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor.Id)
+	query := fmt.Sprintf("insert into activitystream (id, type, name, content, attachment, published, updated, attributedto, actor) values ('%s', '%s', E'%s', E'%s', '%s', '%s', '%s', E'%s', '%s')", obj.Id ,obj.Type, obj.Name, obj.Content, attachment.Id, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor.Id)
 
 	_, e := db.Exec(query)
 	
@@ -823,9 +823,9 @@ func DeleteCaptchaCodeDB(db *sql.DB, verify string) {
 }
 
 func EscapeString(text string) string {
-	re := regexp.MustCompile("(?i)(n)(\\s+)?(i)(\\s+)?(g)(\\s+)?(g)?(\\s+)?(e)(\\s+)?(r)(\\s+)?")	
+	re := regexp.MustCompile("(?i)(n)+(\\s+)?(i)+(\\s+)?(g)+(\\s+)?(e)+?(\\s+)?(r)+(\\s+)?")
 	text = re.ReplaceAllString(text, "I love black people")
-	re = regexp.MustCompile("(?i)(n)(\\s+)?(i)(\\s+)?(g)(\\s+)?(g)(\\s+)?")
+	re = regexp.MustCompile("(?i)(n)+(\\s+)?(i)+(\\s+)?(g)(\\s+)?(g)+(\\s+)?")
 	text = re.ReplaceAllString(text, "I love black people")		
 	text = strings.Replace(text, "'", "''", -1)
 	text = strings.Replace(text, "<", "&lt;", -1)

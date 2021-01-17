@@ -24,7 +24,7 @@ var Domain = TP + "" + GetConfigValue("instance")
 
 var authReq = []string{"captcha","email","passphrase"}
 
-var supportedFiles = []string{"image/gif","image/jpeg","image/png","image/svg+xml","image/webp","image/avif","image/apng","video/mp4","video/ogg","video/webm","audio/mpeg","audio/ogg","audio/wav"}
+var supportedFiles = []string{"image/gif","image/jpeg","image/png","image/svg+xml","image/webp","image/avif","image/apng","video/mp4","video/ogg","video/webm","audio/mpeg","audio/ogg","audio/wav", "audio/wave", "audio/x-wav"}
 
 var SiteEmail string        //contact@fchan.xyz
 var SiteEmailPassword string 
@@ -389,6 +389,17 @@ func CreateTripCode(input string) string {
 	return out.String()
 }
 
+func CreateNameTripCode(input string) string {
+	fmt.Println("AHHHHHHHHHH")
+	re := regexp.MustCompile("#.+")
+	chunck := re.FindString(input)
+	fmt.Println(input)	
+	fmt.Println(chunck)
+	hash := CreateTripCode(chunck)
+	fmt.Println(hash[0:8])	
+	return re.ReplaceAllString(input, hash[0:8])
+}
+
 func GetActorFromPath(db *sql.DB, location string, prefix string) Actor {
 	pattern := fmt.Sprintf("%s([^/\n]+)(/.+)?", prefix)
 	re := regexp.MustCompile(pattern)
@@ -426,7 +437,7 @@ func GetContentType(location string) string {
 
 func RandomID(size int) string {
 	rand.Seed(time.Now().UnixNano())
-	domain := "0123456789ABCDEF"
+	domain := "0123456789ABCDEFG"
 	rng := size
 	newID := ""
 	for i := 0; i < rng; i++ {
@@ -1009,3 +1020,5 @@ func IsInStringArray(array []string, value string) bool {
 	}
 	return false
 }
+
+
