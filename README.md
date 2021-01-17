@@ -1,24 +1,15 @@
 Setup:
 
-Install golang
+Have golang installed a correct GOPATH
 
-Set these enviroment variables:
-export GOROOT=/usr/lib/go
-export GOPATH=$HOME/.local/go //or where ever you have you go src dir
-export PATH="$PATH:$GOPATH/bin"
+Move config-init to config and change the values to reflect the instance
+
+Create the database, username, and password for psql that is used in config file
 
 run
-go get github.com/lib/pq //database
 
-create a database and user with psql and run
 psql -U (user) -d (database) -f databaseschema.psql
 
-set db user, password, name in main.go
-set the Domain variable to the domain name that identifies this instance
+then start the client with
 
-run
 go run .
-
-One up and running query the database with
-select * from boardaccess;
-To be able to get your administrative credentials
