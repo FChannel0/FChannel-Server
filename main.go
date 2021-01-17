@@ -390,13 +390,9 @@ func CreateTripCode(input string) string {
 }
 
 func CreateNameTripCode(input string) string {
-	fmt.Println("AHHHHHHHHHH")
 	re := regexp.MustCompile("#.+")
 	chunck := re.FindString(input)
-	fmt.Println(input)	
-	fmt.Println(chunck)
 	hash := CreateTripCode(chunck)
-	fmt.Println(hash[0:8])	
 	return re.ReplaceAllString(input, hash[0:8])
 }
 
@@ -933,19 +929,22 @@ func MakeActivityRequest(activity Activity) {
 }
 
 func GetCollectionFromID(id string) Collection {
+	var nColl Collection
+	
 	req, err := http.NewRequest("GET", id, nil)
 
 	CheckError(err, "could not get collection from id req")
 
 	resp, err := http.DefaultClient.Do(req)
 
-	CheckError(err, "could not get collection from id resp")
+	if err != nil {
+		fmt.Println("could not get collection from " + id)
+		return nColl
+	}
 
 	defer resp.Body.Close()
 	
 	body, _ := ioutil.ReadAll(resp.Body)
-
-	var nColl Collection
 
 	err = json.Unmarshal(body, &nColl)
 
