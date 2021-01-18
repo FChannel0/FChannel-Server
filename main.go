@@ -52,7 +52,8 @@ func main() {
 	if GetConfigValue("instancename") != "" {
 		CreateNewBoardDB(db, *CreateNewActor("", GetConfigValue("instancename"), GetConfigValue("instancesummary"), authReq, false))
 	}
-
+	
+	CreateNewBoardDB(db, *CreateNewActor("m", "me", "me so go go", authReq, false))	
 
 	// Allow access to public media folder
 	fileServer := http.FileServer(http.Dir("./public"))
@@ -219,8 +220,15 @@ func main() {
 			return
 		}		
 
-		id := values
-		DeleteObject(db, id)
+		var obj ObjectBase
+		obj.Id = values
+
+		count, _ := GetObjectRepliesDBCount(db, obj)
+		if count == 0 {
+			DeleteObject(db, obj.Id)
+		} else {
+			DeleteObjectAndReplies(db, obj.Id)
+		}
 		w.Write([]byte(""))
 	})
 
@@ -248,6 +256,7 @@ func main() {
 
 		id := values
 		DeleteAttachmentFromFile(db, id)
+		DeletePreviewFromFile(db, id)		
 		w.Write([]byte(""))		
 	})
 
@@ -258,13 +267,14 @@ func main() {
 		header := r.Header.Get("Authorization")
 
 		auth := strings.Split(header, " ")		
-
 		if close == "1" {
 			if !IsIDLocal(db, id) || len(auth) < 2 {
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte(""))					
 				return				
 			}
+
+
 
 			actor := GetActorFromPath(db, id, "/")
 
@@ -584,7 +594,7 @@ func CreatePreviewObject(obj ObjectBase) *NestedObjectBase {
 
 	objFile := re.FindString(obj.Href)
 
-	cmd := exec.Command("convert", "." + objFile ,"-resize", "250x250", "." + href)
+	cmd := exec.Command("convert", "." + objFile ,"-resize", "250x250>", "." + href)
 
 	err := cmd.Run()
 

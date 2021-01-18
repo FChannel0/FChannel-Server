@@ -107,10 +107,12 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				verification := GetVerificationByCode(db, activity.Auth)
 
 				var rActivity Activity
-
+					fmt.Println("ok")
 				if validActor && validLocalActor && verification.Board == activity.Actor.Id || verification.Board == Domain {
+					fmt.Println("yes")
 					rActivity = AcceptFollow(activity, actor)
 				} else {
+					fmt.Println("no")					
 					rActivity = RejectFollow(activity, actor)
 					rActivity.Summary = "No valid actor or Actor is not located here"
 				}
@@ -506,7 +508,6 @@ func CheckCaptcha(db *sql.DB, captcha string) bool {
 
 func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	activity := GetActivityFromJson(r, db)
-
 	switch(activity.Type) {
 	case "Create":
 		for _, e := range activity.Object.InReplyTo {

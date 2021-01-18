@@ -1,6 +1,5 @@
 package main
 
-import "fmt"
 import "net/http"
 import "database/sql"
 import _ "github.com/lib/pq"
@@ -44,10 +43,10 @@ func SetActorFollowDB(db *sql.DB, activity Activity, actor string) Activity {
 			}
 		}
 		if alreadyFollow {
-			query = fmt.Sprintf("delete from following where id='%s' and following='%s'", activity.Actor.Id, activity.Object.Id)
+			query = `delete from following where id=$1 and following=$2`
 			activity.Summary = activity.Actor.Id + " Unfollow " + activity.Object.Id
 		} else {
-			query = fmt.Sprintf("insert into following (id, following) values ('%s', '%s')", activity.Actor.Id, activity.Object.Id)
+			query = `insert into following (id, following) values ($1, $2)`
 			activity.Summary = activity.Actor.Id + " Follow " + activity.Object.Id			
 		}
 	} else {
@@ -57,15 +56,15 @@ func SetActorFollowDB(db *sql.DB, activity Activity, actor string) Activity {
 			}
 		}
 		if alreadyFollow {
-			query = fmt.Sprintf("delete from follower where id='%s' and follower='%s'", activity.Object.Id, activity.Actor.Id)
+			query = `delete from follower where id=$1 and follower=$2`
 			activity.Summary = activity.Actor.Id + " Unfollow " + activity.Object.Id			
 		} else {		
-			query = fmt.Sprintf("insert into follower (id, follower) values ('%s', '%s')", activity.Object.Id, activity.Actor.Id)
+			query = `insert into follower (id, follower) values ($1, $2)`
 			activity.Summary = activity.Actor.Id + " Follow " + activity.Object.Id						
 		}
 	}
 	
-	_, err := db.Exec(query)
+	_, err := db.Exec(query, activity.Actor.Id, activity.Object.Id)
 
 	CheckError(err, "error with follow db insert/delete")
 
@@ -76,9 +75,9 @@ func GetActorFollowDB(db *sql.DB, id string) ([]ObjectBase, []ObjectBase) {
 	var followingCollection []ObjectBase
 	var followerCollection []ObjectBase	
 
-	query := fmt.Sprintf("SELECT following FROM following WHERE id='%s'", id)
+	query := `select following from following where id=$1`
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, id)
 
 	CheckError(err, "error with following db query")
 
@@ -94,9 +93,9 @@ func GetActorFollowDB(db *sql.DB, id string) ([]ObjectBase, []ObjectBase) {
 		followingCollection = append(followingCollection, obj)
 	}
 
-	query = fmt.Sprintf("SELECT follower FROM follower WHERE id='%s'", id)
+	query = `select follower from follower where id=$1`
 
-	rows, err = db.Query(query)
+	rows, err = db.Query(query, id)
 
 	CheckError(err, "error with followers db query")
 
@@ -119,9 +118,9 @@ func GetActorFollowTotal(db *sql.DB, id string) (int, int) {
 	var following int
 	var followers int
 
-	query := fmt.Sprintf("SELECT COUNT(following) FROM following WHERE id='%s'", id)
+	query := `select count(following) from following where id=$1`
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, id)	
 
 	CheckError(err, "error with following total db query")
 
@@ -133,9 +132,9 @@ func GetActorFollowTotal(db *sql.DB, id string) (int, int) {
 		CheckError(err, "error with following total db scan")
 	}
 
-	query = fmt.Sprintf("SELECT COUNT(follower) FROM follower WHERE id='%s'", id)
+	query = `select count(follower) from follower where id=$1`
 
-	rows, err = db.Query(query)
+	rows, err = db.Query(query, id)
 
 	CheckError(err, "error with followers total db query")
 
@@ -202,14 +201,14 @@ func SetActorFollowingDB(db *sql.DB, activity Activity) Activity{
 	}
 	
 	if alreadyFollow {
-		query = fmt.Sprintf("delete from follower where id='%s' and follower='%s'", activity.Object.Id, activity.Actor.Id)
+		query = `delete from follower where id=$1 and follower=$2`
 		activity.Summary = activity.Actor.Id + " Unfollow " + activity.Object.Id			
 	} else {		
-		query = fmt.Sprintf("insert into follower (id, follower) values ('%s', '%s')", activity.Object.Id, activity.Actor.Id)
+		query = `insert into follower (id, follower) values ($1, $2)`
 		activity.Summary = activity.Actor.Id + " Follow " + activity.Object.Id						
 	}
 	
-	_, err := db.Exec(query)
+	_, err := db.Exec(query, activity.Object.Id, activity.Actor.Id)
 
 	if err != nil {
 		CheckError(err, "error with follow db insert/delete")

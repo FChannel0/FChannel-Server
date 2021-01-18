@@ -24,9 +24,9 @@ type VerifyCooldown struct {
 }
 
 func DeleteBoardMod(db *sql.DB, verify Verify) {
-	query := fmt.Sprintf("select code from boardaccess where identifier='%s' and board='%s'", verify.Identifier, verify.Board)
+	query := `select code from boardaccess where identifier=$1 and board=$1`
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, verify.Identifier, verify.Board)	
 
 	CheckError(err, "could not select code from boardaccess")
 
@@ -37,16 +37,15 @@ func DeleteBoardMod(db *sql.DB, verify Verify) {
 	rows.Scan(&code)
 
 	if code != "" {
-		query := fmt.Sprintf("delete from crossverification where code='%s'", code)
-
-
-		_, err := db.Exec(query)
+		query := `delete from crossverification where code=$1`
+		
+		_, err := db.Exec(query, code)
 		
 		CheckError(err, "could not delete code from crossverification")
 
-		query = fmt.Sprintf("delete from boardaccess where identifier='%s' and board='%s'", verify.Identifier, verify.Board)
+		query = `delete from boardaccess where identifier=$1 and board=$2`
 
-		_, err = db.Exec(query)
+		_, err = db.Exec(query, verify.Identifier, verify.Board)		
 		
 		CheckError(err, "could not delete identifier from boardaccess")				
 	}
@@ -55,9 +54,9 @@ func DeleteBoardMod(db *sql.DB, verify Verify) {
 func GetBoardMod(db *sql.DB, identifier string) Verify{
 	var nVerify Verify
 
-	query := fmt.Sprintf("select code, board, type, identifier from boardaccess where identifier='%s'", identifier)
+	query := `select code, board, type, identifier from boardaccess where identifier=$1`
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, identifier)	
 
 	CheckError(err, "could not select boardaccess query")
 
@@ -72,9 +71,9 @@ func GetBoardMod(db *sql.DB, identifier string) Verify{
 func CreateBoardMod(db *sql.DB, verify Verify) {
 	pass := CreateKey(50)
 
-	query := fmt.Sprintf("select code from verification where identifier='%s' and type='%s'", verify.Board, verify.Type)
+	query := `select code from verification where identifier=$1 and type=$2`
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, verify.Board, verify.Type)	
 
 	CheckError(err, "could not select verifcaiton query")
 
@@ -87,9 +86,9 @@ func CreateBoardMod(db *sql.DB, verify Verify) {
 
 	if code != "" {
 
-		query := fmt.Sprintf("select identifier from boardaccess where identifier='%s' and board='%s'", verify.Identifier, verify.Board)
+		query := `select identifier from boardaccess where identifier=$1 and board=$2`
 
-		rows, err := db.Query(query)
+		rows, err := db.Query(query, verify.Identifier, verify.Board)		
 		
 		CheckError(err, "could not select idenifier from boardaccess")
 
@@ -101,15 +100,15 @@ func CreateBoardMod(db *sql.DB, verify Verify) {
 
 		if ident != verify.Identifier {
 
-			query := fmt.Sprintf("insert into crossverification (verificationcode, code) values ('%s', '%s')", code, pass)
+			query := `insert into crossverification (verificationcode, code) values ($1, $2)`
 
-			_, err := db.Exec(query)
+			_, err := db.Exec(query, code, pass)			
 			
 			CheckError(err, "could not insert new crossverification")
 
-			query = fmt.Sprintf("insert into boardaccess (identifier, code, board, type) values ('%s', '%s', '%s', '%s')", verify.Identifier, pass, verify.Board, verify.Type)
+			query = `insert into boardaccess (identifier, code, board, type) values ($1, $2, $3, $4)`
 
-			_, err = db.Exec(query)
+			_, err = db.Exec(query, verify.Identifier, pass, verify.Board, verify.Type)
 			
 			CheckError(err, "could not insert new boardaccess")
 
@@ -119,9 +118,9 @@ func CreateBoardMod(db *sql.DB, verify Verify) {
 }
 
 func CreateVerification(db *sql.DB, verify Verify) {
-	query := fmt.Sprintf("insert into verification (type, identifier, code, created) values ('%s', '%s', '%s', '%s') ", verify.Type, verify.Identifier, verify.Code, time.Now().Format(time.RFC3339))
+	query := `insert into verification (type, identifier, code, created) values ($1, $2, $3, $4)`
 
-	_, err := db.Exec(query)
+	_, err := db.Exec(query, verify.Type, verify.Identifier, verify.Code, time.Now().Format(time.RFC3339))	
 
 	CheckError(err, "error creating verify")
 }
@@ -129,9 +128,9 @@ func CreateVerification(db *sql.DB, verify Verify) {
 func GetVerificationByEmail(db *sql.DB, email string) Verify {
 	var verify Verify
 
-	query := fmt.Sprintf("select type, identifier, code, board from boardaccess where identifier='%s';", email)
+	query := `select type, identifier, code, board from boardaccess where identifier=$1`
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, email)	
 
 	defer rows.Close()
 
@@ -151,9 +150,9 @@ func GetVerificationByEmail(db *sql.DB, email string) Verify {
 func GetVerificationByCode(db *sql.DB, code string) Verify {
 	var verify Verify
 
-	query := fmt.Sprintf("select type, identifier, code, board from boardaccess where code='%s';", code)
+	query := `select type, identifier, code, board from boardaccess where code=$1`
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, code)	
 
 	defer rows.Close()
 
@@ -173,18 +172,18 @@ func GetVerificationByCode(db *sql.DB, code string) Verify {
 
 func VerifyCooldownCurrent(db *sql.DB, auth string) VerifyCooldown {
 	var current VerifyCooldown
-	
-	query := fmt.Sprintf("select identifier, code, time from verificationcooldown where code='%s'", auth)
 
-	rows, err := db.Query(query)
+	query := `select identifier, code, time from verificationcooldown where code=$1`
+
+	rows, err := db.Query(query, auth)	
 
 	defer rows.Close()	
 
 	if err != nil {
 
-		query := fmt.Sprintf("select identifier, code, time from verificationcooldown where identifier='%s'", auth)
+		query := `select identifier, code, time from verificationcooldown where identifier=$1`
 
-		rows, err := db.Query(query)
+		rows, err := db.Query(query, auth)		
 
 		defer rows.Close()
 		
@@ -213,16 +212,16 @@ func VerifyCooldownCurrent(db *sql.DB, auth string) VerifyCooldown {
 }
 
 func VerifyCooldownAdd(db *sql.DB, verify Verify) {
-	query := fmt.Sprintf("insert into verficationcooldown (identifier, code) values ('%s', '%s');", verify.Identifier, verify.Code)
+	query := `insert into verficationcooldown (identifier, code) values ($1, $2)`
 
-	_, err := db.Exec(query)
+	_, err := db.Exec(query, verify.Identifier, verify.Code)	
 
 	CheckError(err, "error adding verify to cooldown")
 }
 
 func VerficationCooldown(db *sql.DB) {
-	
-	query := fmt.Sprintf("select identifier, code, time from verificationcooldown")
+
+	query := `select identifier, code, time from verificationcooldown`
 
 	rows, err := db.Query(query)
 
@@ -240,9 +239,9 @@ func VerficationCooldown(db *sql.DB) {
 
 		nTime := verify.Time - 1;
 
-		query = fmt.Sprintf("update set time='%s' where identifier='%s'", nTime, verify.Identifier)
+		query = `update set time=$1 where identifier=$2`
 
-		_, err := db.Exec(query)
+		_, err := db.Exec(query, nTime, verify.Identifier)		
 
 		CheckError(err, "error with update cooldown query")
 
@@ -251,7 +250,7 @@ func VerficationCooldown(db *sql.DB) {
 }
 
 func VerficationCooldownRemove(db *sql.DB) {
-	query := fmt.Sprintf("delete from verificationcooldown where time < 1;")
+	query := `delete from verificationcooldown where time < 1`
 
 	_, err := db.Exec(query)
 
@@ -398,20 +397,18 @@ func CreateNewCaptcha(db *sql.DB){
 
 func CreateBoardAccess(db *sql.DB, verify Verify) {
 	if(!HasBoardAccess(db, verify)){
-		query  := fmt.Sprintf("insert into boardaccess (identifier, board) values('%s', '%s')",
-			                     verify.Identifier, verify.Board)
-		
-		_, err := db.Exec(query)
+		query  := `insert into boardaccess (identifier, board) values($1, $2)`
+
+		_, err := db.Exec(query, verify.Identifier, verify.Board)		
 
 		CheckError(err, "could not instert verification and board into board access")
 	}
 }
 
 func HasBoardAccess(db *sql.DB, verify Verify) bool {
-	query := fmt.Sprintf("select count(*) from boardaccess where identifier='%s' and board='%s'",
-		verify.Identifier, verify.Board)
+	query := `select count(*) from boardaccess where identifier=$1 and board=$2`
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, verify.Identifier, verify.Board)	
 
 	defer rows.Close()	
 

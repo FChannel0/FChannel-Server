@@ -1,6 +1,5 @@
 package main
 
-import "fmt"
 import "net/http"
 import "database/sql"
 import _ "github.com/lib/pq"
@@ -17,7 +16,7 @@ func GetActorOutbox(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	collection.Actor = actor.Id
 
 	collection.TotalItems = GetObjectPostsTotalDB(db, actor)
-	collection.TotalImgs = GetObjectImgsTotalDB(db, actor)	
+	collection.TotalImgs = GetObjectImgsTotalDB(db, actor)
 
 	enc, _ := json.MarshalIndent(collection, "", "\t")							
 	w.Header().Set("Content-Type", "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"")
@@ -47,9 +46,9 @@ func GetCollectionFromPath(db *sql.DB, path string) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
-	query := fmt.Sprintf("SELECT id, name, content, type, published, attributedto, attachment, preview, actor FROM activitystream WHERE id='%s' ORDER BY published desc;", path)
+	query := `select id, name, content, type, published, attributedto, attachment, preview, actor from activitystream where id=$1 order by published desc`
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, path)
 
 	CheckError(err, "error query collection path from db")
 	
@@ -92,9 +91,9 @@ func GetObjectFromPath(db *sql.DB, path string) ObjectBase{
 	var nObj ObjectBase
 	var result []ObjectBase
 
-	query := fmt.Sprintf("SELECT id, name, content, type, published, attributedto, attachment, preview, actor FROM activitystream WHERE id='%s' ORDER BY published desc;", path)
+	query := `select id, name, content, type, published, attributedto, attachment, preview, actor from activitystream where id=$1 order by published desc`
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, path)
 
 	CheckError(err, "error query collection path from db")
 	
