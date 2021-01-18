@@ -53,8 +53,6 @@ func main() {
 		CreateNewBoardDB(db, *CreateNewActor("", GetConfigValue("instancename"), GetConfigValue("instancesummary"), authReq, false))
 	}
 	
-	CreateNewBoardDB(db, *CreateNewActor("m", "me", "me so go go", authReq, false))	
-
 	// Allow access to public media folder
 	fileServer := http.FileServer(http.Dir("./public"))
 	http.Handle("/public/", http.StripPrefix("/public", neuter(fileServer)))		
