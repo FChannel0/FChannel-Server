@@ -3,8 +3,15 @@ instancetp:https://
 instanceport:3000
 instancename:FChan
 instancesummary:FChan is a federated image board instance.
+
 dbhost:localhost
 dbport:5432
 dbname:fchan_server
 dbuser:postgres
 dbpass:password
+
+emailserver:
+emailport
+emailaddress:
+emailpass:
+

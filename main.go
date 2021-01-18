@@ -26,10 +26,10 @@ var authReq = []string{"captcha","email","passphrase"}
 
 var supportedFiles = []string{"image/gif","image/jpeg","image/png","image/svg+xml","image/webp","image/avif","image/apng","video/mp4","video/ogg","video/webm","audio/mpeg","audio/ogg","audio/wav", "audio/wave", "audio/x-wav"}
 
-var SiteEmail string        //contact@fchan.xyz
-var SiteEmailPassword string 
-var SiteEmailServer string  //mail.fchan.xyz
-var SiteEmailPort string    //587
+var SiteEmail = GetConfigValue("emailaddress")        //contact@fchan.xyz
+var SiteEmailPassword = GetConfigValue("emailpass")
+var SiteEmailServer = GetConfigValue("emailserver")   //mail.fchan.xyz
+var SiteEmailPort = GetConfigValue("emailport")       //587
 
 type BoardAccess struct {
 	boards []string
@@ -103,7 +103,6 @@ func main() {
 				actorVerification = (path == "/" + actor.Name + "/verification")						
 			}
 		}
-
 
 		if mainActor {
 			GetActorInfo(w, db, Domain)

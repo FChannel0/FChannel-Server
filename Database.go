@@ -531,7 +531,45 @@ func GetObjectRepliesDBCount(db *sql.DB, parent ObjectBase) (int, int) {
 	rows.Next()
 	rows.Scan(&countImg)
 
-	return countId, countImg
+	post, img := GetObjectRepliesRemoteCount(db, parent)
+
+	return countId + post, countImg + img
+}
+
+func GetObjectRepliesRemoteCount(db *sql.DB, parent ObjectBase) (int, int) {
+	var nColl CollectionBase
+	var result []ObjectBase
+	query := `select id from replies where id not in (select id from activitystream) and inreplyto=$1`
+
+	rows, err := db.Query(query, parent.Id)	
+
+	CheckError(err, "could not get remote id query")
+
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		rows.Scan(&id)
+		
+		coll := GetCollectionFromID(id)
+
+		for _, e := range coll.OrderedItems {
+			result = append(result, e)
+		}
+	}
+
+	nColl.OrderedItems = result
+
+	var posts int
+	var imgs int 
+
+	for _, e := range nColl.OrderedItems {
+		posts = posts + 1
+		if len(e.Attachment) > 0 {
+			imgs = imgs + 1
+		}
+	}
+
+	return posts, imgs
 }
 
 func GetObjectAttachment(db *sql.DB, id string) []ObjectBase {
