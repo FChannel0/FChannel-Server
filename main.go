@@ -523,11 +523,15 @@ func CreateActivity(activityType string, obj ObjectBase) Activity {
 	newActivity.Object = &obj
 
 	for _, e := range obj.To {
-		newActivity.To = append(newActivity.To, e)
+		if obj.Actor.Id != e {
+			newActivity.To = append(newActivity.To, e)
+		}
 	}
 
 	for _, e := range obj.Cc {
-		newActivity.Cc = append(newActivity.Cc, e)
+		if obj.Actor.Id != e {		
+			newActivity.Cc = append(newActivity.Cc, e)
+		}
 	}	
 
 	return newActivity
