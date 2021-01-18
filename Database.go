@@ -9,19 +9,16 @@ import "strings"
 import "regexp"
 
 func GetActorFromDB(db *sql.DB, id string) Actor {
-
+	var nActor Actor
+	
 	query := fmt.Sprintf("SELECT type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary from actor where id='%s'", id)
 	rows, err := db.Query(query)
 
-	defer rows.Close()	
-
-	var nActor Actor
-	
-	if err != nil {
+	if CheckError(err, "could not get actor from db query") != nil {
 		return nActor
 	}
 
-	defer rows.Close()
+	defer rows.Close()	
 	for rows.Next() {
 		err = rows.Scan(&nActor.Type, &nActor.Id, &nActor.Name, &nActor.PreferredUsername, &nActor.Inbox, &nActor.Outbox, &nActor.Following, &nActor.Followers, &nActor.Restricted, &nActor.Summary)
 		CheckError(err, "error with actor from db scan ")
@@ -99,14 +96,9 @@ func GetBoards(db *sql.DB) []Actor {
 
 	rows, err := db.Query(query)
 
+	CheckError(err, "could not get boards from db query")
+
 	defer rows.Close()	
-
-	if err !=nil{
-		panic(err)
-	}
-
-	defer rows.Close()
-
 	for rows.Next(){
 		var actor = new(Actor)
 		
@@ -125,13 +117,23 @@ func GetBoards(db *sql.DB) []Actor {
 func writeObjectToDB(db *sql.DB, obj ObjectBase) ObjectBase {
 	obj.Id = fmt.Sprintf("%s/%s", obj.Actor.Id, CreateUniqueID(db, obj.Actor.Id))
 	if len(obj.Attachment) > 0 {
+		if obj.Preview.Href != "" {
+			obj.Preview.Id = fmt.Sprintf("%s/%s", obj.Actor.Id, CreateUniqueID(db, obj.Actor.Id))
+			obj.Preview.Published = time.Now().Format(time.RFC3339)
+			obj.Preview.Updated = time.Now().Format(time.RFC3339)			
+			obj.Preview.AttributedTo = obj.Id
+			WritePreviewToDB(db, *obj.Preview)
+		}
+		
 		for i, _ := range obj.Attachment {
 			obj.Attachment[i].Id = fmt.Sprintf("%s/%s", obj.Actor.Id, CreateUniqueID(db, obj.Actor.Id))			
 			obj.Attachment[i].Published = time.Now().Format(time.RFC3339)
-			obj.Attachment[i].Updated = time.Now().Format(time.RFC3339)			
+			obj.Attachment[i].Updated = time.Now().Format(time.RFC3339)
+			obj.Attachment[i].AttributedTo = obj.Id
 			writeAttachmentToDB(db, obj.Attachment[i])
-			writeActivitytoDBWithAttachment(db, obj, obj.Attachment[i])
+			writeActivitytoDBWithAttachment(db, obj, obj.Attachment[i], *obj.Preview)
 		}
+
 	} else {
 		writeActivitytoDB(db, obj)
 	}
@@ -161,7 +163,7 @@ func WriteObjectReplyToLocalDB(db *sql.DB, id string, replyto string) {
 
 	query = fmt.Sprintf("select inreplyto from replies where id='%s'", replyto)
 
-	rows, _ := db.Query(query)
+	rows, err := db.Query(query)
 
 	CheckError(err, "Could not query select inreplyto")
 
@@ -238,13 +240,13 @@ func writeActivitytoDB(db *sql.DB, obj ObjectBase) {
 	}	
 }
 
-func writeActivitytoDBWithAttachment(db *sql.DB, obj ObjectBase, attachment ObjectBase) {
+func writeActivitytoDBWithAttachment(db *sql.DB, obj ObjectBase, attachment ObjectBase, preview NestedObjectBase) {
 	
 	obj.Name = EscapeString(obj.Name)
 	obj.Content = EscapeString(obj.Content)
 	obj.AttributedTo = EscapeString(obj.AttributedTo)
 	
-	query := fmt.Sprintf("insert into activitystream (id, type, name, content, attachment, published, updated, attributedto, actor) values ('%s', '%s', E'%s', E'%s', '%s', '%s', '%s', E'%s', '%s')", obj.Id ,obj.Type, obj.Name, obj.Content, attachment.Id, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor.Id)
+	query := fmt.Sprintf("insert into activitystream (id, type, name, content, attachment, preview, published, updated, attributedto, actor) values ('%s', '%s', E'%s', E'%s', '%s', '%s', '%s', '%s', E'%s', '%s')", obj.Id ,obj.Type, obj.Name, obj.Content, attachment.Id, preview.Id, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor.Id)
 
 	_, e := db.Exec(query)
 	
@@ -265,26 +267,35 @@ func writeAttachmentToDB(db *sql.DB, obj ObjectBase) {
 	}
 }
 
+func WritePreviewToDB(db *sql.DB, obj NestedObjectBase) {
+	query := fmt.Sprintf("insert into activitystream (id, type, name, href, published, updated, attributedTo, mediatype, size) values ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d');", obj.Id ,obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)
+	
+	_, e := db.Exec(query)
+	
+	if e != nil{
+		fmt.Println("error inserting new attachment")
+		panic(e)			
+	}
+}
+
 func GetActivityFromDB(db *sql.DB, id string) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
-	query := fmt.Sprintf("SELECT actor, id, name, content, type, published, updated, attributedto, attachment, actor FROM activitystream WHERE id='%s' ORDER BY updated asc;", id)
+	query := fmt.Sprintf("SELECT actor, id, name, content, type, published, updated, attributedto, attachment, preview, actor FROM activitystream WHERE id='%s' ORDER BY updated asc;", id)
 
 	rows, err := db.Query(query)
-
-	defer rows.Close()	
 
 	CheckError(err, "error query object from db")
 	
 	defer rows.Close()
-
 	for rows.Next(){
 		var post ObjectBase
 		var actor Actor
-		var attachID string
+		var attachID string	
+		var previewID	string
 		
-		err = rows.Scan(&nColl.Actor, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &actor.Id)
+		err = rows.Scan(&nColl.Actor, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id)
 		
 		CheckError(err, "error scan object into post struct")
 
@@ -295,6 +306,8 @@ func GetActivityFromDB(db *sql.DB, id string) Collection {
 		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
 
 		post.Attachment = GetObjectAttachment(db, attachID)
+
+		post.Preview = GetObjectPreview(db, previewID)		
 
 		result = append(result, post)
 	}
@@ -308,22 +321,20 @@ func GetObjectFromDB(db *sql.DB, actor Actor) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
-	query := fmt.Sprintf("SELECT id, name, content, type, published, updated, attributedto, attachment, actor FROM activitystream WHERE actor='%s' AND id IN (SELECT id FROM replies WHERE inreplyto='') AND type='Note' ORDER BY updated asc;", actor.Id)
+	query := fmt.Sprintf("SELECT id, name, content, type, published, updated, attributedto, attachment, preview, actor FROM activitystream WHERE actor='%s' AND id IN (SELECT id FROM replies WHERE inreplyto='') AND type='Note' ORDER BY updated asc;", actor.Id)
 
 	rows, err := db.Query(query)
-
-	defer rows.Close()	
 
 	CheckError(err, "error query object from db")
 	
 	defer rows.Close()
-
 	for rows.Next(){
 		var post ObjectBase
 		var actor Actor
 		var attachID string
+		var previewID string		
 		
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &actor.Id)
+		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id)
 		
 		CheckError(err, "error scan object into post struct")
 
@@ -334,6 +345,8 @@ func GetObjectFromDB(db *sql.DB, actor Actor) Collection {
 		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
 
 		post.Attachment = GetObjectAttachment(db, attachID)
+
+		post.Preview = GetObjectPreview(db, previewID)
 
 		result = append(result, post)
 	}
@@ -350,15 +363,9 @@ func GetInReplyToDB(db *sql.DB, parent ObjectBase) []ObjectBase {
 
 	rows, err := db.Query(query)
 
-	defer rows.Close()	
-
-	if err !=nil{
-		fmt.Println("error with inreplyto db query")
-		panic(err)
-	}
+	CheckError(err, "error with inreplyto db query")
 
 	defer rows.Close()
-
 	for rows.Next() {
 		var post ObjectBase
 
@@ -376,27 +383,22 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) *CollectionBase {
 	var nColl CollectionBase
 	var result []ObjectBase
 	
-	query := fmt.Sprintf("SELECT id, name, content, type, published, attributedto, attachment, actor FROM activitystream WHERE id IN (SELECT id FROM replies WHERE inreplyto='%s') AND type='Note' ORDER BY published asc;", parent.Id)
+	query := fmt.Sprintf("SELECT id, name, content, type, published, attributedto, attachment, preview, actor FROM activitystream WHERE id IN (SELECT id FROM replies WHERE inreplyto='%s') AND type='Note' ORDER BY published asc;", parent.Id)
 
 	rows, err := db.Query(query)
 
+	CheckError(err, "error with replies db query")	
+
 	defer rows.Close()	
-
-	if err !=nil{
-		fmt.Println("error with replies db query")
-		panic(err)
-	}
-
-	defer rows.Close()
-
 	for rows.Next() {
 		var post ObjectBase
 		var actor Actor
 		var attachID string
+		var previewID string		
 
 		post.InReplyTo = append(post.InReplyTo, parent)
 		
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &actor.Id)
+		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id)
 
 
 		CheckError(err, "error with replies db scan")
@@ -408,6 +410,8 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) *CollectionBase {
 		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)		
 		
 		post.Attachment = GetObjectAttachment(db, attachID)
+
+		post.Preview = GetObjectPreview(db, previewID)				
 
 		result = append(result, post)			
 	}
@@ -434,6 +438,7 @@ func GetObjectRepliesRemote(db *sql.DB, parent ObjectBase) CollectionBase {
 
 	CheckError(err, "could not get remote id query")
 
+	defer rows.Close()
 	for rows.Next() {
 		var id string
 		rows.Scan(&id)
@@ -454,28 +459,23 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) *CollectionBase {
 
 	var nColl CollectionBase
 	var result []ObjectBase
-	
-	query := fmt.Sprintf("SELECT id, name, content, type, published, attributedto, attachment, actor FROM activitystream WHERE id IN (SELECT id FROM replies WHERE inreplyto='%s') AND type='Note' ORDER BY published asc;", parent.Id)
+
+	query := fmt.Sprintf("SELECT id, name, content, type, published, attributedto, attachment, preview, actor FROM activitystream WHERE id IN (SELECT id FROM replies WHERE inreplyto='%s') AND type='Note' ORDER BY published asc;", parent.Id)
 
 	rows, err := db.Query(query)
 
-	defer rows.Close()	
-
-	if err !=nil{
-		fmt.Println("error with replies db query")
-		panic(err)
-	}
+	CheckError(err, "error with replies replies db query")
 
 	defer rows.Close()
-
 	for rows.Next() {
 		var post ObjectBase
 		var actor Actor
 		var attachID string
+		var previewID string		
 
 		post.InReplyTo = append(post.InReplyTo, parent)
 
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &actor.Id)
+		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id)
 
 
 		CheckError(err, "error with replies replies db scan")
@@ -483,6 +483,8 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) *CollectionBase {
 		post.Actor = &actor
 
 		post.Attachment = GetObjectAttachment(db, attachID)
+
+		post.Preview = GetObjectPreview(db, previewID)				
 
 		result = append(result, post)			
 	}
@@ -508,15 +510,10 @@ func GetObjectRepliesDBCount(db *sql.DB, parent ObjectBase) (int, int) {
 	query := fmt.Sprintf("SELECT COUNT(id) FROM replies WHERE inreplyto ='%s' and id in (select id from activitystream where type='Note');", parent.Id)
 	
 	rows, err := db.Query(query)
-
-	defer rows.Close()	
-
-	if err !=nil{
-		fmt.Println("error with replies count db query")
-	}
+	
+	CheckError(err, "error with replies count db query")
 
 	defer rows.Close()
-
 	for rows.Next() {
 		err = rows.Scan(&countId)
 		
@@ -529,14 +526,9 @@ func GetObjectRepliesDBCount(db *sql.DB, parent ObjectBase) (int, int) {
 	
 	rows, err = db.Query(query)
 
+	CheckError(err, "error with select attachment count db query")
+	
 	defer rows.Close()	
-
-	if err !=nil{
-		fmt.Println("error with replies count db query")
-	}
-
-	defer rows.Close()
-
 	for rows.Next() {
 		err = rows.Scan(&countImg)
 		
@@ -556,7 +548,7 @@ func GetObjectAttachment(db *sql.DB, id string) []ObjectBase {
 
 	rows, err := db.Query(query)
 
-	defer rows.Close()	
+	CheckError(err, "could not select object attachment query")
 
 	defer rows.Close()
 	for rows.Next() {
@@ -574,6 +566,24 @@ func GetObjectAttachment(db *sql.DB, id string) []ObjectBase {
 	return attachments
 }
 
+func GetObjectPreview(db *sql.DB, id string) *NestedObjectBase {
+
+	var preview NestedObjectBase
+	
+	query := fmt.Sprintf("SELECT id, type, name, href, mediatype, size, published FROM activitystream WHERE id='%s'", id)
+
+	rows, err := db.Query(query)
+
+	CheckError(err, "could not select object preview query")	
+
+	defer rows.Close()
+	for rows.Next() {
+		err = rows.Scan(&preview.Id, &preview.Type, &preview.Name, &preview.Href, &preview.MediaType, &preview.Size, &preview.Published)
+	}
+
+	return &preview
+}
+
 func GetObjectPostsTotalDB(db *sql.DB, actor Actor) int{
 
 	count := 0
@@ -581,16 +591,11 @@ func GetObjectPostsTotalDB(db *sql.DB, actor Actor) int{
 
 	rows, err := db.Query(query)
 
+	CheckError(err, "could not select post total count query")		
+
 	defer rows.Close()	
-
-	if err !=nil{
-		fmt.Println("error with posts total db query")
-	}
-
-	defer rows.Close()
 	for rows.Next() {
 		err = rows.Scan(&count)
-
 		CheckError(err, "error with total post db scan")
 	}
 	
@@ -604,9 +609,7 @@ func GetObjectImgsTotalDB(db *sql.DB, actor Actor) int{
 
 	rows, err := db.Query(query)
 
-	if err !=nil{
-		fmt.Println("error with posts total db query")
-	}
+	CheckError(err, "error with posts total db query")			
 
 	defer rows.Close()
 	for rows.Next() {
@@ -625,21 +628,16 @@ func DeleteAttachmentFromFile(db *sql.DB, id string) {
 
 	rows, err := db.Query(query)
 
-	if err != nil {
-		fmt.Println("error query delete attachment")
-	}	
+	CheckError(err, "error query delete attachment")				
 
 	defer rows.Close()
-
 	for rows.Next() {
 		var href string
 		var _type string
 		err := rows.Scan(&href, &_type)
 		href = strings.Replace(href, Domain + "/", "", 1)
 
-		if err != nil {
-			fmt.Println("error scanning delete attachment")
-		}
+		CheckError(err, "error scanning delete attachment")
 
 		if _type != "Tombstone" {
 			_, err = os.Stat(href)
@@ -660,22 +658,15 @@ func DeleteAttachmentRepliesFromDB(db *sql.DB, id string) {
 	
 	rows, err := db.Query(query)
 
+	CheckError(err, "error query delete attachment replies")
+
 	defer rows.Close()	
-
-	if err != nil {
-		fmt.Println("error query delete attachment replies")
-	}	
-
-	defer rows.Close()
-
 	for rows.Next() {
 		var attachment string
 
 		err := rows.Scan(&attachment)
 
-		if err != nil {
-			fmt.Println("error scanning delete attachment")
-		}
+		CheckError(err, "error scanning delete attachment")
 		
 		DeleteAttachmentFromFile(db, attachment)
 	}	
@@ -741,12 +732,12 @@ func GetRandomCaptcha(db *sql.DB) string{
 	CheckError(err, "could not get captcha")
 
 	var verify string
+
+	defer rows.Close()
 	
 	rows.Next()
 	err = rows.Scan(&verify)
-
-	rows.Close()
-
+	
 	CheckError(err, "Could not get verify captcha")
 
 	return verify
@@ -755,11 +746,11 @@ func GetRandomCaptcha(db *sql.DB) string{
 func GetCaptchaTotal(db *sql.DB) int{
 	query := fmt.Sprintf("select count(*) from verification where type='captcha'")
 	rows, err := db.Query(query)
-
-	defer rows.Close()
 	
 	CheckError(err, "could not get query captcha total")	
 
+	defer rows.Close()
+	
 	var count int
 	for rows.Next(){
 		if err := rows.Scan(&count); err != nil{
@@ -775,9 +766,9 @@ func GetCaptchaCodeDB(db *sql.DB, verify string) string {
 	query := fmt.Sprintf("select code from verification where identifier='%s' limit 1", verify)
 	rows, err := db.Query(query)
 
-	defer rows.Close()	
-	
 	CheckError(err, "could not get captcha verifciation")
+
+	defer rows.Close()
 
 	var code string
 	
@@ -794,19 +785,19 @@ func GetActorAuth(db *sql.DB, actor string) []string {
 
 	rows, err := db.Query(query)
 
+	CheckError(err, "could not get actor auth")	
+
 	defer rows.Close()	
 
-	CheckError(err, "could not get actor auth")
-
 	var auth []string
-
+	
 	for rows.Next() {
 		var e string
 		err = rows.Scan(&e)
 
-		auth = append(auth, e)
+		CheckError(err, "could not get actor auth row scan")		
 
-		CheckError(err, "could not get actor auth row scan")
+		auth = append(auth, e)
 	}
 
 	return auth
@@ -827,7 +818,7 @@ func EscapeString(text string) string {
 	text = re.ReplaceAllString(text, "I love black people")
 	re = regexp.MustCompile("(?i)(n)+(\\s+)?(i)+(\\s+)?(g)(\\s+)?(g)+(\\s+)?")
 	text = re.ReplaceAllString(text, "I love black people")		
-	text = strings.Replace(text, "'", "''", -1)
+	text = strings.Replace(text, "'", `''`, -1)
 	text = strings.Replace(text, "<", "&lt;", -1)
 	return text
 }

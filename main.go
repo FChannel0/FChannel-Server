@@ -551,6 +551,47 @@ func ProcessActivity(db *sql.DB, activity Activity) {
 	}
 }
 
+func CreatePreviewObject(obj ObjectBase) *NestedObjectBase {
+
+	re := regexp.MustCompile(`/.+$`)
+
+	mimetype := re.ReplaceAllString(obj.MediaType, "")
+
+	var nPreview NestedObjectBase
+
+	if mimetype != "image" {
+		return &nPreview
+	}
+
+	re = regexp.MustCompile(`.+/`)
+
+	file := re.ReplaceAllString(obj.MediaType, "")
+
+	href := GetUniqueFilename(file)
+
+	nPreview.Type = "Preview"
+	nPreview.Name = obj.Name
+	nPreview.Href = Domain + "" + href
+	nPreview.MediaType = obj.MediaType
+	nPreview.Size = obj.Size
+	nPreview.Published = obj.Published
+
+	re = regexp.MustCompile(`/public/.+`)
+
+	objFile := re.FindString(obj.Href)
+
+	cmd := exec.Command("convert", "." + objFile ,"-resize", "250x250", "." + href)
+
+	err := cmd.Run()
+
+	if CheckError(err, "error with resize attachment preview")	!= nil {
+		var preview NestedObjectBase
+		return &preview
+	}
+
+	return &nPreview
+}
+
 func CreateAttachmentObject(file multipart.File, header *multipart.FileHeader) ([]ObjectBase, *os.File) {
 	contentType, _ := GetFileContentType(file)
 	filename := header.Filename
@@ -1021,3 +1062,18 @@ func IsInStringArray(array []string, value string) bool {
 }
 
 
+func GetUniqueFilename(_type string) string {
+	id   := RandomID(8)
+	file := "/public/" + id + "." + _type
+	
+	for true {
+		if _, err := os.Stat("." + file); err == nil {
+			id   = RandomID(8)			
+			file = "/public/" + id + "." + _type
+		}else{
+			return "/public/" + id + "." + _type
+		}
+	}
+
+	return ""
+}

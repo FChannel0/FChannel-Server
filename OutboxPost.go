@@ -339,6 +339,8 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 		fileBytes, _ := ioutil.ReadAll(file)
 
 		tempFile.Write(fileBytes)
+
+		obj.Preview = CreatePreviewObject(obj.Attachment[0])
 	}
 
 	obj.AttributedTo = EscapeString(r.FormValue("name"))

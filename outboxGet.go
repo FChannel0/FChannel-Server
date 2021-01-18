@@ -47,7 +47,7 @@ func GetCollectionFromPath(db *sql.DB, path string) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
-	query := fmt.Sprintf("SELECT id, name, content, type, published, attributedto, attachment, actor FROM activitystream WHERE id='%s' ORDER BY published desc;", path)
+	query := fmt.Sprintf("SELECT id, name, content, type, published, attributedto, attachment, preview, actor FROM activitystream WHERE id='%s' ORDER BY published desc;", path)
 
 	rows, err := db.Query(query)
 
@@ -59,8 +59,9 @@ func GetCollectionFromPath(db *sql.DB, path string) Collection {
 		var actor Actor
 		var post ObjectBase
 		var attachID string
+		var previewID string		
 		
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &actor.Id)
+		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id)
 		
 		CheckError(err, "error scan object into post struct from path")
 
@@ -73,6 +74,8 @@ func GetCollectionFromPath(db *sql.DB, path string) Collection {
 		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
 
 		post.Attachment = GetObjectAttachment(db, attachID)
+
+		post.Preview = GetObjectPreview(db, previewID)
 
 		result = append(result, post)
 	}
@@ -89,7 +92,7 @@ func GetObjectFromPath(db *sql.DB, path string) ObjectBase{
 	var nObj ObjectBase
 	var result []ObjectBase
 
-	query := fmt.Sprintf("SELECT id, name, content, type, published, attributedto, attachment, actor FROM activitystream WHERE id='%s' ORDER BY published desc;", path)
+	query := fmt.Sprintf("SELECT id, name, content, type, published, attributedto, attachment, preview, actor FROM activitystream WHERE id='%s' ORDER BY published desc;", path)
 
 	rows, err := db.Query(query)
 
@@ -100,8 +103,9 @@ func GetObjectFromPath(db *sql.DB, path string) ObjectBase{
 	for rows.Next(){
 		var post ObjectBase
 		var attachID string
+		var previewID string		
 		
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &post.Actor)
+		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &post.Actor)
 		
 		CheckError(err, "error scan object into post struct from path")
 
@@ -110,6 +114,8 @@ func GetObjectFromPath(db *sql.DB, path string) ObjectBase{
 		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
 
 		post.Attachment = GetObjectAttachment(db, attachID)
+
+		post.Preview = GetObjectPreview(db, previewID)
 
 		result = append(result, post)
 	}

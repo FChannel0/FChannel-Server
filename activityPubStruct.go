@@ -112,7 +112,7 @@ type ObjectBase struct {
 	Image string `json:"image,omitempty"`
 	InReplyTo []ObjectBase `json:"inReplyTo,omitempty"`
 	Location string `json:"location,omitempty"`
-	Preview string `json:"preview,omitempty"`		
+	Preview *NestedObjectBase `json:"preview,omitempty"`		
 	Published string `json:"published,omitempty"`
 	Updated string `json:"updated,omitempty"`	
 	Object *NestedObjectBase `json:"object,omitempty"`
@@ -155,7 +155,7 @@ type NestedObjectBase struct {
 	Image string `json:"image,omitempty"`
 	InReplyTo []ObjectBase `json:"inReplyTo,omitempty"`
 	Location string `json:"location,omitempty"`
-	Preview string `json:"preview,omitempty"`		
+	Preview ObjectBase `json:"preview,omitempty"`		
 	Published string `json:"published,omitempty"`
 	Attachment []ObjectBase `json:"attachment,omitempty"`
 	Replies *CollectionBase `json:"replies,omitempty"`
