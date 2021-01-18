@@ -68,9 +68,14 @@ func GetCollectionFromPath(db *sql.DB, path string) Collection {
 
 		post.InReplyTo = GetInReplyToDB(db, post)
 
-		post.Replies = GetObjectRepliesDB(db, post)
+		var postCnt int
+		var imgCnt int		
+		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
 
 		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
+
+		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
+		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 
@@ -108,9 +113,15 @@ func GetObjectFromPath(db *sql.DB, path string) ObjectBase{
 		
 		CheckError(err, "error scan object into post struct from path")
 
-		post.Replies = GetObjectRepliesDB(db, post)
+
+		var postCnt int
+		var imgCnt int
+		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
 
 		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
+
+		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
+		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 

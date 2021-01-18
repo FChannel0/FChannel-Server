@@ -305,9 +305,14 @@ func GetActivityFromDB(db *sql.DB, id string) Collection {
 
 		post.Actor = &actor
 
-		post.Replies = GetObjectRepliesDB(db, post)
+		var postCnt int
+		var imgCnt int
+		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
 
 		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
+
+		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
+		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 
@@ -344,9 +349,14 @@ func GetObjectFromDB(db *sql.DB, actor Actor) Collection {
 
 		post.Actor = &actor
 
-		post.Replies = GetObjectRepliesDB(db, post)
+		var postCnt int
+		var imgCnt int		
+		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
 
 		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
+
+		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
+		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 
@@ -382,7 +392,7 @@ func GetInReplyToDB(db *sql.DB, parent ObjectBase) []ObjectBase {
 }
 
 
-func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) *CollectionBase {
+func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, int) {
 
 	var nColl CollectionBase
 	var result []ObjectBase
@@ -408,10 +418,15 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) *CollectionBase {
 		CheckError(err, "error with replies db scan")
 
 		post.Actor = &actor
-		
-		post.Replies = GetObjectRepliesRepliesDB(db, post)
 
-		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)		
+		var postCnt int
+		var imgCnt int		
+		post.Replies, postCnt, imgCnt = GetObjectRepliesRepliesDB(db, post)
+
+		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
+		
+		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
+		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
 		
 		post.Attachment = GetObjectAttachment(db, attachID)
 
@@ -424,13 +439,18 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) *CollectionBase {
 
 	remoteCollection := GetObjectRepliesRemote(db, parent)
 
+	var postc int
+	var imgc int
 	for _, e := range remoteCollection.OrderedItems {
-		
+
 		nColl.OrderedItems = append(nColl.OrderedItems, e)
-		
+		postc = postc + 1
+		if len(e.Attachment) > 0 {
+			imgc = imgc + 1
+		}
 	}
 
-	return &nColl
+	return &nColl, postc, imgc
 }
 
 func GetObjectRepliesRemote(db *sql.DB, parent ObjectBase) CollectionBase {
@@ -459,7 +479,7 @@ func GetObjectRepliesRemote(db *sql.DB, parent ObjectBase) CollectionBase {
 	return nColl
 }
 
-func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) *CollectionBase {
+func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, int) {
 
 	var nColl CollectionBase
 	var result []ObjectBase
@@ -495,15 +515,20 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) *CollectionBase {
 
 	remoteCollection := GetObjectRepliesRemote(db, parent)
 
+	var postc int
+	var imgc int
 	for _, e := range remoteCollection.OrderedItems {
 		
 		nColl.OrderedItems = append(nColl.OrderedItems, e)
-
+		postc = postc + 1
+		if len(e.Attachment) > 0 {
+			imgc = imgc + 1
+		}			
 	}	
 
 	nColl.OrderedItems = result
 
-	return &nColl
+	return &nColl, postc, imgc
 }
 
 func GetObjectRepliesDBCount(db *sql.DB, parent ObjectBase) (int, int) {
@@ -531,9 +556,7 @@ func GetObjectRepliesDBCount(db *sql.DB, parent ObjectBase) (int, int) {
 	rows.Next()
 	rows.Scan(&countImg)
 
-	post, img := GetObjectRepliesRemoteCount(db, parent)
-
-	return countId + post, countImg + img
+	return countId, countImg
 }
 
 func GetObjectRepliesRemoteCount(db *sql.DB, parent ObjectBase) (int, int) {

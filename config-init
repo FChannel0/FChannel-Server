@@ -11,7 +11,7 @@ dbuser:postgres
 dbpass:password
 
 emailserver:
-emailport
+emailport:
 emailaddress:
 emailpass:
 
