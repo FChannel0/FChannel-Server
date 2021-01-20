@@ -1127,4 +1127,78 @@ func DeleteObjectAndRepliesRequest(db *sql.DB, id string) {
 	MakeActivityRequest(activity)
 }
 
+func ResizeAttachmentToPreview(db *sql.DB) {
+	query := `select id, href, mediatype, name, size, published from activitystream where id in (select attachment from activitystream where attachment!='' and preview='')`
 
+	rows, err := db.Query(query)
+
+	CheckError(err, "error getting attachments")
+
+
+	defer rows.Close()
+	for rows.Next() {
+
+		var id string		
+		var href string
+		var mediatype string
+		var name string
+		var size int
+		var published string
+		
+		rows.Scan(&id, &href, &mediatype, &name, &size, &published)
+
+		re := regexp.MustCompile(`^\w+`)
+
+		_type := re.FindString(mediatype)
+
+		if _type == "image" {
+
+			re = regexp.MustCompile(`.+/`)
+
+			file := re.ReplaceAllString(mediatype, "")
+
+			nHref := GetUniqueFilename(file)
+
+			var nPreview NestedObjectBase
+
+			re = regexp.MustCompile(`/\w+$`)
+			actor := re.ReplaceAllString(id, "")
+			
+			nPreview.Type = "Preview"
+			nPreview.Id = fmt.Sprintf("%s/%s", actor, CreateUniqueID(db, actor))		
+			nPreview.Name = name
+			nPreview.Href = Domain + "" + nHref
+			nPreview.MediaType = mediatype
+			nPreview.Size = int64(size)
+			nPreview.Published = published
+			nPreview.Updated = published		
+
+			re = regexp.MustCompile(`/public/.+`)
+
+			objFile := re.FindString(href)
+			
+			if(id != "") {
+				cmd := exec.Command("convert", "." + objFile ,"-resize", "250x250>", "." + nHref)
+
+				err := cmd.Run()
+
+				CheckError(err, "error with resize attachment preview")
+
+				if err == nil {
+					fmt.Println(objFile + " -> " + nHref)				
+					WritePreviewToDB(db, nPreview)
+					UpdateObjectWithPreview(db, id, nPreview.Id)
+				}			
+			}
+		}
+	}
+}
+
+func UpdateObjectWithPreview(db *sql.DB, id string, preview string) {
+	query := `update activitystream set preview=$1 where attachment=$2`
+
+	_, err := db.Exec(query, preview, id)
+
+	CheckError(err, "could not update activity stream with preview")
+
+}

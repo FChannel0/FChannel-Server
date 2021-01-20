@@ -420,7 +420,6 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, in
 		
 		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id)
 
-
 		CheckError(err, "error with replies db scan")
 
 		post.Actor = &actor
@@ -448,7 +447,6 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, in
 	var postc int
 	var imgc int
 	for _, e := range remoteCollection.OrderedItems {
-
 		nColl.OrderedItems = append(nColl.OrderedItems, e)
 		postc = postc + 1
 		if len(e.Attachment) > 0 {
