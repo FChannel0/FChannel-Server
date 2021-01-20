@@ -106,14 +106,20 @@ func main() {
 
 		if mainActor {
 			GetActorInfo(w, db, Domain)
-		} else if mainInbox {
+			return
+		}
+		
+		if mainInbox {
 			if method == "POST" {
 				
 			} else {
 				w.WriteHeader(http.StatusForbidden)				
 				w.Write([]byte("404 no path"))
-			}			
-		} else if mainOutbox {
+			}
+			return
+		}
+		
+		if mainOutbox {
 			if method == "GET" {
 				GetActorOutbox(w, r, db)
 			} else if method == "POST" {
@@ -122,20 +128,35 @@ func main() {
 				w.WriteHeader(http.StatusForbidden)			
 				w.Write([]byte("404 no path"))
 			}
-		} else if mainFollowing {
-			GetActorFollowing(w, db, Domain)			
-		} else if mainFollowers {
-			GetActorFollowers(w, db, Domain)						
-		} else if actorMain {
-			GetActorInfo(w, db, actor.Id)			
-		} else if actorInbox {
+			return
+		}
+
+		if mainFollowing {
+			GetActorFollowing(w, db, Domain)
+			return
+		}
+
+		if mainFollowers {
+			GetActorFollowers(w, db, Domain)
+			return
+		}
+
+		if actorMain {
+			GetActorInfo(w, db, actor.Id)
+			return
+		}
+
+		if actorInbox {
 			if method == "POST" {
 				ParseInboxRequest(w, r, db)
 			} else {
 				w.WriteHeader(http.StatusForbidden)
 				w.Write([]byte("404 no path"))							
 			}
-		} else if actorOutbox {
+			return
+		}
+
+		if actorOutbox {
 			if method == "GET" {
 				GetActorOutbox(w, r, db)				
 			} else if method == "POST" {
@@ -143,14 +164,26 @@ func main() {
 			} else {
 				w.WriteHeader(http.StatusForbidden)
 				w.Write([]byte("404 no path"))											
-			}			
-		} else if actorFollowing {
+			}
+			return
+		}
+
+		if actorFollowing {
 			GetActorFollowing(w, db, actor.Id)
-		} else if actorFollowers {
+			return
+		}
+
+		if actorFollowers {
 			GetActorFollowers(w, db, actor.Id)
-		} else if actorReported {
+			return
+		}
+
+		if actorReported {
 			GetActorReported(w, r, db, actor.Id)
-		} else if  actorVerification {
+			return
+		}
+
+		if  actorVerification {
 			if method == "POST" {
 				p, _ := url.ParseQuery(r.URL.RawQuery)
 				if len(p["email"]) > 0 {
@@ -179,17 +212,19 @@ func main() {
 				w.WriteHeader(http.StatusForbidden)
 				w.Write([]byte("400 no path"))											
 			}
-		} else {
-			collection := GetCollectionFromPath(db, Domain + "" + path)
-			if len(collection.OrderedItems) > 0 {
-				enc, _ := json.MarshalIndent(collection, "", "\t")							
-				w.Header().Set("Content-Type", "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"")
-				w.Write(enc)				
-			} else {
-				w.WriteHeader(http.StatusForbidden)			
-				w.Write([]byte("404 no path"))
-			}
+			return 
 		}
+		
+		collection := GetCollectionFromPath(db, Domain + "" + path)
+		if len(collection.OrderedItems) > 0 {
+			enc, _ := json.MarshalIndent(collection, "", "\t")							
+			w.Header().Set("Content-Type", "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"")
+			w.Write(enc)				
+		} else {
+			w.WriteHeader(http.StatusForbidden)			
+			w.Write([]byte("404 no path"))
+		}
+
 	})
 
 	http.HandleFunc("/getcaptcha", func(w http.ResponseWriter, r *http.Request){
