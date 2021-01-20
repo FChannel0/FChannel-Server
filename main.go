@@ -271,8 +271,6 @@ func main() {
 				return				
 			}
 
-
-
 			actor := GetActorFromPath(db, id, "/")
 
 			if !HasAuth(db, auth[1], actor.Id) {
@@ -280,7 +278,7 @@ func main() {
 				w.Write([]byte(""))
 				return
 			}
-			
+
 			reported := DeleteReportActivity(db, id)
 			if reported {
 				w.Write([]byte(""))			
@@ -709,7 +707,10 @@ func GetActor(id string) Actor {
 
 	resp, err := http.DefaultClient.Do(req)
 
-	CheckError(err, "error with getting actor resp")
+	if err != nil {
+		fmt.Println("error with getting actor resp")
+		return respActor
+	}
 
 	defer resp.Body.Close()
 
@@ -910,7 +911,7 @@ func ReportActivity(db *sql.DB, id string) bool {
 	}
 
 	if count < 1 {
-		query = fmt.Sprintf("insert into reported (id, count, board) values ('%s', %d, '%s')", id, 1, actor.Actor)
+		query = fmt.Sprintf("insert into reported (id, count, board) values ('%s', %d, '%s')", id, 1, actor.Actor.Id)
 
 		_, err := db.Exec(query)
 
@@ -966,16 +967,20 @@ func GetActorReported(w http.ResponseWriter, r *http.Request, db *sql.DB, id str
 func MakeActivityRequest(activity Activity) {
 
 	j, _ := json.MarshalIndent(activity, "", "\t")
+	
 	for _, e := range activity.To {
+		
 		actor := GetActor(e)
 
+		if actor.Inbox != "" {
 		req, err := http.NewRequest("POST", actor.Inbox, bytes.NewBuffer(j))
 
 		CheckError(err, "error with sending activity req to")
 
 		_, err = http.DefaultClient.Do(req)
 
-		CheckError(err, "error with sending activity resp to")
+			CheckError(err, "error with sending activity resp to")
+		}
 	}	
 }
 

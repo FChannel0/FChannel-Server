@@ -290,7 +290,10 @@ func WritePreviewToDB(db *sql.DB, obj NestedObjectBase) {
 
 func GetActivityFromDB(db *sql.DB, id string) Collection {
 	var nColl Collection
+	var nActor Actor
 	var result []ObjectBase
+
+	nColl.Actor = &nActor
 
 	query := `select  actor, id, name, content, type, published, updated, attributedto, attachment, preview, actor from  activitystream where id=$1 order by updated asc`
 
@@ -305,7 +308,8 @@ func GetActivityFromDB(db *sql.DB, id string) Collection {
 		var attachID string	
 		var previewID	string
 		
-		err = rows.Scan(&nColl.Actor, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id)
+		
+		err = rows.Scan(&nColl.Actor.Id, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id)
 		
 		CheckError(err, "error scan object into post struct")
 

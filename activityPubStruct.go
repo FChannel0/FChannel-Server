@@ -176,7 +176,7 @@ type NestedObjectBase struct {
 }
 
 type CollectionBase struct {
-	Actor string `json:"actor,omitempty"`
+	Actor *Actor `json:"actor,omitempty"`
 	Summary string `json:"summary,omitempty"`
 	Type string `json:"type,omitempty"`
 	TotalItems int `json:"totalItems,omitempty"`

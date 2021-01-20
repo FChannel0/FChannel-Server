@@ -13,7 +13,8 @@ func GetActorOutbox(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	collection.OrderedItems = GetObjectFromDB(db, actor).OrderedItems
 
 	collection.AtContext.Context = "https://www.w3.org/ns/activitystreams"
-	collection.Actor = actor.Id
+	collection.Actor = &actor
+	collection.Actor.AtContext.Context = ""	
 
 	collection.TotalItems = GetObjectPostsTotalDB(db, actor)
 	collection.TotalImgs = GetObjectImgsTotalDB(db, actor)
