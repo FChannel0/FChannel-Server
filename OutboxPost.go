@@ -38,36 +38,18 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 					w.Write([]byte("file type not supported"))
 					return
 				}
-				
 			}
 
 			var nObj = CreateObject("Note")
 			nObj = ObjectFromForm(r, db, nObj)
-
+			
 			var act Actor
 			nObj.Actor = &act
 			nObj.Actor.Id = Domain + "/" + actor.Name
 
-			delete := regexp.MustCompile("delete:.+")					
-			for _, e := range nObj.Option {
-				if delete.MatchString(e) {
-					verification := strings.Replace(e, "delete:", "", 1)
-					if HasAuth(db, verification, Domain + "/" + actor.Name) {
-						for _, e := range nObj.InReplyTo {
-							if IsObjectLocal(db, e.Id) && e.Id != nObj.InReplyTo[len(nObj.InReplyTo) - 1].Id {
-								DeleteObject(db, e.Id)
-								nObj.Type = "Delete"
-							}
-						}
-					}
-				}
-			}
-
-			if nObj.Type != "Delete" {
-				nObj = writeObjectToDB(db, nObj)
-				activity := CreateActivity("Create", nObj)
-				MakeActivityRequest(activity)
-			}
+			nObj = writeObjectToDB(db, nObj)
+			activity := CreateActivity("Create", nObj)
+			MakeActivityRequest(activity)
 
 			var id string
 			re := regexp.MustCompile("\\w+$")		
@@ -82,9 +64,14 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(id))
+			return
 		}
+		
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte("could not authenticate"))
 	} else {
 		activity = GetActivityFromJson(r, db)
+
 		if IsActivityLocal(db, activity) {
 			switch activity.Type {
 			case "Create":
@@ -102,46 +89,56 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				var validActor bool
 				var validLocalActor bool
 
-				_, validActor = IsValidActor(activity.Object.Id)
-				validLocalActor = (activity.Actor.Id == actor.Id) || (activity.Object.Id == actor.Id)
-				verification := GetVerificationByCode(db, activity.Auth)
+				header := r.Header.Get("Authorization")
+
+				auth := strings.Split(header, " ")
+
+				if len(auth) < 2 {
+					w.WriteHeader(http.StatusBadRequest)										
+					w.Write([]byte(""))					
+					return
+				}
+				
+				_, validActor = IsValidActor(activity.Object.Actor.Id)
+				validLocalActor = (activity.Actor.Id == actor.Id)
+				verification := GetVerificationByCode(db, auth[1])
 
 				var rActivity Activity
-					fmt.Println("ok")
 				if validActor && validLocalActor && verification.Board == activity.Actor.Id || verification.Board == Domain {
-					fmt.Println("yes")
-					rActivity = AcceptFollow(activity, actor)
-				} else {
-					fmt.Println("no")					
-					rActivity = RejectFollow(activity, actor)
-					rActivity.Summary = "No valid actor or Actor is not located here"
+					rActivity = AcceptFollow(activity)
+					SetActorFollowingDB(db, rActivity)
+					MakeActivityRequest(activity)
 				}
-
-				if rActivity.Type == "Accept" {
-					rActivity.Summary = SetActorFollowDB(db, activity, actor.Id).Summary
-				}
-
-				enc, _ := json.MarshalIndent(rActivity, "", "\t")
-
-				if rActivity.Type == "Reject" {
-					w.WriteHeader(http.StatusBadRequest)
-				}
-
-				w.Header().Set("Content-Type", "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"")
-				w.Write(enc)
-				
+				w.Write([]byte(""))
 			case "Delete":
 				fmt.Println("This is a delete")
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte("could not process activity"))										
 
 			case "Note":
-				fmt.Println("This is a note")
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte("could not process activity"))
 
 			case "New":
-				fmt.Println("Added new Board")
+
+				header := r.Header.Get("Authorization")
+
+				auth := strings.Split(header, " ")
+
+				if len(auth) < 2 {
+					w.WriteHeader(http.StatusBadRequest)					
+					w.Write([]byte(""))					
+					return
+				}
+
+				verification := GetVerificationByCode(db, auth[1])
+
+				if verification.Board != Domain {
+					w.WriteHeader(http.StatusBadRequest)					
+					w.Write([]byte(""))					
+					return
+				}
+
 				name := activity.Object.Actor.Name
 				prefname := activity.Object.Actor.PreferredUsername
 				summary := activity.Object.Actor.Summary
@@ -163,6 +160,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				w.Write([]byte("could not process activity"))			
 			}
 		} else {
+
 			fmt.Println("is NOT activity")		
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("could not process activity"))			
@@ -319,7 +317,7 @@ func HasContextFromJson(context []byte) bool {
 		err = json.Unmarshal(context, &arrContext.Context)
 		CheckError(err, "error with string")
 		if arrContext.Context == "https://www.w3.org/ns/activitystreams" {
-				hasContext = true
+			hasContext = true
 		}
 	}
 	
@@ -517,15 +515,37 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		}
 		break
 
-	case "Follow":
+	case "Delete":
 		for _, e := range activity.To {
-			if IsObjectLocal(db, e) {
-				nActivity := SetActorFollowingDB(db, activity)
-				j, _ := json.Marshal(&nActivity)
-				w.Write([]byte(j))
+			actor := GetActorFromDB(db, e)
+			if actor.Id != "" {
+				DeleteObjectFromCache(db, activity.Object.Id)
+				return
 			}
 		}
 		break
+
+		
+	case "Follow":
+		for _, e := range activity.To {
+			if GetActorFromDB(db, e).Id != "" {
+				response := AcceptFollow(activity)
+				response = SetActorFollowerDB(db, response)
+				MakeActivityRequest(response)
+			} else {
+				fmt.Println("follow request for rejected")				
+				response := RejectFollow(activity)
+				MakeActivityRequest(response)
+			}
+		}
+		break
+
+	case "Reject":
+		if activity.Object.Object.Type == "Follow" {
+			fmt.Println("follow rejected")									
+			SetActorFollowingDB(db, activity)
+		}
+		break		
 	}	
 }
 

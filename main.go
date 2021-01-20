@@ -701,7 +701,7 @@ func CheckValidActivity(id string) (Collection, bool) {
 
 func GetActor(id string) Actor {
 
-	var respActor Actor	
+	var respActor Actor
 
 	req, err := http.NewRequest("GET", id, nil)
 
@@ -746,7 +746,6 @@ func GetActorCollection(collection string) Collection {
 	
 	return nCollection
 }
-
 
 func IsValidActor(id string) (Actor, bool) {
 	var respCollection Actor	
@@ -969,7 +968,7 @@ func MakeActivityRequest(activity Activity) {
 	j, _ := json.MarshalIndent(activity, "", "\t")
 	for _, e := range activity.To {
 		actor := GetActor(e)
-		
+
 		req, err := http.NewRequest("POST", actor.Inbox, bytes.NewBuffer(j))
 
 		CheckError(err, "error with sending activity req to")
@@ -994,13 +993,16 @@ func GetCollectionFromID(id string) Collection {
 		return nColl
 	}
 
-	defer resp.Body.Close()
-	
-	body, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode == 200 {
+		defer resp.Body.Close()
+		
+		body, _ := ioutil.ReadAll(resp.Body)
 
-	err = json.Unmarshal(body, &nColl)
+		err = json.Unmarshal(body, &nColl)
 
-	CheckError(err, "error getting collection resp from json body")
+		CheckError(err, "error getting collection resp from json body")
+
+	}
 
 	return nColl
 }
@@ -1088,3 +1090,41 @@ func GetUniqueFilename(_type string) string {
 
 	return ""
 }
+
+func DeleteObjectRequest(db *sql.DB, id string) {
+	var nObj ObjectBase
+	nObj.Id = id
+
+	activity := CreateActivity("Delete", nObj)
+
+	obj := GetObjectFromPath(db, id)
+	followers := GetActorFollowDB(db, obj.Actor.Id)
+	for _, e := range followers {
+		activity.To = append(activity.To, e.Id)
+	}
+
+	following := GetActorFollowingDB(db, obj.Actor.Id)
+	for _, e := range following {
+		activity.To = append(activity.To, e.Id)
+	}	
+
+	MakeActivityRequest(activity)
+}
+
+func DeleteObjectAndRepliesRequest(db *sql.DB, id string) {
+	var nObj ObjectBase
+	nObj.Id = id
+	
+	activity := CreateActivity("Delete", nObj)
+	
+	obj := GetObjectFromPath(db, id)
+
+	followers := GetActorFollowDB(db, obj.Actor.Id)	
+	for _, e := range followers {
+		activity.To = append(activity.To, e.Id)
+	}
+
+	MakeActivityRequest(activity)
+}
+
+

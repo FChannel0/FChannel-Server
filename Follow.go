@@ -11,7 +11,7 @@ func GetActorFollowing(w http.ResponseWriter, db *sql.DB, id string) {
 	following.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 	following.Type = "Collection"
 	following.TotalItems, _ = GetActorFollowTotal(db, id)
-	following.Items, _ = GetActorFollowDB(db, id)
+	following.Items = GetActorFollowingDB(db, id)
 
 	enc, _ := json.MarshalIndent(following, "", "\t")							
 	w.Header().Set("Content-Type", "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"")
@@ -24,57 +24,16 @@ func GetActorFollowers(w http.ResponseWriter, db *sql.DB, id string) {
 	following.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 	following.Type = "Collection"
 	_, following.TotalItems = GetActorFollowTotal(db, id)
-	_, following.Items = GetActorFollowDB(db, id)
+	following.Items = GetActorFollowDB(db, id)
 
 	enc, _ := json.MarshalIndent(following, "", "\t")							
 	w.Header().Set("Content-Type", "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"")
 	w.Write(enc)
 }
 
-func SetActorFollowDB(db *sql.DB, activity Activity, actor string) Activity {
-	var query string
-	alreadyFollow := false
-	following, follower := GetActorFollowDB(db, actor)
-	
-	if activity.Actor.Id == actor {
-		for _, e := range following {
-			if e.Id == activity.Object.Id {
-				alreadyFollow = true
-			}
-		}
-		if alreadyFollow {
-			query = `delete from following where id=$1 and following=$2`
-			activity.Summary = activity.Actor.Id + " Unfollow " + activity.Object.Id
-		} else {
-			query = `insert into following (id, following) values ($1, $2)`
-			activity.Summary = activity.Actor.Id + " Follow " + activity.Object.Id			
-		}
-	} else {
-		for _, e := range follower {
-			if e.Id == activity.Actor.Id {
-				alreadyFollow = true
-			}
-		}
-		if alreadyFollow {
-			query = `delete from follower where id=$1 and follower=$2`
-			activity.Summary = activity.Actor.Id + " Unfollow " + activity.Object.Id			
-		} else {		
-			query = `insert into follower (id, follower) values ($1, $2)`
-			activity.Summary = activity.Actor.Id + " Follow " + activity.Object.Id						
-		}
-	}
-	
-	_, err := db.Exec(query, activity.Actor.Id, activity.Object.Id)
 
-	CheckError(err, "error with follow db insert/delete")
-
-	return activity
-}
-
-func GetActorFollowDB(db *sql.DB, id string) ([]ObjectBase, []ObjectBase) {
+func GetActorFollowingDB(db *sql.DB, id string) []ObjectBase {
 	var followingCollection []ObjectBase
-	var followerCollection []ObjectBase	
-
 	query := `select following from following where id=$1`
 
 	rows, err := db.Query(query, id)
@@ -93,11 +52,17 @@ func GetActorFollowDB(db *sql.DB, id string) ([]ObjectBase, []ObjectBase) {
 		followingCollection = append(followingCollection, obj)
 	}
 
-	query = `select follower from follower where id=$1`
+	return followingCollection
+}
 
-	rows, err = db.Query(query, id)
+func GetActorFollowDB(db *sql.DB, id string) []ObjectBase {
+	var followerCollection []ObjectBase	
 
-	CheckError(err, "error with followers db query")
+	query := `select follower from follower where id=$1`
+
+	rows, err := db.Query(query, id)
+
+	CheckError(err, "error with follower db query")
 
 	defer rows.Close()
 
@@ -111,7 +76,7 @@ func GetActorFollowDB(db *sql.DB, id string) ([]ObjectBase, []ObjectBase) {
 		followerCollection = append(followerCollection, obj)
 	}
 	
-	return followingCollection, followerCollection
+	return followerCollection
 }
 
 func GetActorFollowTotal(db *sql.DB, id string) (int, int) {
@@ -149,69 +114,100 @@ func GetActorFollowTotal(db *sql.DB, id string) (int, int) {
 	return following, followers
 }
 
-func AcceptFollow(activity Activity, actor Actor) Activity {
+func AcceptFollow(activity Activity) Activity {
 	var accept Activity
-	var obj ObjectBase
-
-	obj.Type = activity.Type
-	obj.Actor = activity.Actor
-
-	var nobj NestedObjectBase
-	obj.Object = &nobj
-	obj.Object.Id = activity.Object.Id
-
 	accept.AtContext.Context = activity.AtContext.Context
 	accept.Type = "Accept"
-
-	var nactor Actor
-	accept.Actor = &nactor
-	accept.Actor.Id = actor.Id
-	accept.Object = &obj
-	accept.To = append(accept.To, activity.Object.Id)
+	accept.Actor = activity.Object.Actor
+	var nObj ObjectBase
+	var nActor Actor	
+	accept.Object = &nObj
+	accept.Object.Actor = &nActor	
+	accept.Object.Actor = activity.Actor
+	var nNested NestedObjectBase
+	var mActor Actor
+	accept.Object.Object = &nNested
+	accept.Object.Object.Actor = &mActor
+	accept.Object.Object.Actor = activity.Object.Actor
+	accept.Object.Object.Type = "Follow"	
+	accept.To = append(accept.To, activity.Object.Actor.Id)
 
 	return accept
 }
 
-func RejectFollow(activity Activity, actor Actor) Activity {
+func RejectFollow(activity Activity) Activity {
 	var accept Activity
-	var obj ObjectBase
-
-	obj.Type = activity.Type
-	obj.Actor = activity.Actor
-	obj.Object = new(NestedObjectBase)
-	obj.Object.Id = activity.Object.Id
-
 	accept.AtContext.Context = activity.AtContext.Context
 	accept.Type = "Reject"
-	accept.Actor = &actor
-	accept.Object = &obj
+	var nObj ObjectBase
+	var nActor Actor	
+	accept.Object = &nObj
+	accept.Object.Actor = &nActor		
+	accept.Actor = activity.Object.Actor
+	accept.Object.Actor = activity.Actor
+	var nNested NestedObjectBase
+	var mActor Actor	
+	accept.Object.Object = &nNested
+	accept.Object.Object.Actor = &mActor	
+	accept.Object.Object.Actor = activity.Object.Actor
+	accept.Object.Object.Type = "Follow"
+	accept.To = append(accept.To, activity.Actor.Id)
 
-	return accept
+	return accept	
 }
 
-func SetActorFollowingDB(db *sql.DB, activity Activity) Activity{
+func SetActorFollowerDB(db *sql.DB, activity Activity) Activity {
 	var query string
 	alreadyFollow := false
-	_, follower := GetActorFollowDB(db, activity.Object.Id)
+	followers := GetActorFollowDB(db, activity.Actor.Id)
+	
+	for _, e := range followers {
+		if e.Id == activity.Object.Actor.Id {
+			alreadyFollow = true
+		}
+	}
+	if alreadyFollow {
+		query = `delete from follower where id=$1 and follower=$2`
+		activity.Summary = activity.Object.Actor.Id + " Unfollow " + activity.Actor.Id
+	} else {
+		query = `insert into follower (id, follower) values ($1, $2)`
+		activity.Summary = activity.Object.Actor.Id + " Follow " + activity.Actor.Id
+	}
 
-	for _, e := range follower {
-		if e.Id == activity.Object.Id {
+	_, err := db.Exec(query, activity.Actor.Id, activity.Object.Actor.Id)
+
+	if CheckError(err, "error with follower db insert/delete") != nil {
+		activity.Type = "Reject"
+		return activity
+	}	
+
+	activity.Type = "Accept"	
+	return activity
+}
+
+func SetActorFollowingDB(db *sql.DB, activity Activity) Activity {
+	var query string
+	alreadyFollow := false
+	following := GetActorFollowingDB(db, activity.Object.Actor.Id)
+
+
+	for _, e := range following {
+		if e.Id == activity.Actor.Id {
 			alreadyFollow = true
 		}
 	}
 	
 	if alreadyFollow {
-		query = `delete from follower where id=$1 and follower=$2`
-		activity.Summary = activity.Actor.Id + " Unfollow " + activity.Object.Id			
+		query = `delete from following where id=$1 and following=$2`
+		activity.Summary = activity.Object.Actor.Id + " Unfollowing " + activity.Actor.Id
 	} else {		
-		query = `insert into follower (id, follower) values ($1, $2)`
-		activity.Summary = activity.Actor.Id + " Follow " + activity.Object.Id						
+		query = `insert into following (id, following) values ($1, $2)`
+		activity.Summary = activity.Object.Actor.Id + " Following " + activity.Actor.Id
 	}
 	
-	_, err := db.Exec(query, activity.Object.Id, activity.Actor.Id)
+	_, err := db.Exec(query, activity.Object.Actor.Id, activity.Actor.Id)
 
-	if err != nil {
-		CheckError(err, "error with follow db insert/delete")
+	if CheckError(err, "error with following db insert/delete") != nil {
 		activity.Type = "Reject"
 		return activity
 	}

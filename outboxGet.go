@@ -23,8 +23,6 @@ func GetActorOutbox(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	w.Write(enc)
 }
 
-
-
 func GetObjectsFromFollow(actor Actor) []ObjectBase {
 	var followingCol Collection
 	var followObj []ObjectBase
@@ -107,9 +105,12 @@ func GetObjectFromPath(db *sql.DB, path string) ObjectBase{
 	for rows.Next(){
 		var post ObjectBase
 		var attachID string
-		var previewID string		
+		var previewID string
+
+		var nActor Actor
+		post.Actor = &nActor
 		
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &post.Actor)
+		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &post.Actor.Id)
 		
 		CheckError(err, "error scan object into post struct from path")
 

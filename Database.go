@@ -72,17 +72,23 @@ func CreateNewBoardDB(db *sql.DB, actor Actor) Actor{
 		CreateBoardMod(db, nverify)			
 
 		if actor.Name != "main" {
-			var nActivity Activity
 			var nActor Actor
 			var nObject ObjectBase
+			var nActivity Activity
 
-			nActor.Id = Domain
-			nObject.Id = actor.Id
-
+			nActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+			nActivity.Type = "Follow"
 			nActivity.Actor = &nActor
 			nActivity.Object = &nObject
+			nActivity.Actor.Id = Domain
+			var mActor Actor
+			nActivity.Object.Actor = &mActor
+			nActivity.Object.Actor.Id = actor.Id			
+			nActivity.To = append(nActivity.To, actor.Id)
 
-			SetActorFollowDB(db, nActivity, Domain)
+			response := AcceptFollow(nActivity)
+			SetActorFollowingDB(db, response)
+			MakeActivityRequest(nActivity)
 		}
 	}
 
@@ -466,10 +472,17 @@ func GetObjectRepliesRemote(db *sql.DB, parent ObjectBase) CollectionBase {
 	for rows.Next() {
 		var id string
 		rows.Scan(&id)
-		
-		coll := GetCollectionFromID(id)
 
-		for _, e := range coll.OrderedItems {
+		cacheColl := GetObjectFromCache(db, id)
+
+		if len(cacheColl.OrderedItems) < 1 {
+			cacheColl = GetCollectionFromID(id)
+			for _, e := range cacheColl.OrderedItems {
+				WriteObjectToCache(db, e)
+			}
+		}
+
+		for _, e := range cacheColl.OrderedItems {
 			result = append(result, e)
 		}
 	}
@@ -557,42 +570,6 @@ func GetObjectRepliesDBCount(db *sql.DB, parent ObjectBase) (int, int) {
 	rows.Scan(&countImg)
 
 	return countId, countImg
-}
-
-func GetObjectRepliesRemoteCount(db *sql.DB, parent ObjectBase) (int, int) {
-	var nColl CollectionBase
-	var result []ObjectBase
-	query := `select id from replies where id not in (select id from activitystream) and inreplyto=$1`
-
-	rows, err := db.Query(query, parent.Id)	
-
-	CheckError(err, "could not get remote id query")
-
-	defer rows.Close()
-	for rows.Next() {
-		var id string
-		rows.Scan(&id)
-		
-		coll := GetCollectionFromID(id)
-
-		for _, e := range coll.OrderedItems {
-			result = append(result, e)
-		}
-	}
-
-	nColl.OrderedItems = result
-
-	var posts int
-	var imgs int 
-
-	for _, e := range nColl.OrderedItems {
-		posts = posts + 1
-		if len(e.Attachment) > 0 {
-			imgs = imgs + 1
-		}
-	}
-
-	return posts, imgs
 }
 
 func GetObjectAttachment(db *sql.DB, id string) []ObjectBase {
@@ -692,9 +669,7 @@ func DeletePreviewFromFile(db *sql.DB, id string) {
 		var href string
 		var _type string
 		err := rows.Scan(&href, &_type)
-		fmt.Println(href)		
 		href = strings.Replace(href, Domain + "/", "", 1)
-		fmt.Println(href)
 		CheckError(err, "error scanning delete attachment")
 
 		if _type != "Tombstone" {
@@ -852,6 +827,7 @@ func DeleteObject(db *sql.DB, id string) {
 	DeleteAttachmentFromFile(db, id)
 	DeletePreviewFromFile(db, id)			
 	DeleteObjectFromDB(db, id)
+	DeleteObjectRequest(db, id)
 }
 
 func DeleteObjectAndReplies(db *sql.DB, id string) {
@@ -866,7 +842,8 @@ func DeleteObjectAndReplies(db *sql.DB, id string) {
 	DeleteObjectRepliesFromDB(db, id)
 	DeleteAttachmentRepliesFromDB(db, id)
 	DeletePreviewRepliesFromDB(db, id)
-	DeleteObjectFromDB(db, id)	
+	DeleteObjectFromDB(db, id)
+	DeleteObjectAndRepliesRequest(db, id)				
 }
 
 func GetRandomCaptcha(db *sql.DB) string{
@@ -1007,3 +984,5 @@ func GetActorReportedDB(db *sql.DB, id string) []ObjectBase {
 
 	return nObj
 }
+
+
