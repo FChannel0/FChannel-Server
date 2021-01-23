@@ -6,7 +6,6 @@ import _ "github.com/lib/pq"
 import "encoding/json"
 
 func GetActorOutbox(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-
 	actor := GetActorFromPath(db, r.URL.Path, "/")
 	var collection Collection
 

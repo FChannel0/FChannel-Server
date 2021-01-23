@@ -56,6 +56,7 @@ type AdminPage struct {
 	Followers []string
 	Reported []Report
 	Domain string
+	IsLocal bool
 }
 
 type Report struct {
@@ -396,11 +397,16 @@ func WantToServe(db *sql.DB, actorName string) (Collection, bool) {
 		if boardActor.Id == "" {
 			boardActor = GetActor(e.Id)
 		}
-		
-		if boardActor.Id == actorName {
+
+		if boardActor.Name == actorName {
 			serve = true
-			collection = GetActorCollection(boardActor.Outbox)
+			if IsActorLocal(db, boardActor.Id) {
+				collection = GetActorCollectionDB(db, boardActor)
+			} else {
+				collection = GetActorCollectionCache(db, boardActor)
+			}
 			collection.Actor = &boardActor
+			return collection, serve
 		}
 	}
 

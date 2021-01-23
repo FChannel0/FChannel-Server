@@ -80,9 +80,7 @@ func main() {
 			path = re.ReplaceAllString(path, "")
 		}
 
-		method := r.Method
 
-		actor := GetActorFromPath(db, path, "/")
 
 		var mainActor bool
 		var mainInbox bool
@@ -101,27 +99,29 @@ func main() {
 		var actorVerification bool
 
 		var accept = r.Header.Get("Accept")
+		
+		var method = r.Method
 
-		if(actor.Id != ""){
-			if actor.Name == "main" {
-				mainActor = (path == "/")			
-				mainInbox = (path == "/inbox")
-				mainOutbox = (path == "/outbox")
-				mainFollowing = (path == "/following")
-				mainFollowers = (path == "/followers")			
-			} else {
-				actorMain = (path == "/" + actor.Name)			
-				actorInbox = (path == "/" + actor.Name + "/inbox")
-				actorCatalog = (path == "/" + actor.Name + "/catalog")
-				actorOutbox = (path == "/" + actor.Name + "/outbox")
-				actorFollowing = (path == "/" + actor.Name + "/following")
-				actorFollowers = (path == "/" + actor.Name + "/followers")
-				actorReported = (path == "/" + actor.Name + "/reported")				
-				actorVerification = (path == "/" + actor.Name + "/verification")
-				
-				re := regexp.MustCompile("/" + actor.Name + "/\\w+")
-				actorPost = 	re.MatchString(path)				
-			}
+		var actor = GetActorFromPath(db, path, "/")		
+
+		if actor.Name == "" {
+			mainActor = (path == "/")			
+			mainInbox = (path == "/inbox")
+			mainOutbox = (path == "/outbox")
+			mainFollowing = (path == "/following")
+			mainFollowers = (path == "/followers")			
+		} else {
+			actorMain = (path == "/" + actor.Name)			
+			actorInbox = (path == "/" + actor.Name + "/inbox")
+			actorCatalog = (path == "/" + actor.Name + "/catalog")
+			actorOutbox = (path == "/" + actor.Name + "/outbox")
+			actorFollowing = (path == "/" + actor.Name + "/following")
+			actorFollowers = (path == "/" + actor.Name + "/followers")
+			actorReported = (path == "/" + actor.Name + "/reported")				
+			actorVerification = (path == "/" + actor.Name + "/verification")
+			
+			re := regexp.MustCompile("/" + actor.Name + "/\\w+")
+			actorPost = 	re.MatchString(path)				
 		}
 
 		if mainActor {
@@ -174,7 +174,7 @@ func main() {
 				return 
 			}
 
-			collection, valid := WantToServe(db, actor.Id)
+			collection, valid := WantToServe(db, actor.Name)
 			if valid {
 				OutboxGet(w, r, db, collection)
 			}			
@@ -427,9 +427,11 @@ func main() {
 			
 			req.Header.Set("Content-Type", activitystreams)
 
-			_, err = http.DefaultClient.Do(req)		
+			_, err = http.DefaultClient.Do(req)
 
-			CheckError(err, "error with add board follow resp")			
+			CheckError(err, "error with add board follow resp")
+
+			
 
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			
@@ -473,6 +475,7 @@ func main() {
 			adminData.Followers = followers
 			adminData.Reported  = reports
 			adminData.Domain = Domain
+			adminData.IsLocal = IsActorLocal(db, actor.Id)
 
 			var boardCollection []Board
 
@@ -577,6 +580,7 @@ func main() {
 		CheckError(err, "error getting actor from body in new board")		
 
 		//update board list with new instances following
+		fmt.Println(resp.StatusCode)
 		if resp.StatusCode == 200 {
 			var board []ObjectBase
 			var item ObjectBase			
@@ -910,14 +914,12 @@ func GetActorFromPath(db *sql.DB, location string, prefix string) Actor {
 	}
 
 	if actor == "/" || actor == "outbox" || actor == "inbox" || actor == "following" || actor == "followers" {
-		actor = Domain
-	} else {
-		actor = Domain + "/" + actor
+		actor = "main"
 	}
 
 	var nActor Actor
 	
-	nActor = GetActorFromDB(db, actor)
+	nActor = 	GetActorByName(db, actor)
 
 	return nActor
 }
@@ -1232,6 +1234,36 @@ func GetActor(id string) Actor {
 	return respActor
 }
 
+func GetActorCollectionCache(db *sql.DB, actor Actor) Collection {
+	var collection Collection
+
+	collection.OrderedItems = GetObjectFromCache(db, actor.Id).OrderedItems
+
+	collection.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+	collection.Actor = &actor
+	collection.Actor.AtContext.Context = ""	
+
+	collection.TotalItems = GetObjectPostsTotalCache(db, actor)
+	collection.TotalImgs = GetObjectImgsTotalCache(db, actor)
+
+	return collection
+}
+
+func GetActorCollectionDB(db *sql.DB, actor Actor) Collection {
+	var collection Collection
+	
+	collection.OrderedItems = GetObjectFromDB(db, actor).OrderedItems
+
+	collection.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+	collection.Actor = &actor
+	collection.Actor.AtContext.Context = ""	
+
+	collection.TotalItems = GetObjectPostsTotalDB(db, actor)
+	collection.TotalImgs = GetObjectImgsTotalDB(db, actor)
+	
+	return collection
+}
+
 func GetActorCollection(collection string) Collection {
 	var nCollection Collection
 
@@ -1324,6 +1356,16 @@ func IsActivityLocal(db *sql.DB, activity Activity) bool {
 func IsIDLocal(db *sql.DB, id string) bool {
 	activity := GetActivityFromDB(db, id)
 	return len(activity.OrderedItems) > 0 
+}
+
+func IsActorLocal(db *sql.DB, id string) bool {
+	actor := GetActorFromDB(db, id)
+
+	if actor.Id != "" {
+		return true
+	}
+
+	return false
 }
 
 func IsObjectLocal(db *sql.DB, id string) bool {
@@ -1795,3 +1837,4 @@ func GetActorCollectionReq(r *http.Request, collection string) Collection {
 	
 	return nCollection
 }
+

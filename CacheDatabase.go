@@ -140,11 +140,61 @@ func WritePreviewToCache(db *sql.DB, obj NestedObjectBase) {
 	}
 }
 
+func GetActivityFromCache(db *sql.DB, id string) Collection {
+	var nColl Collection
+	var nActor Actor
+	var result []ObjectBase
+
+	nColl.Actor = &nActor
+
+	query := `select  actor, id, name, content, type, published, updated, attributedto, attachment, preview, actor from  activitystream where id=$1 order by updated asc`
+
+	rows, err := db.Query(query, id)	
+
+	CheckError(err, "error query object from db")
+	
+	defer rows.Close()
+	for rows.Next(){
+		var post ObjectBase
+		var actor Actor
+		var attachID string	
+		var previewID	string
+		
+		
+		err = rows.Scan(&nColl.Actor.Id, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id)
+		
+		CheckError(err, "error scan object into post struct")
+
+		post.Actor = &actor
+
+		var postCnt int
+		var imgCnt int
+
+		post.Replies, postCnt, imgCnt = GetObjectRepliesCache(db, post)
+
+		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCacheCount(db, post)
+
+		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
+		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
+
+		post.Attachment = GetObjectAttachmentCache(db, attachID)
+
+		post.Preview = GetObjectPreviewCache(db, previewID)
+
+		result = append(result, post)		
+	}
+
+	nColl.OrderedItems = result
+
+	return nColl	
+}
+
 func GetObjectFromCache(db *sql.DB, id string) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
-	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor from cacheactivitystream where id=$1 and type='Note'`
+
+	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor from activitystream where actor=$1 and id in (select id from cachereplies where inreplyto='') and type='Note' order by updated asc`	
 
 	rows, err := db.Query(query, id)	
 
@@ -429,3 +479,39 @@ func DeleteObjectFromCache(db *sql.DB, id string) {
 	CheckError(err, "could not delete  cache replies activitystream")
 }
 
+func GetObjectPostsTotalCache(db *sql.DB, actor Actor) int{
+
+	count := 0
+	query := `select count(id) from cacheactivitystream where actor=$1 and id in (select id from cachereplies where inreplyto='' and type='Note')`
+
+	rows, err := db.Query(query, actor.Id)	
+
+	CheckError(err, "could not select post total count query")		
+
+	defer rows.Close()	
+	for rows.Next() {
+		err = rows.Scan(&count)
+		CheckError(err, "error with total post db scan")
+	}
+	
+	return count
+}
+
+func GetObjectImgsTotalCache(db *sql.DB, actor Actor) int{
+
+	count := 0
+	query := `select count(attachment) from cacheactivitystream where actor=$1 and id in (select id from cachereplies where inreplyto='' and type='Note' )`
+
+	rows, err := db.Query(query, actor.Id)	
+
+	CheckError(err, "error with posts total db query")			
+
+	defer rows.Close()
+	for rows.Next() {
+		err = rows.Scan(&count)
+
+		CheckError(err, "error with total post db scan")
+	}
+	
+	return count
+}

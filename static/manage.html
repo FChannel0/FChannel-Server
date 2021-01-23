@@ -8,12 +8,18 @@
   <h1>Manage /{{ .Board.Name }}/</h1>
   <!-- <div><a href="/{{ .Key }}/deleteboard?name={{ .Board.Name }}">[Delete Board]</a></div>     -->
   <ul style="display: inline-block; padding: 0;">
+    {{ if .IsLocal }}
     <li style="display: inline-block;"><a href="javascript:show('following')">[ Subscribed ]</a></li>
     <li style="display: inline-block;"><a href="javascript:show('followers')">[ Subscribers ]</a></li>
+    {{ end }}
     <li style="display: inline-block;"><a href="javascript:show('reported')">[ Reported ]</a></li>            
   </ul>
 </div>    
 <a href="/{{ .Board.Name }}">[Return]</a>
+{{ $actor := .Actor }}
+{{ $board := .Board }}
+{{ $key := .Key }}
+{{ if .IsLocal }}
 <div id="following">
   <h4>Subscribed</h4>
   <form id="follow-form" action="/{{ .Key }}/{{ .Board.Name }}/follow" method="post" enctype="application/x-www-form-urlencoded">  
@@ -23,9 +29,7 @@
     <input type="hidden" name="actor" value="{{ .Actor }}">            
   </form>
   <ul style="display: inline-block; padding: 0; margin: 0;">
-    {{ $actor := .Actor }}
-    {{ $board := .Board }}
-    {{ $key := .Key }}
+
     {{ range .Following }}
     <li><a href="/{{ $key }}/{{ $board.Name }}/follow?follow={{ . }}&actor={{ $actor }}">[Unsubscribe]</a><a href="{{ . }}">{{ . }}</a></li>
     {{ end }}
@@ -40,6 +44,7 @@
     {{ end }}        
   </ul>      
 </div>
+{{ end }}
 
 <div id="reported" style="display: none;">
   <h4>Reported</h4>
@@ -58,12 +63,14 @@
 <script>
   function show(element)
   {
+      {{ if .IsLocal }}
       var following = document.getElementById("following");
       var followers = document.getElementById("followers");
-      var reported = document.getElementById("reported");
-
       following.style.display = "none";
       followers.style.display = "none";
+      {{ end }}
+      
+      var reported = document.getElementById("reported");      
       reported.style.display = "none";
 
       document.getElementById(element).style.display = "block";
