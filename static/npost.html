@@ -1,0 +1,39 @@
+{{ define "header" }}
+<script src="/static/js/posts.js"></script>
+{{ end }}
+
+{{ define "content" }}
+{{ $board := .Board }}
+
+<hr>
+<ul style="margin: 0; padding: 0; display: inline">
+  <li style="display: inline"><a href="/{{ $board.Name }}">[Return]</a></li>
+  <li style="display: inline"><a href="/{{ $board.Name }}/catalog">[Catalog]</a></li>      
+  <li style="display: inline"><a href="#bottom">[Bottom]</a></li>
+  <li style="display: inline"><a href="javascript:location.reload()">[Refresh]</a></li>
+</ul>
+<hr>
+
+{{ template "posts" . }}
+
+<hr>
+<ul style="position: absolute; left: 5px;  margin: 0; padding: 0; display: inline">
+  <li style="display: inline"><a href="/{{ $board.Name }}">[Return]</a></li>
+  <li style="display: inline"><a href="/{{ $board.Name }}/catalog">[Catalog]</a></li>            
+  <li style="display: inline"><a id="bottom" href="#top">[Top]</a></li>
+  <li style="display: inline"><a href="javascript:location.reload()">[Refresh]</a></li>
+</ul>
+<div style=": inline; text-align: center;">
+  <span><a href="javascript:quote('{{ $board.Actor }}', '{{ (index .Posts 0).Id }}', '{{ (index .Posts 0).Id }}')">[Post a Reply]</a></span>
+  {{ $replies := (index .Posts 0).Replies }}            
+  <span style="float: right;">{{ $replies.TotalItems }} / {{ $replies.TotalImgs }}</span>      
+</div>
+<hr>
+{{ end }}
+
+{{ define "script" }}
+<script src="/static/js/footerscript.js"></script>
+<script>
+  viewLink("{{ .Board.Name }}", "{{ .Board.Actor }}")
+</script>    
+{{ end }}

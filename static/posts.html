@@ -1,0 +1,179 @@
+{{ define "posts" }}
+{{ $board := .Board }}
+{{ $len := len .Posts }}
+{{ range .Posts }}
+{{ $opId := .Id }}
+{{ if eq $board.InReplyTo "" }}
+<hr>
+{{ end }}
+<div style="overflow: auto;">
+  <div id="{{ .Id }}" style="overflow: visible; margin-bottom: 12px;">
+    {{ if eq $board.ModCred $board.Domain $board.Actor }}
+    <a href="/delete?id={{ .Id }}">[Delete Post]</a>
+    {{ end }}        
+    {{ if .Attachment }}
+    {{ if eq $board.ModCred $board.Domain $board.Actor }}    
+    <a href="/deleteattach?id={{ .Id }}">[Delete Attachment]</a>
+    {{ end }}                
+    <span style="display: block;">File: <a id="{{ .Id }}-img" href="{{ (index .Attachment 0).Href}}">{{ (index .Attachment 0).Name  }}</a><span id="{{ .Id }}-size">({{ (index .Attachment 0).Size  }})</span></span>
+    <div id="media-{{ .Id }}"></div>
+    <script>
+      media = document.getElementById("media-{{ .Id }}")
+      if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "image"){
+          var img = document.createElement("img");
+          img.style = "float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px; cursor: move;"
+          img.setAttribute("id", "img")
+          img.setAttribute("main", "1")
+          img.setAttribute("enlarge", "0")
+          img.setAttribute("attachment", "{{ (index .Attachment 0).Href }}")
+          {{ if .Preview.Href }} 
+          img.setAttribute("src", "{{  .Preview.Href }}")
+          img.setAttribute("preview", "{{ .Preview.Href }}")          
+          {{ else }}
+          img.setAttribute("src", "{{  (index .Attachment 0).Href }}")
+          img.setAttribute("preview", "{{ (index .Attachment 0).Href }}")                    
+          {{ end }}
+          media.appendChild(img)
+      }          
+
+      if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "audio"){
+          var audio = document.createElement("audio")
+          audio.controls = 'controls'
+          audio.preload  = 'none'              
+          audio.src      = '{{ (index .Attachment 0).Href }}'
+          audio.type     = '{{ (index .Attachment 0).MediaType }}'              
+          audio.style = "float: left; margin-right: 10px; margin-bottom: 10px; width: 250px;"
+          audio.innerText = 'Audio is not supported.'
+          media.appendChild(audio)                            
+      }
+
+      if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "video"){
+          var video = document.createElement("video")
+          video.controls = 'controls'
+          video.preload  = 'none'                        
+          video.muted    = 'muted'              
+          video.src      = '{{ (index .Attachment 0).Href }}'
+          video.type     = '{{ (index .Attachment 0).MediaType }}'              
+          video.style = "float: left; margin-right: 10px; margin-bottom: 10px; width: 250px;"
+          video.innerText = 'Video is not supported.'
+          media.appendChild(video)                                          
+      }                    
+    </script>
+    {{ end }}
+    <span style="color: #0f0c5d;"><b>{{ .Name }}</b></span><span style="color: #117743;"><b>{{ if .AttributedTo }} {{.AttributedTo }} {{ else }} Anonymous {{ end }}</b></span><span>{{ .Published }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/">No.</a> <a id="{{ .Id }}-link" title="{{ .Id }}" href="javascript:quote('{{ $board.Actor }}', '{{ $opId }}', '{{ .Id }}')">{{ .Id }}</a> {{ if ne .Type "Tombstone" }}<a href="/report?id={{ .Id }}&board={{ $board.Name }}">[Report]</a>{{ end }}</span>
+    <p id="{{ .Id }}-content" style="white-space: pre-wrap; margin: 10px 30px 10px 30px;">{{.Content}}</p>
+    {{ if .Replies }}
+    {{ $replies := .Replies }}
+    {{ if gt $replies.TotalItems 5 }}
+    <span>{{ $replies.TotalItems }} replies{{ if gt $replies.TotalImgs 0}} and  {{ $replies.TotalImgs }} images{{ end }}, Click <a id="view" post="{{.Id}}" href="/{{ $board.Name }}/{{ .Id }}">here</a> to view all.</span>
+    {{ end }}
+    {{ range $replies.OrderedItems }}
+    <div id="{{ .Id }}">
+      <div  style="display: inline-block; overflow: auto;">
+        <div style="float: left; display: block; margin-right: 5px;">>></div>
+        <div style="overflow: auto;background-color: #d5daf0; padding: 5px; margin-bottom: 2px;">
+          {{ if eq $board.ModCred $board.Domain $board.Actor }}          
+          <a href="/delete?id={{ .Id }}">[Delete Post]</a>
+          {{ end }}              
+          {{ if .Attachment }}
+          {{ if eq $board.ModCred $board.Domain $board.Actor }}                    
+          <a href="/deleteattach?id={{ .Id }}">[Delete Attachment]</a>
+          {{ end }}
+          <span style="display: block;">File <a id="{{ .Id }}-img" href="{{ (index .Attachment 0).Href}}">{{ (index .Attachment 0).Name  }}</a> <span id="{{ .Id }}-size">({{ (index .Attachment 0).Size  }})</span></span>
+          <div id="media-{{ .Id }}"></div>
+          <script>
+            media = document.getElementById("media-{{ .Id }}")
+            if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "image"){
+                var img = document.createElement("img");
+                img.style = "float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px; cursor: move;"
+                img.setAttribute("id", "img")
+                img.setAttribute("main", "1")
+                img.setAttribute("enlarge", "0")
+                img.setAttribute("attachment", "{{ (index .Attachment 0).Href }}")
+                {{ if .Preview.Href }} 
+                img.setAttribute("src", "{{  .Preview.Href }}")
+                img.setAttribute("preview", "{{ .Preview.Href }}")          
+                {{ else }}
+                img.setAttribute("src", "{{  (index .Attachment 0).Href }}")
+                img.setAttribute("preview", "{{ (index .Attachment 0).Href }}")                    
+                {{ end }}                
+                media.appendChild(img)
+            }
+
+            if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "audio"){
+                var audio = document.createElement("audio")
+                audio.controls = 'controls'
+                audio.preload  = 'none'              
+                audio.src      = '{{ (index .Attachment 0).Href }}'
+                audio.type     = '{{ (index .Attachment 0).MediaType }}'              
+                audio.style = "float: left; margin-right: 10px; margin-bottom: 10px; width: 250px;"
+                audio.innerText = 'Audio is not supported.'
+                media.appendChild(audio)              
+            }
+
+            if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "video"){
+                var video = document.createElement("video")
+                video.controls = 'controls'
+                video.preload  = 'none'                                        
+                video.muted    = 'muted'              
+                video.src      = '{{ (index .Attachment 0).Href }}'
+                video.type     = '{{ (index .Attachment 0).MediaType }}'              
+                video.style = "float: left; margin-right: 10px; margin-bottom: 10px; width: 250px;"
+                video.innerText = 'Video is not supported.'
+                media.appendChild(video)                                                        
+            }                    
+          </script>              
+          {{ end }}
+          <span style="color: #0f0c5d;"><b>{{ .Name }}</b></span><span style="color: #117743;"><b>{{ if .AttributedTo }} {{.AttributedTo }} {{ else }} Anonymous {{ end }}</b></span><span>{{ .Published }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/post/{{ $opId }}#{{ .Id }}">No. </a><a id="{{ .Id }}-link" title="{{ .Id }}" href="javascript:quote('{{ $board.Actor }}', '{{ $opId }}', '{{ .Id }}')">{{ .Id }}</a> {{ if ne .Type "Tombstone" }}<a href="/report?id={{ .Id }}&board={{ $board.Name }}">[Report]</a>{{ end }}</span>
+          {{ $parentId := .Id }}
+          {{ if .Replies.OrderedItems }}
+          {{ range .Replies.OrderedItems }}
+          <span id="{{$parentId}}-replyto-{{.Id}}"></span>
+          <script>document.getElementById("{{ $parentId }}-replyto-{{.Id}}").innerHTML = "<a title='{{ .Id }}' href='/{{ $board.Name }}/" + shortURL("{{ $board.Actor }}", "{{ $opId }}") + "#" + shortURL("{{ $board.Actor }}", "{{ .Id }}") + "'>>>" + shortURL("{{ $board.Actor }}", "{{ .Id }}") + "</a>";</script>
+                                                                                                                                                                                                                                                                                                             {{ end }}
+                                                                                                                                                                                                                                                                                                             {{ end }}
+                                                                                                                                                                                                                                                                                                             <p id="{{ .Id }}-content" style="white-space: pre-wrap; margin: 10px 30px 10px 30px;">{{.Content}}</p>
+        </div>
+      </div>
+    </div>
+    <script>
+      {{ if .Attachment }}
+      document.getElementById("{{ .Id }}-size").innerText = " (" + convertSize({{ (index .Attachment 0).Size }}) + ")";
+      document.getElementById("{{ .Id }}-img").innerText = shortImg("{{ (index .Attachment 0).Name }}");
+      {{ end }}
+
+      document.getElementById("{{ .Id }}-link").innerText = shortURL("{{ $board.Actor }}", "{{ .Id }}");
+
+      document.getElementById("{{ .Id }}-anchor").href = "/{{ $board.Name }}/" + shortURL("{{$board.Actor}}", "{{ $opId }}") +
+    "#" + shortURL("{{$board.Actor}}", "{{ .Id }}");                
+      document.getElementById("{{ .Id }}").setAttribute("id", shortURL("{{$board.Actor}}", "{{ .Id }}"));
+
+      var content = document.getElementById("{{ .Id }}-content");
+
+      content.innerHTML = convertContent('{{$board.Actor}}', content.innerText, '{{ $opId }}')        
+
+    </script>      
+    {{ end }}
+    {{ end }}
+  </div>
+</div>
+<script>
+  {{ if .Attachment }}      
+  document.getElementById("{{ .Id }}-size").innerText = " (" + convertSize({{ (index .Attachment 0).Size }}) + ")";
+  document.getElementById("{{ .Id }}-img").innerText = shortImg("{{ (index .Attachment 0).Name }}");
+  {{ end }}
+
+  document.getElementById("{{ .Id }}-link").innerText = shortURL("{{ $board.Actor }}", "{{ .Id }}");
+
+  document.getElementById("{{ .Id }}").setAttribute("id", shortURL("{{ $board.Actor }}", "{{ .Id }}"));
+
+  document.getElementById("{{ .Id }}-anchor").href = "/{{ $board.Name }}/" + shortURL("{{$board.Actor}}", "{{ $opId }}") +
+    "#" + shortURL("{{$board.Actor}}", "{{ .Id }}");
+
+  var content = document.getElementById("{{ .Id }}-content");
+
+  content.innerHTML = convertContent('{{$board.Actor}}', content.innerText, '{{ $opId }}')              
+
+</script>
+{{ end }}
+{{ end }}

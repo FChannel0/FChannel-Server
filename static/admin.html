@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title></title>
+  </head>
+  <body>
+    <div style="margin: 0 auto; width: 400px;">
+      <h3>Add Board</h3>
+      <form id="new-post" action="/{{ .Key }}/addboard" method="post" enctype="application/x-www-form-urlencoded">
+        <label>Name:</label><br>
+        <input type="text" name="name" placeholder="g" required><br>
+        <label>Prefered Name:</label><br>
+        <input type="text" name="prefname" placeholder="Technology" required><input type="submit" value="Add"><br>
+        <label>Summary:</label><br>
+        <textarea name="summary" rows="8" cols="50"></textarea><br>
+        <label>Restricted:</label><br>
+        <select name="restricted">
+          <option value="True">True</option>
+          <option value="False">False</option>          
+        </select>
+      </form>
+
+      <ul style="display: inline-block; padding: 0;">
+        <li style="display: inline-block;"><a href="javascript:show('following')">Subscribed</a></li>
+        <!-- <li style="display: inline-block;"><a href="javascript:show('followers')">Followers</a></li> -->
+        <li style="display: inline-block;"><a href="javascript:show('reported')">Reported</a></li>            
+      </ul>
+
+    </div>    
+
+    <div id="following">
+      <h4>Following</h4>
+      <form id="follow-form" action="/{{ .Key }}/follow" method="post" enctype="application/x-www-form-urlencoded">
+        <label>Subscribe:</label><br>
+        <input id="follow" name="follow" style="margin-bottom: 12px;" placeholder="http://localhost:3000/g"></input><input type="submit" value="Subscribe"><br>
+        <input type="hidden" name="actor" value="{{ .Actor }}">        
+      </form>
+      <ul style="display: inline-block; padding: 0; margin: 0;">
+        {{ $actor := .Actor }}
+        {{ $key := .Key }}
+        {{ range .Following }}
+        <li><a href="/{{ $key }}/follow?follow={{ . }}&actor={{ $actor }}">[Unfollow]</a><a href="{{ . }}">{{ . }}</a></li>
+        {{ end }}
+      </ul>
+    </div>
+
+    <div id="followers" style="display: none;">
+      <h4>Followers</h4>
+      <ul style="display: inline-block; padding: 0; margin: 0;">
+        {{ range .Followers }}
+        <li><a href="http://localhost:3000/g">{{ . }}</a></li>
+        {{ end }}        
+      </ul>      
+    </div>
+
+    <div id="reported" style="display: none;">
+      <h4>Reported</h4>
+      <ul style="display: inline-block; padding: 0; margin: 0;">
+      </ul>            
+    </div>
+  </body>
+</html>
+
+<script>
+  function show(element)
+  {
+      var following = document.getElementById("following");
+      // var followers = document.getElementById("followers");
+      var reported = document.getElementById("reported");
+
+      following.style.display = "none";
+      // followers.style.display = "none";
+      reported.style.display = "none";
+
+      document.getElementById(element).style.display = "block";
+  }
+</script>

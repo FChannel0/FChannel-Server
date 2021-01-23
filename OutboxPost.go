@@ -66,9 +66,9 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			w.Write([]byte(id))
 			return
 		}
-		
+
 		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte("could not authenticate"))
+		w.Write([]byte("captcha could not auth"))
 	} else {
 		activity = GetActivityFromJson(r, db)
 
@@ -528,6 +528,7 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		
 	case "Follow":
 		for _, e := range activity.To {
+
 			if GetActorFromDB(db, e).Id != "" {
 				response := AcceptFollow(activity)
 				response = SetActorFollowerDB(db, response)

@@ -1,0 +1,81 @@
+{{ define "title" }}{{ .Title }}{{ end }}
+{{ define "header" }}
+<script src="/static/js/posts.js"></script>
+{{ end }}
+{{ define "top" }}{{ end }}
+{{ define "content" }}
+<div style="text-align: center; margin: 0 auto; width: 400px;">
+  <h1>Manage /{{ .Board.Name }}/</h1>
+  <!-- <div><a href="/{{ .Key }}/deleteboard?name={{ .Board.Name }}">[Delete Board]</a></div>     -->
+  <ul style="display: inline-block; padding: 0;">
+    <li style="display: inline-block;"><a href="javascript:show('following')">[ Subscribed ]</a></li>
+    <li style="display: inline-block;"><a href="javascript:show('followers')">[ Subscribers ]</a></li>
+    <li style="display: inline-block;"><a href="javascript:show('reported')">[ Reported ]</a></li>            
+  </ul>
+</div>    
+<a href="/{{ .Board.Name }}">[Return]</a>
+<div id="following">
+  <h4>Subscribed</h4>
+  <form id="follow-form" action="/{{ .Key }}/{{ .Board.Name }}/follow" method="post" enctype="application/x-www-form-urlencoded">  
+    <label>Subscribe:</label><br>
+    <input id="follow" name="follow" style="margin-bottom: 12px;" placeholder="https://localhost:3000/g"></input>
+    <input type="submit" value="Subscribe"><br>
+    <input type="hidden" name="actor" value="{{ .Actor }}">            
+  </form>
+  <ul style="display: inline-block; padding: 0; margin: 0;">
+    {{ $actor := .Actor }}
+    {{ $board := .Board }}
+    {{ $key := .Key }}
+    {{ range .Following }}
+    <li><a href="/{{ $key }}/{{ $board.Name }}/follow?follow={{ . }}&actor={{ $actor }}">[Unsubscribe]</a><a href="{{ . }}">{{ . }}</a></li>
+    {{ end }}
+  </ul>
+</div>
+
+<div id="followers" style="display: none;">
+  <h4>Subscribers</h4>
+  <ul style="display: inline-block; padding: 0; margin: 0;">
+    {{ range .Followers }}
+    <li><a href="{{ . }}">{{ . }}</a></li>
+    {{ end }}        
+  </ul>      
+</div>
+
+<div id="reported" style="display: none;">
+  <h4>Reported</h4>
+  <ul style="display: inline-block; padding: 0; margin: 0;">
+
+    {{ $domain := .Domain }}
+    {{ range .Reported }}
+    <li><a id="rpost" post="{{ .ID }}" href=""></a> - <b>{{ .Count }}</b> <a href="/delete?id={{ .ID }}&board={{ $board.Name }}">[Remove Post]</a> <a href="/deleteattach?id={{ .ID }}">[Remove Attachment]</a> <a href="/report?id={{ .ID }}&close=1&board={{ $board.Name }}">[Close]</a></li>
+    {{ end }}
+  </ul>            
+</div>
+{{ end }}
+{{ define "bottom" }}{{ end }}
+
+{{ define "script" }}
+<script>
+  function show(element)
+  {
+      var following = document.getElementById("following");
+      var followers = document.getElementById("followers");
+      var reported = document.getElementById("reported");
+
+      following.style.display = "none";
+      followers.style.display = "none";
+      reported.style.display = "none";
+
+      document.getElementById(element).style.display = "block";
+  }
+
+  var reported = document.querySelectorAll('#rpost');
+  var reportedArray = [].slice.call(reported);
+
+  reportedArray.forEach(function(r, i){
+      var id = r.getAttribute("post")
+      r.innerText = "/" + {{ .Board.Name }} + "/" + shortURL("{{ .Actor }}", id)
+      r.href = {{ .Domain }} + "/" + {{ .Board.Name }} + "/" + shortURL("{{ .Actor }}", id)
+  })  
+</script>
+{{ end }}

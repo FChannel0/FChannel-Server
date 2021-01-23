@@ -1,0 +1,93 @@
+{{ define "header" }}
+<script src="/static/js/posts.js"></script>
+{{ end }}
+
+{{ define "content" }}
+{{ $board := .Board }}
+<hr>
+<ul style="margin: 0; padding: 0; display: inline">
+  <li style="display: inline"><a href="/{{ $board.Name }}">[Return]</a></li>
+  <li style="display: inline"><a href="#bottom">[Bottom]</a></li>
+  <li style="display: inline"><a href="javascript:location.reload()">[Refresh]</a></li>
+</ul>    
+<hr>
+
+<div style="padding: 10px; text-align: center;">
+  {{ range .Posts }}
+  <div style="overflow: hidden; vertical-align: top; padding-right: 24px; padding-bottom: 24px; display: inline-block; width: 180px; max-height: 320px; margin-bottom: 10px;">
+    {{ if eq $board.ModCred $board.Domain $board.Actor }}              
+    <a href="/delete?id={{ .Id }}">[Delete Post]</a>
+    {{ end }}
+    {{ if .Attachment }}
+    {{ if eq $board.ModCred $board.Domain $board.Actor }}                  
+    <a href="/deleteattach?id={{ .Id }}">[Delete Attachment]</a>
+    {{ end }}        
+    <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/">
+      <div id="media-{{ .Id }}" style="width:180px;"></div>
+      <script>
+        media = document.getElementById("media-{{ .Id }}")
+        if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "image"){
+            var img = document.createElement("img");
+            img.style = "max-width: 180px; max-height: 180px; cursor: move;"
+            img.setAttribute("id", "img")
+            img.setAttribute("main", "1")
+            img.setAttribute("src", "{{ (index .Attachment 0).Href }}")
+            media.appendChild(img)
+        }                                
+
+        if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "audio"){
+            var audio = document.createElement("audio")
+            audio.controls = 'controls'
+            audio.preload    = 'none'              
+            audio.src      = '{{ (index .Attachment 0).Href }}'
+            audio.type     = '{{ (index .Attachment 0).MediaType }}'              
+            audio.style = "margin-right: 10px; margin-bottom: 10px; width: 180px;"
+            audio.innerText = 'Audio is not supported.'
+            media.appendChild(audio)                            
+        }
+
+        if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "video"){
+            var video = document.createElement("video")
+            video.controls = 'controls'
+            video.preload    = 'none'                          
+            video.muted    = 'muted'              
+            video.src      = '{{ (index .Attachment 0).Href }}'
+            video.type     = '{{ (index .Attachment 0).MediaType }}'              
+            video.style = "margin-right: 10px; margin-bottom: 10px; width: 180px;"
+            video.innerText = 'Video is not supported.'
+            media.appendChild(video)                                          
+        }                    
+      </script>                        
+      {{ end }}
+      <div>
+        {{ $replies := .Replies }}
+        <span style="display: block;">R: {{ $replies.TotalItems }}{{ if $replies.TotalImgs }}/ A: {{ $replies.TotalImgs }}{{ end }}</span>                        
+        {{ if .Name }}
+        <span style="display: block; color: #0f0c5d;"><b>{{ .Name }}</b></span>
+        {{ end }}
+
+        {{ if .Content }}
+        <span style="display: block">{{.Content}}</span>
+        {{ end }}
+
+      </div>
+    </a>        
+  </div>
+  <script>
+    document.getElementById("{{ .Id }}-anchor").href = "/{{ $board.Name }}/" + shortURL("{{$board.Actor}}", "{{ .Id }}")
+  </script>
+  {{ end }}
+</div>
+<hr>
+<ul style="margin: 0; padding: 0; display: inline">
+  <li style="display: inline"><a href="/{{ $board.Name }}">[Return]</a></li>
+  <li style="display: inline"><a id="bottom" href="#top">[Top]</a></li>
+  <li style="display: inline"><a href="javascript:location.reload()">[Refresh]</a></li>
+</ul>
+<hr>    
+{{ end }}
+{{ define "bottom" }}
+{{ end }}
+
+{{ define "script" }}
+{{ end }}

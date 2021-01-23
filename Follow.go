@@ -14,7 +14,7 @@ func GetActorFollowing(w http.ResponseWriter, db *sql.DB, id string) {
 	following.Items = GetActorFollowingDB(db, id)
 
 	enc, _ := json.MarshalIndent(following, "", "\t")							
-	w.Header().Set("Content-Type", "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"")
+	w.Header().Set("Content-Type", activitystreams)
 	w.Write(enc)
 }
 
@@ -27,7 +27,7 @@ func GetActorFollowers(w http.ResponseWriter, db *sql.DB, id string) {
 	following.Items = GetActorFollowDB(db, id)
 
 	enc, _ := json.MarshalIndent(following, "", "\t")							
-	w.Header().Set("Content-Type", "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"")
+	w.Header().Set("Content-Type", activitystreams)
 	w.Write(enc)
 }
 

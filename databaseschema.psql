@@ -205,3 +205,8 @@ size int default NULL,
 public boolean default false,
 CONSTRAINT fk_object FOREIGN KEY (object) REFERENCES cacheactivitystream(id)
 );
+
+CREATE TABLE IF NOT EXISTS removed(
+id varchar(100),
+type varchar(25)
+);

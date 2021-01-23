@@ -1,0 +1,42 @@
+{{ define "layout" }}
+<!DOCTYPE html>
+<html>
+  <meta name="viewport" content="width=device-width, initial-scale=1">      
+  <head>
+    <title>{{ .Title }}</title>
+    <style>
+      a, a:link, a:visited, a:hover, a:active {
+          text-decoration: none
+      }
+
+      a:link, a:visited,  a:active {
+          color: black;
+      }
+
+      a:hover {
+          color: #de0808;
+      }
+    </style>
+    {{ template "header" . }}    
+  </head>
+  <body style="background-color: #eef2fe;">    
+    <ul style="display: inline; padding:0;">
+      {{range .Boards}}
+      <li style="display: inline;"><a href="{{.Location}}">{{.Name}}</a></li>
+      {{end}}
+    </ul>
+    {{ if .Board.ModCred }}
+    {{ if eq .Board.ModCred .Board.Domain .Board.Actor }}
+    <span style="float: right;"><a href="/{{ .Key }}/{{ .Board.Name }}">[Manage Board]</a></span>
+    {{ end }}
+    {{ end }}
+    {{ template "top" . }}
+    
+    {{ template "content" . }}
+    
+    {{ template "bottom" . }}
+  </body>
+</html>
+
+{{ template "script" . }}
+{{ end }}
