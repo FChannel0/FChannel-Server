@@ -86,5 +86,9 @@ func GetPasswordFromSession(r *http.Request) (string, string) {
 
 	parts := strings.Split(token, "|")
 
-	return parts[0], parts[1]
+	if len(parts) > 1 {
+		return parts[0], parts[1]
+	}
+
+	return "", ""
 }

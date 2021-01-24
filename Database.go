@@ -30,6 +30,28 @@ func GetActorFromDB(db *sql.DB, id string) Actor {
 	return nActor	
 }
 
+func GetActorByNameFromDB(db *sql.DB, name string) Actor {
+	var nActor Actor
+
+	query :=`select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary from actor where name=$1`
+
+	rows, err := db.Query(query, name)
+
+	if CheckError(err, "could not get actor from db query") != nil {
+		return nActor
+	}
+
+	defer rows.Close()	
+	for rows.Next() {
+		err = rows.Scan(&nActor.Type, &nActor.Id, &nActor.Name, &nActor.PreferredUsername, &nActor.Inbox, &nActor.Outbox, &nActor.Following, &nActor.Followers, &nActor.Restricted, &nActor.Summary)
+		CheckError(err, "error with actor from db scan ")
+	}
+
+	nActor.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+
+	return nActor	
+}
+
 func CreateNewBoardDB(db *sql.DB, actor Actor) Actor{
 
 	query := `insert into actor (type, id, name, preferedusername, inbox, outbox, following, followers, summary) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`

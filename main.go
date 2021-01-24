@@ -100,9 +100,9 @@ func main() {
 		
 		var method = r.Method
 
-		var actor = GetActorFromPath(db, path, "/")		
+		var actor = GetActorFromPath(db, path, "/")
 
-		if actor.Name == "" {
+		if actor.Name == "main" {
 			mainActor = (path == "/")			
 			mainInbox = (path == "/inbox")
 			mainOutbox = (path == "/outbox")
@@ -429,7 +429,10 @@ func main() {
 
 			CheckError(err, "error with add board follow resp")
 
+
+			following := 	GetActorFollowingDB(db, Domain)
 			
+			Boards = &following			
 
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			
@@ -916,8 +919,12 @@ func GetActorFromPath(db *sql.DB, location string, prefix string) Actor {
 	}
 
 	var nActor Actor
-	
-	nActor = 	GetActorByName(db, actor)
+
+	nActor = 	GetActorByNameFromDB(db, actor)
+
+	if nActor.Id == "" {
+		nActor = 	GetActorByName(db, actor)
+	}
 
 	return nActor
 }

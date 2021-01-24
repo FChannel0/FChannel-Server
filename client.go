@@ -389,6 +389,13 @@ func WantToServe(db *sql.DB, actorName string) (Collection, bool) {
 
 	var collection Collection
 	serve := false
+
+	boardActor := GetActorByNameFromDB(db, actorName)
+
+	if boardActor.Id != "" {
+		collection = GetActorCollectionDB(db, boardActor)
+		return collection, true
+	}
 	
 	for _, e := range *Boards {
 		boardActor := GetActorFromDB(db, e.Id)

@@ -190,7 +190,6 @@ func SetActorFollowingDB(db *sql.DB, activity Activity) Activity {
 	alreadyFollow := false
 	following := GetActorFollowingDB(db, activity.Object.Actor.Id)
 
-
 	for _, e := range following {
 		if e.Id == activity.Actor.Id {
 			alreadyFollow = true

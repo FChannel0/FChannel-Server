@@ -110,6 +110,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 					SetActorFollowingDB(db, rActivity)
 					MakeActivityRequest(activity)
 				}
+
 				w.Write([]byte(""))
 			case "Delete":
 				fmt.Println("This is a delete")
