@@ -278,37 +278,40 @@ func WriteObjectReplyToCache(db *sql.DB, obj ObjectBase) {
 }
 
 func WriteObjectReplyCache(db *sql.DB, obj ObjectBase) {
-	
-	for _, e := range obj.Replies.OrderedItems {
 
-		query := `select inreplyto from cachereplies where id=$1`
+	if obj.Replies != nil {
+		for _, e := range obj.Replies.OrderedItems {
 
-		rows, err := db.Query(query, obj.Id)
+			query := `select inreplyto from cachereplies where id=$1`
 
-		CheckError(err, "error selecting obj id cache reply")
+			rows, err := db.Query(query, obj.Id)
 
-		var inreplyto string 		
-		defer rows.Close()
-		rows.Next()
-		rows.Scan(&inreplyto)
+			CheckError(err, "error selecting obj id cache reply")
 
-		if inreplyto != "" {
-			return
+			var inreplyto string 		
+			defer rows.Close()
+			rows.Next()
+			rows.Scan(&inreplyto)
+
+			if inreplyto != "" {
+				return
+			}
+			
+			query = `insert into cachereplies (id, inreplyto) values ($1, $2)`
+
+			_, err = db.Exec(query, e.Id, obj.Id)			
+			
+			if err != nil{
+				fmt.Println("error inserting replies cache")
+				panic(err)			
+			}
+
+			if !IsObjectLocal(db, e.Id) {
+				WriteObjectToCache(db, e)
+			}
+
 		}
-		
-		query = `insert into cachereplies (id, inreplyto) values ($1, $2)`
-
-		_, err = db.Exec(query, e.Id, obj.Id)			
-		
-		if err != nil{
-			fmt.Println("error inserting replies cache")
-			panic(err)			
-		}
-
-		if !IsObjectLocal(db, e.Id) {
-			WriteObjectToCache(db, e)
-		}
-
+		return 
 	}
 }
 

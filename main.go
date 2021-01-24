@@ -1586,7 +1586,7 @@ func GetCollectionFromID(id string) Collection {
 	resp, err := http.DefaultClient.Do(req)
 
 	if err != nil {
-		fmt.Println("could not get collection from " + id)
+		CheckError(err, "could not get collection from " + id)
 		return nColl
 	}
 
