@@ -468,8 +468,6 @@ func GetActivityFromJson(r *http.Request, db *sql.DB) Activity {
 		to := GetToFromJson(respActivity.ToRaw)
 		cc := GetToFromJson(respActivity.CcRaw)
 
-		jObj.AttributedTo = actor.Id
-
 		nActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 		nActivity.Type = nType
 		nActivity.Actor = &actor
@@ -517,6 +515,13 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				WriteObjectToCache(db, *activity.Object)
 			}
 		}
+
+		for _, e := range activity.To {
+			if IsActorLocal(db, e) {
+				WriteObjectToCache(db, *activity.Object)
+			}
+		}
+		
 		break
 
 	case "Delete":

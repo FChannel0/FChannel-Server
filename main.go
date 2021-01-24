@@ -339,7 +339,7 @@ func main() {
 
 		resp, err := http.DefaultClient.Do(req)
 
-		CheckError(err, "error with post form resp")		
+		CheckError(err, "error with post form resp")
 
 		defer resp.Body.Close()
 
@@ -581,7 +581,6 @@ func main() {
 		CheckError(err, "error getting actor from body in new board")		
 
 		//update board list with new instances following
-		fmt.Println(resp.StatusCode)
 		if resp.StatusCode == 200 {
 			var board []ObjectBase
 			var item ObjectBase			
@@ -750,8 +749,6 @@ func main() {
 		board := r.URL.Query().Get("board")		
 		actor := GetActorFromPath(db, id, "/")
 		_, auth := GetPasswordFromSession(r)
-
-		fmt.Println(actor.Id)
 
 		if id == "" || auth == "" {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1387,11 +1384,14 @@ func IsObjectLocal(db *sql.DB, id string) bool {
 
 	query := `select id from activitystream where id=$1`
 
-	rows, err := db.Query(query, id)
+	rows, _ := db.Query(query, id)
 
+	var nID string
 	defer rows.Close()
-	
-	if err != nil {
+	rows.Next()
+	rows.Scan(&nID)
+
+	if nID == "" {
 		return false
 	}
 
@@ -1401,15 +1401,18 @@ func IsObjectLocal(db *sql.DB, id string) bool {
 func IsObjectCached(db *sql.DB, id string) bool {
 
 	query := `select id from cacheactivitystream where id=$1`
-	rows, err := db.Query(query, id)
+	rows, _ := db.Query(query, id)
 
+	var nID string
 	defer rows.Close()
-	
-	if err != nil {
+	rows.Next()
+	rows.Scan(&nID)	
+
+	if nID == "" {
 		return false
 	}
 
-	return true
+	return true	
 }
 
 func GetObjectFromActivity(activity Activity) ObjectBase {
@@ -1555,8 +1558,6 @@ func MakeActivityRequest(activity Activity) {
 	
 	for _, e := range activity.To {
 
-		fmt.Println(e)
-		
 		actor := GetActor(e)
 
 		if actor.Inbox != "" {
