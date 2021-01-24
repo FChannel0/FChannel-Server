@@ -23,15 +23,13 @@ func GetActorOutbox(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	w.Write(enc)
 }
 
-func GetObjectsFromFollow(actor Actor) []ObjectBase {
+func GetObjectsFromFollow(db *sql.DB, actor Actor) []ObjectBase {
 	var followingCol Collection
 	var followObj []ObjectBase
 	followingCol = GetActorCollection(actor.Following)
 	for _, e := range followingCol.Items {
 		var followOutbox Collection
-		var actor Actor
-		actor = GetActor(e.Id)
-		followOutbox = GetActorCollection(actor.Outbox)
+		followOutbox = GetObjectFromCache(db, e.Id)
 		for _, e := range followOutbox.OrderedItems {
 			followObj = append(followObj, e)
 		}

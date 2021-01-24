@@ -80,8 +80,6 @@ func main() {
 			path = re.ReplaceAllString(path, "")
 		}
 
-
-
 		var mainActor bool
 		var mainInbox bool
 		var mainOutbox bool
@@ -1024,6 +1022,16 @@ func CreateObject(objType string) ObjectBase {
 	return nObj
 }
 
+func AddFollowersToActivity(db *sql.DB, activity Activity) Activity{
+	followers := GetActorFollowingDB(db, activity.Actor.Id)
+
+	for _, e := range followers {
+		activity.To = append(activity.To, e.Id)
+	}
+
+	return activity
+}
+
 func CreateActivity(activityType string, obj ObjectBase) Activity {
 	var newActivity Activity
 
@@ -1370,9 +1378,23 @@ func IsActorLocal(db *sql.DB, id string) bool {
 
 func IsObjectLocal(db *sql.DB, id string) bool {
 
-	query := fmt.Sprintf("select id from activitystream where id='%s'", id)
+	query := `select id from activitystream where id=$1`
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, id)
+
+	defer rows.Close()
+	
+	if err != nil {
+		return false
+	}
+
+	return true
+}
+
+func IsObjectCached(db *sql.DB, id string) bool {
+
+	query := `select id from cacheactivitystream where id=$1`
+	rows, err := db.Query(query, id)
 
 	defer rows.Close()
 	
@@ -1525,6 +1547,8 @@ func MakeActivityRequest(activity Activity) {
 	j, _ := json.MarshalIndent(activity, "", "\t")
 	
 	for _, e := range activity.To {
+
+		fmt.Println(e)
 		
 		actor := GetActor(e)
 

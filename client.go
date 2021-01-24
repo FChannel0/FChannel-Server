@@ -138,7 +138,7 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	domainURL := GetDomainURL(*actor)
 	
 	if domainURL == Domain {
-		followCol := GetObjectsFromFollow(*actor)
+		followCol := GetObjectsFromFollow(db, *actor)
 		for _, e := range followCol {
 			if e.Type != "Tombstone" {
 				mergeCollection.OrderedItems = append(mergeCollection.OrderedItems, e)
@@ -217,9 +217,8 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	domainURL := GetDomainURL(*actor)
 
 	if domainURL == Domain {
-		followCol := GetObjectsFromFollow(*actor)	
+		followCol := GetObjectsFromFollow(db, *actor)	
 		for _, e := range followCol {
-
 			mergeCollection.OrderedItems = append(mergeCollection.OrderedItems, e)
 		}
 	}

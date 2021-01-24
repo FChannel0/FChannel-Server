@@ -218,7 +218,6 @@ func writeObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 	}
 }
 
-
 func WriteWalletToDB(db *sql.DB, obj ObjectBase) {
 	for _, e := range obj.Option { 	
 		if e == "wallet" {
@@ -400,7 +399,6 @@ func GetInReplyToDB(db *sql.DB, parent ObjectBase) []ObjectBase {
 
 	return result
 }
-
 
 func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, int) {
 
@@ -655,8 +653,6 @@ func GetObjectImgsTotalDB(db *sql.DB, actor Actor) int{
 	return count
 }
 
-
-
 func DeletePreviewFromFile(db *sql.DB, id string) {
 
 	var query = `select href, type from activitystream where id in (select preview from activitystream where id=$1)`
@@ -716,7 +712,6 @@ func DeleteAttachmentFromFile(db *sql.DB, id string) {
 	DeleteAttachmentFromDB(db, id)
 }
 
-
 func DeletePreviewRepliesFromDB(db *sql.DB, id string) {
 	var query = `select id from activitystream where id in (select id from replies where inreplyto=$1)`
 	// var query = fmt.Sprintf("select id from activitystream where id (select id from replies where inreplyto='%s');", id)
@@ -757,7 +752,6 @@ func DeleteAttachmentRepliesFromDB(db *sql.DB, id string) {
 	}	
 }
 
-
 func DeleteAttachmentFromDB(db *sql.DB, id string) {
 	datetime := time.Now().Format(time.RFC3339)
 
@@ -786,7 +780,6 @@ func DeleteObjectRepliedTo(db *sql.DB, id string){
 
 	CheckError(err, "error with delete object replies")	
 }
-
 
 func DeleteObjectFromDB(db *sql.DB, id string) {
 	datetime := time.Now().Format(time.RFC3339)
@@ -986,5 +979,3 @@ func GetActorReportedDB(db *sql.DB, id string) []ObjectBase {
 
 	return nObj
 }
-
-

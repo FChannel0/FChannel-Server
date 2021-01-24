@@ -200,9 +200,11 @@ func SetActorFollowingDB(db *sql.DB, activity Activity) Activity {
 	if alreadyFollow {
 		query = `delete from following where id=$1 and following=$2`
 		activity.Summary = activity.Object.Actor.Id + " Unfollowing " + activity.Actor.Id
+		DeleteActorCache(db, activity.Actor.Id)
 	} else {		
 		query = `insert into following (id, following) values ($1, $2)`
 		activity.Summary = activity.Object.Actor.Id + " Following " + activity.Actor.Id
+		WriteActorToCache(db, activity.Actor.Id)		
 	}
 	
 	_, err := db.Exec(query, activity.Object.Actor.Id, activity.Actor.Id)

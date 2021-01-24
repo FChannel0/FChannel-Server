@@ -19,7 +19,8 @@ func WriteObjectToCache(db *sql.DB, obj ObjectBase) ObjectBase {
 		WriteActivitytoCache(db, obj)
 	}
 
-	WriteObjectReplyToCache(db, obj)	
+	WriteObjectReplyToCache(db, obj)
+	WriteObjectReplyCache(db, obj)		
 
 	return obj
 }
@@ -193,8 +194,7 @@ func GetObjectFromCache(db *sql.DB, id string) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
-
-	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor from activitystream where actor=$1 and id in (select id from cachereplies where inreplyto='') and type='Note' order by updated asc`	
+	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor from cacheactivitystream where actor=$1 and id in (select id from cachereplies where inreplyto='') and type='Note' order by updated asc`	
 
 	rows, err := db.Query(query, id)	
 
@@ -235,6 +235,7 @@ func GetObjectFromCache(db *sql.DB, id string) Collection {
 }
 
 func WriteObjectReplyToCache(db *sql.DB, obj ObjectBase) {
+	
 	for i, e := range obj.InReplyTo {
 		if(i == 0 || IsReplyInThread(db, obj.InReplyTo[0].Id, e.Id)){
 
@@ -262,6 +263,52 @@ func WriteObjectReplyToCache(db *sql.DB, obj ObjectBase) {
 				panic(err)			
 			}
 		}
+	}
+
+	if len(obj.InReplyTo) < 1 {
+		query := `insert into cachereplies (id, inreplyto) values ($1, $2)`
+
+		_, err := db.Exec(query, obj.Id, "")			
+		
+		if err != nil{
+			fmt.Println("error inserting replies cache")
+			panic(err)			
+		}
+	}	
+}
+
+func WriteObjectReplyCache(db *sql.DB, obj ObjectBase) {
+	
+	for _, e := range obj.Replies.OrderedItems {
+
+		query := `select inreplyto from cachereplies where id=$1`
+
+		rows, err := db.Query(query, obj.Id)
+
+		CheckError(err, "error selecting obj id cache reply")
+
+		var inreplyto string 		
+		defer rows.Close()
+		rows.Next()
+		rows.Scan(&inreplyto)
+
+		if inreplyto != "" {
+			return
+		}
+		
+		query = `insert into cachereplies (id, inreplyto) values ($1, $2)`
+
+		_, err = db.Exec(query, e.Id, obj.Id)			
+		
+		if err != nil{
+			fmt.Println("error inserting replies cache")
+			panic(err)			
+		}
+
+		if !IsObjectLocal(db, e.Id) {
+			WriteObjectToCache(db, e)
+		}
+
 	}
 }
 
@@ -514,4 +561,34 @@ func GetObjectImgsTotalCache(db *sql.DB, actor Actor) int{
 	}
 	
 	return count
+}
+
+func DeleteActorCache(db *sql.DB, actorID string) {
+       fmt.Println("delete actor to cache")
+       query := `select id from cacheactivitystream where id in (select id from cacheactivitystream where actor=$1)`
+
+       rows, err := db.Query(query, actorID)
+
+
+
+       CheckError(err, "error selecting actors activity from cache")
+
+       defer rows.Close()
+
+       for rows.Next() {
+               var id string
+               rows.Scan(&id)
+
+               DeleteObjectFromCache(db, id)
+       }
+}
+
+func WriteActorToCache(db *sql.DB, actorID string) {
+       fmt.Println("writing actor to cache")
+       actor := GetActor(actorID)
+       collection := GetActorCollection(actor.Outbox)
+
+       for _, e := range collection.OrderedItems {
+               WriteObjectToCache(db, e)
+       }
 }

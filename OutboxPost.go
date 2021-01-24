@@ -49,6 +49,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 			nObj = writeObjectToDB(db, nObj)
 			activity := CreateActivity("Create", nObj)
+			activity = AddFollowersToActivity(db, activity)
 			MakeActivityRequest(activity)
 
 			var id string
@@ -511,6 +512,8 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		for _, e := range activity.Object.InReplyTo {
 			if IsObjectLocal(db, e.Id) {
 				WriteObjectReplyToLocalDB(db, activity.Object.Id, e.Id)
+			} else if IsObjectCached(db, e.Id) {
+				WriteObjectToCache(db, *activity.Object)
 			}
 		}
 		break
