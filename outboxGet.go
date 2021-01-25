@@ -10,16 +10,15 @@ func GetActorOutbox(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	var collection Collection
 
 	collection.OrderedItems = GetObjectFromDB(db, actor).OrderedItems
-
 	collection.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 	collection.Actor = &actor
-	collection.Actor.AtContext.Context = ""	
 
 	collection.TotalItems = GetObjectPostsTotalDB(db, actor)
 	collection.TotalImgs = GetObjectImgsTotalDB(db, actor)
 
-	enc, _ := json.MarshalIndent(collection, "", "\t")							
-	w.Header().Set("Content-Type", "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"")
+	enc, _ := json.MarshalIndent(collection, "", "\t")
+
+	w.Header().Set("Content-Type", activitystreams)
 	w.Write(enc)
 }
 

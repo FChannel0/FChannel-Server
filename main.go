@@ -1250,9 +1250,7 @@ func GetActorCollectionCache(db *sql.DB, actor Actor) Collection {
 
 	collection.OrderedItems = GetObjectFromCache(db, actor.Id).OrderedItems
 
-	collection.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 	collection.Actor = &actor
-	collection.Actor.AtContext.Context = ""	
 
 	collection.TotalItems = GetObjectPostsTotalCache(db, actor)
 	collection.TotalImgs = GetObjectImgsTotalCache(db, actor)
@@ -1265,9 +1263,7 @@ func GetActorCollectionDB(db *sql.DB, actor Actor) Collection {
 	
 	collection.OrderedItems = GetObjectFromDB(db, actor).OrderedItems
 
-	collection.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 	collection.Actor = &actor
-	collection.Actor.AtContext.Context = ""	
 
 	collection.TotalItems = GetObjectPostsTotalDB(db, actor)
 	collection.TotalImgs = GetObjectImgsTotalDB(db, actor)
@@ -1337,7 +1333,7 @@ func IsValidActor(id string) (Actor, bool) {
 		panic(err)
 	}
 
-	if respCollection.AtContext.Context == "https://www.w3.org/ns/activitystreams" &&  respCollection.Id != "" && respCollection.Inbox != "" && respCollection.Outbox != "" {
+	if respCollection.Id != "" && respCollection.Inbox != "" && respCollection.Outbox != "" {
 		return respCollection, true;
 	}
 

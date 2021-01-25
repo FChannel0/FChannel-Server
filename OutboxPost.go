@@ -76,7 +76,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		if IsActivityLocal(db, activity) {
 			switch activity.Type {
 			case "Create":
-				if(true) {
+				if(true) { // add condition for creating
 					object = GetObjectFromActivity(activity)
 					writeObjectToDB(db, object)				
 					w.WriteHeader(http.StatusCreated)
@@ -456,7 +456,6 @@ func GetActivityFromJson(r *http.Request, db *sql.DB) Activity {
 
 		if respActivity.Type == "Note" {
 			jObj = GetObjectFromJson(body)
-			jObj.AtContext.Context = ""
 			nType = "Create"
 		} else {
 			jObj = GetObjectFromJson(respActivity.ObjectRaw)

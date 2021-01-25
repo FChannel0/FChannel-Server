@@ -361,7 +361,6 @@ func GetObjectRepliesCache(db *sql.DB, parent ObjectBase) (*CollectionBase, int,
 		
 		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id)
 
-
 		CheckError(err, "error with replies db scan")
 
 		post.Actor = &actor
@@ -384,11 +383,9 @@ func GetObjectRepliesCache(db *sql.DB, parent ObjectBase) (*CollectionBase, int,
 
 	nColl.OrderedItems = result
 
-	/*
-	remoteCollection := GetObjectRepliesRemote(db, parent)
+	
+	remoteCollection, postc, imgc := GetObjectRepliesDB(db, parent)
 
-	var postc int
-	var imgc int
 	for _, e := range remoteCollection.OrderedItems {
 		nColl.OrderedItems = append(nColl.OrderedItems, e)
 		postc = postc + 1
@@ -396,7 +393,6 @@ func GetObjectRepliesCache(db *sql.DB, parent ObjectBase) (*CollectionBase, int,
 			imgc = imgc + 1
 		}
 	}
-*/
 
 	return &nColl, 0, 0
 }

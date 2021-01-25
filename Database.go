@@ -25,8 +25,6 @@ func GetActorFromDB(db *sql.DB, id string) Actor {
 		CheckError(err, "error with actor from db scan ")
 	}
 
-	nActor.AtContext.Context = "https://www.w3.org/ns/activitystreams"
-
 	return nActor	
 }
 
@@ -46,8 +44,6 @@ func GetActorByNameFromDB(db *sql.DB, name string) Actor {
 		err = rows.Scan(&nActor.Type, &nActor.Id, &nActor.Name, &nActor.PreferredUsername, &nActor.Inbox, &nActor.Outbox, &nActor.Following, &nActor.Followers, &nActor.Restricted, &nActor.Summary)
 		CheckError(err, "error with actor from db scan ")
 	}
-
-	nActor.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 
 	return nActor	
 }
@@ -399,13 +395,6 @@ func GetObjectFromDB(db *sql.DB, actor Actor) Collection {
 
 		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
 
-		var localPost ObjectBase		
-		localPost.Replies, postCnt, imgCnt = GetObjectRepliesCache(db, post)
-
-		for _, e := range localPost.Replies.OrderedItems {
-			post.Replies.OrderedItems = append(post.Replies.OrderedItems, e)
-		}		
-
 		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
 		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
 
@@ -486,11 +475,9 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, in
 
 	nColl.OrderedItems = result
 
-	/*
-	remoteCollection := GetObjectRepliesRemote(db, parent)
+	
+	remoteCollection, postc, imgc := GetObjectRepliesCache(db, parent)
 
-	var postc int
-	var imgc int
 	for _, e := range remoteCollection.OrderedItems {
 		nColl.OrderedItems = append(nColl.OrderedItems, e)
 		postc = postc + 1
@@ -498,7 +485,6 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, in
 			imgc = imgc + 1
 		}
 	}
-*/
 
 	return &nColl, 0, 0
 }

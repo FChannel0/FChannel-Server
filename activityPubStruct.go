@@ -66,7 +66,6 @@ type CcOjectString struct {
 }
 
 type Actor struct {
-	AtContext
 	Type string `json:"type,omitempty"`
 	Id string `json:"id,omitempty"`	
 	Inbox string `json:"inbox,omitempty"`
@@ -96,7 +95,6 @@ type Activity struct {
 }
 
 type ObjectBase struct {
-	AtContext
 	Type string `json:"type,omitempty"`
 	Id string `json:"id,omitempty"`
 	Name string `json:"name,omitempty"`
