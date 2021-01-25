@@ -228,6 +228,13 @@ func GetObjectFromCache(db *sql.DB, id string) Collection {
 		var imgCnt int		
 		post.Replies, postCnt, imgCnt = GetObjectRepliesCache(db, post)
 
+		var localPost ObjectBase		
+		localPost.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
+
+		for _, e := range localPost.Replies.OrderedItems {
+			post.Replies.OrderedItems = append(post.Replies.OrderedItems, e)
+		}
+
 		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCacheCount(db, post)
 
 		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
@@ -371,6 +378,7 @@ func GetObjectRepliesCache(db *sql.DB, parent ObjectBase) (*CollectionBase, int,
 
 	nColl.OrderedItems = result
 
+	/*
 	remoteCollection := GetObjectRepliesRemote(db, parent)
 
 	var postc int
@@ -382,8 +390,9 @@ func GetObjectRepliesCache(db *sql.DB, parent ObjectBase) (*CollectionBase, int,
 			imgc = imgc + 1
 		}
 	}
+*/
 
-	return &nColl, postc, imgc
+	return &nColl, 0, 0
 }
 
 func GetObjectRepliesRepliesCache(db *sql.DB, parent ObjectBase) (*CollectionBase, int, int) {
@@ -420,6 +429,7 @@ func GetObjectRepliesRepliesCache(db *sql.DB, parent ObjectBase) (*CollectionBas
 		result = append(result, post)			
 	}
 
+	/*
 	remoteCollection := GetObjectRepliesRemote(db, parent)
 
 	var postc int
@@ -434,8 +444,9 @@ func GetObjectRepliesRepliesCache(db *sql.DB, parent ObjectBase) (*CollectionBas
 	}	
 
 	nColl.OrderedItems = result
+*/
 
-	return &nColl, postc, imgc
+	return &nColl, 0, 0
 }
 
 func GetObjectRepliesCacheCount(db *sql.DB, parent ObjectBase) (int, int) {
@@ -578,7 +589,6 @@ func GetObjectImgsTotalCache(db *sql.DB, actor Actor) int{
 }
 
 func DeleteActorCache(db *sql.DB, actorID string) {
-       fmt.Println("delete actor to cache")
        query := `select id from cacheactivitystream where id in (select id from cacheactivitystream where actor=$1)`
 
        rows, err := db.Query(query, actorID)
@@ -598,11 +608,10 @@ func DeleteActorCache(db *sql.DB, actorID string) {
 }
 
 func WriteActorToCache(db *sql.DB, actorID string) {
-       fmt.Println("writing actor to cache")
        actor := GetActor(actorID)
        collection := GetActorCollection(actor.Outbox)
 
-       for _, e := range collection.OrderedItems {
-               WriteObjectToCache(db, e)
-       }
+	for _, e := range collection.OrderedItems {
+		WriteObjectToCache(db, e)
+	}
 }

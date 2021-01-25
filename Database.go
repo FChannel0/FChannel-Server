@@ -470,6 +470,7 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, in
 
 	nColl.OrderedItems = result
 
+	/*
 	remoteCollection := GetObjectRepliesRemote(db, parent)
 
 	var postc int
@@ -481,8 +482,9 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, in
 			imgc = imgc + 1
 		}
 	}
+*/
 
-	return &nColl, postc, imgc
+	return &nColl, 0, 0
 }
 
 func GetObjectRepliesRemote(db *sql.DB, parent ObjectBase) CollectionBase {
@@ -552,6 +554,7 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 		result = append(result, post)			
 	}
 
+	/*
 	remoteCollection := GetObjectRepliesRemote(db, parent)
 
 	var postc int
@@ -565,9 +568,11 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 		}			
 	}	
 
-	nColl.OrderedItems = result
 
-	return &nColl, postc, imgc
+	nColl.OrderedItems = result
+*/
+
+	return &nColl, 0, 0
 }
 
 func GetObjectRepliesDBCount(db *sql.DB, parent ObjectBase) (int, int) {
