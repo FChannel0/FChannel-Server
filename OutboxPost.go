@@ -506,16 +506,9 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	activity := GetActivityFromJson(r, db)
 	switch(activity.Type) {
 	case "Create":
-		for _, e := range activity.Object.InReplyTo {
-			if IsObjectLocal(db, e.Id) {
-				WriteObjectReplyToLocalDB(db, activity.Object.Id, e.Id)
-			} else if IsObjectCached(db, e.Id) {
-				WriteObjectToCache(db, *activity.Object)
-			}
-		}
-
 		for _, e := range activity.To {
 			if IsActorLocal(db, e) {
+				fmt.Println("writing object to cache " + e)
 				WriteObjectToCache(db, *activity.Object)
 			}
 		}

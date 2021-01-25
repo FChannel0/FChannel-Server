@@ -556,11 +556,8 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 		result = append(result, post)			
 	}
 
-	/*
-	remoteCollection := GetObjectRepliesRemote(db, parent)
+	remoteCollection, postc, imgc := GetObjectRepliesCache(db, parent)
 
-	var postc int
-	var imgc int
 	for _, e := range remoteCollection.OrderedItems {
 		
 		nColl.OrderedItems = append(nColl.OrderedItems, e)
@@ -572,7 +569,6 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 
 
 	nColl.OrderedItems = result
-*/
 
 	return &nColl, 0, 0
 }

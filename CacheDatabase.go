@@ -360,7 +360,7 @@ func GetObjectRepliesCache(db *sql.DB, parent ObjectBase) (*CollectionBase, int,
 
 		var postCnt int
 		var imgCnt int		
-		post.Replies, postCnt, imgCnt = GetObjectRepliesRepliesCache(db, post)
+		post.Replies, postCnt, imgCnt = GetObjectRepliesRepliesDB(db, post)
 
 		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCacheCount(db, post)
 		
@@ -375,17 +375,6 @@ func GetObjectRepliesCache(db *sql.DB, parent ObjectBase) (*CollectionBase, int,
 	}
 
 	nColl.OrderedItems = result
-
-	
-	// remoteCollection, postc, imgc := GetObjectRepliesDB(db, parent)
-
-	// for _, e := range remoteCollection.OrderedItems {
-	// 	nColl.OrderedItems = append(nColl.OrderedItems, e)
-	// 	postc = postc + 1
-	// 	if len(e.Attachment) > 0 {
-	// 		imgc = imgc + 1
-	// 	}
-	// }
 
 	return &nColl, 0, 0
 }

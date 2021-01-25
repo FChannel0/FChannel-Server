@@ -1029,7 +1029,16 @@ func AddFollowersToActivity(db *sql.DB, activity Activity) Activity{
 	followers := GetActorFollowDB(db, activity.Actor.Id)
 
 	for _, e := range followers {
-		activity.To = append(activity.To, e.Id)
+		var alreadyTo = false
+		for _, k := range activity.To {
+			if k == e.Id {
+				alreadyTo = true
+			}
+		}
+
+		if !alreadyTo {
+			activity.To = append(activity.To, e.Id)
+		}
 	}
 
 	return activity
