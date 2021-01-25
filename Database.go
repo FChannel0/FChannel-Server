@@ -235,7 +235,11 @@ func writeObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 		}
 		
 		if update {
-			WriteObjectUpdatesToDB(db, e)
+			if IsObjectLocal(db, e.Id) {
+				WriteObjectUpdatesToDB(db, e)
+			} else {
+				WriteObjectUpdatesToCache(db, e)
+			}
 		}			
 	}
 }

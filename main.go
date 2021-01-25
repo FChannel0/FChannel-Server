@@ -1027,7 +1027,7 @@ func CreateObject(objType string) ObjectBase {
 }
 
 func AddFollowersToActivity(db *sql.DB, activity Activity) Activity{
-	followers := GetActorFollowingDB(db, activity.Actor.Id)
+	followers := GetActorFollowDB(db, activity.Actor.Id)
 
 	for _, e := range followers {
 		activity.To = append(activity.To, e.Id)

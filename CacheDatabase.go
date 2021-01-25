@@ -1,6 +1,7 @@
 package main
 
 import "fmt"
+import "time"
 import "database/sql"
 import _ "github.com/lib/pq"
 
@@ -19,10 +20,20 @@ func WriteObjectToCache(db *sql.DB, obj ObjectBase) ObjectBase {
 		WriteActivitytoCache(db, obj)
 	}
 
-	WriteObjectReplyToCache(db, obj)
-	WriteObjectReplyCache(db, obj)		
+	writeObjectReplyToDB(db, obj)	
 
 	return obj
+}
+
+func WriteObjectUpdatesToCache(db *sql.DB, obj ObjectBase) {
+	query := `update cacheactivitystream set updated=$1 where id=$2`
+	
+	_, e := db.Exec(query, time.Now().Format(time.RFC3339), obj.Id)
+	
+	if e != nil{
+		fmt.Println("error inserting updating inreplyto")
+		panic(e)			
+	}		
 }
 
 func WriteActivitytoCache(db *sql.DB, obj ObjectBase) {
@@ -194,7 +205,7 @@ func GetObjectFromCache(db *sql.DB, id string) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
-	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor from cacheactivitystream where actor=$1 and id in (select id from cachereplies where inreplyto='') and type='Note' order by updated asc`	
+	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor from cacheactivitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' order by updated asc`	
 
 	rows, err := db.Query(query, id)	
 
@@ -239,7 +250,7 @@ func WriteObjectReplyToCache(db *sql.DB, obj ObjectBase) {
 	for i, e := range obj.InReplyTo {
 		if(i == 0 || IsReplyInThread(db, obj.InReplyTo[0].Id, e.Id)){
 
-			query := `select id from cachereplies where id=$1`
+			query := `select id from replies where id=$1`
 
 			rows, err := db.Query(query, obj.Id)
 
@@ -320,7 +331,7 @@ func GetObjectRepliesCache(db *sql.DB, parent ObjectBase) (*CollectionBase, int,
 	var nColl CollectionBase
 	var result []ObjectBase
 
-	query := `select id, name, content, type, published, attributedto, attachment, preview, actor from cacheactivitystream WHERE id in (select id from cachereplies where inreplyto=$1) and type='Note' order by published asc`
+	query := `select id, name, content, type, published, attributedto, attachment, preview, actor from cacheactivitystream WHERE id in (select id from replies where inreplyto=$1) and type='Note' order by published asc`
 
 	rows, err := db.Query(query, parent.Id)	
 
@@ -380,7 +391,7 @@ func GetObjectRepliesRepliesCache(db *sql.DB, parent ObjectBase) (*CollectionBas
 	var nColl CollectionBase
 	var result []ObjectBase
 
-	query := `select id, name, content, type, published, attributedto, attachment, preview, actor from cacheactivitystream where id in (select id from cachereplies where inreplyto=$1) and type='Note' order by published asc`
+	query := `select id, name, content, type, published, attributedto, attachment, preview, actor from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note' order by published asc`
 
 	rows, err := db.Query(query, parent.Id)	
 
@@ -524,7 +535,7 @@ func DeleteObjectFromCache(db *sql.DB, id string) {
 	_, err = db.Exec(query, id)
 	CheckError(err, "could not delete object cache activitystream")
 
-	query = `delete from cachereplies where id=$1`
+	query = `delete from replies where id=$1`
 	_, err = db.Exec(query, id)
 	CheckError(err, "could not delete  cache replies activitystream")
 }
@@ -532,7 +543,7 @@ func DeleteObjectFromCache(db *sql.DB, id string) {
 func GetObjectPostsTotalCache(db *sql.DB, actor Actor) int{
 
 	count := 0
-	query := `select count(id) from cacheactivitystream where actor=$1 and id in (select id from cachereplies where inreplyto='' and type='Note')`
+	query := `select count(id) from cacheactivitystream where actor=$1 and id in (select id from replies where inreplyto='' and type='Note')`
 
 	rows, err := db.Query(query, actor.Id)	
 
@@ -550,7 +561,7 @@ func GetObjectPostsTotalCache(db *sql.DB, actor Actor) int{
 func GetObjectImgsTotalCache(db *sql.DB, actor Actor) int{
 
 	count := 0
-	query := `select count(attachment) from cacheactivitystream where actor=$1 and id in (select id from cachereplies where inreplyto='' and type='Note' )`
+	query := `select count(attachment) from cacheactivitystream where actor=$1 and id in (select id from replies where inreplyto='' and type='Note' )`
 
 	rows, err := db.Query(query, actor.Id)	
 
