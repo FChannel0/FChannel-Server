@@ -232,14 +232,7 @@ func GetObjectFromCache(db *sql.DB, id string) Collection {
 
 		var postCnt int
 		var imgCnt int		
-		post.Replies, postCnt, imgCnt = GetObjectRepliesCache(db, post)
-
-		var localPost ObjectBase		
-		localPost.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
-
-		for _, e := range localPost.Replies.OrderedItems {
-			post.Replies.OrderedItems = append(post.Replies.OrderedItems, e)
-		}
+		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
 
 		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCacheCount(db, post)
 
