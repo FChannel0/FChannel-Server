@@ -214,16 +214,14 @@ func WriteObjectReplyToLocalDB(db *sql.DB, id string, replyto string) {
 }
 
 func writeObjectReplyToDB(db *sql.DB, obj ObjectBase) {
-	for i, e := range obj.InReplyTo {
-		if(i == 0 || IsReplyInThread(db, obj.InReplyTo[0].Id, e.Id)){
-			query := `insert into replies (id, inreplyto) values ($1, $2)`
+	for _, e := range obj.InReplyTo {
+		query := `insert into replies (id, inreplyto) values ($1, $2)`
 
-			_, err := db.Exec(query, obj.Id, e.Id)			
-			
-			if err != nil{
-				fmt.Println("error inserting replies")
-				panic(err)			
-			}
+		_, err := db.Exec(query, obj.Id, e.Id)			
+		
+		if err != nil{
+			fmt.Println("error inserting replies")
+			panic(err)			
 		}
 
 		update := true
@@ -241,6 +239,17 @@ func writeObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 				WriteObjectUpdatesToCache(db, e)
 			}
 		}			
+	}
+
+	if len(obj.InReplyTo) < 1 {
+		query := `insert into replies (id, inreplyto) values ($1, $2)`
+
+		_, err := db.Exec(query, obj.Id, "")			
+		
+		if err != nil{
+			fmt.Println("error inserting replies cache")
+			panic(err)			
+		}
 	}
 }
 

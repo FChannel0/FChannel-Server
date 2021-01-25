@@ -20,7 +20,13 @@ func WriteObjectToCache(db *sql.DB, obj ObjectBase) ObjectBase {
 		WriteActivitytoCache(db, obj)
 	}
 
-	writeObjectReplyToDB(db, obj)	
+	writeObjectReplyToDB(db, obj)
+
+	if obj.Replies != nil {
+		for _, e := range obj.Replies.OrderedItems {
+			WriteObjectToCache(db, e)
+		}
+	}
 
 	return obj
 }
@@ -608,8 +614,8 @@ func DeleteActorCache(db *sql.DB, actorID string) {
 }
 
 func WriteActorToCache(db *sql.DB, actorID string) {
-       actor := GetActor(actorID)
-       collection := GetActorCollection(actor.Outbox)
+	actor := GetActor(actorID)
+	collection := GetActorCollection(actor.Outbox)
 
 	for _, e := range collection.OrderedItems {
 		WriteObjectToCache(db, e)

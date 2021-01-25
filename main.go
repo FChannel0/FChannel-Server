@@ -429,7 +429,6 @@ func main() {
 
 			CheckError(err, "error with add board follow resp")
 
-
 			following := 	GetActorFollowingDB(db, Domain)
 			
 			Boards = &following			

@@ -406,7 +406,6 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 	return obj
 }
 
-
 func ParseOptions(r *http.Request, obj ObjectBase) ObjectBase {
 	options := EscapeString(r.FormValue("options"))
 	if options != "" {
