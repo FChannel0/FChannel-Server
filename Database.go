@@ -390,6 +390,13 @@ func GetObjectFromDB(db *sql.DB, actor Actor) Collection {
 
 		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
 
+		var localPost ObjectBase		
+		localPost.Replies, postCnt, imgCnt = GetObjectRepliesCache(db, post)
+
+		for _, e := range localPost.Replies.OrderedItems {
+			post.Replies.OrderedItems = append(post.Replies.OrderedItems, e)
+		}		
+
 		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
 		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
 
