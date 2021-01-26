@@ -508,7 +508,6 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	case "Create":
 		for _, e := range activity.To {
 			if IsActorLocal(db, e) {
-				fmt.Println("writing object to cache " + e)
 				WriteObjectToCache(db, *activity.Object)
 			}
 		}

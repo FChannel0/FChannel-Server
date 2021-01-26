@@ -1027,7 +1027,7 @@ func CreateObject(objType string) ObjectBase {
 
 func AddFollowersToActivity(db *sql.DB, activity Activity) Activity{
 	followers := GetActorFollowDB(db, activity.Actor.Id)
-	
+
 	var nActivity Activity
 	for _, e := range followers {
 		var tempActivity Activity		
@@ -1041,7 +1041,7 @@ func AddFollowersToActivity(db *sql.DB, activity Activity) Activity{
 		for _, k := range tempActivity.To {
 			var alreadyTo = false
 			for _, n := range nActivity.To {
-				if k == n {
+				if k == n || k == activity.Actor.Id {				
 					alreadyTo = true
 				}
 			}
