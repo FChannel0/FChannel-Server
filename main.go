@@ -1031,13 +1031,22 @@ func AddFollowersToActivity(db *sql.DB, activity Activity) Activity{
 	var nActivity Activity
 	for _, e := range followers {
 		var tempActivity Activity		
-		actor := GetActor(e.Id)
-		aFollowers := GetActorCollection(actor.Followers)
+		aFollowers := GetActorCollection(e.Id + "/followers") 
 		for _, k := range aFollowers.Items {
-			tempActivity.To = append(tempActivity.To, k.Id)
+			bFollowers := GetActorCollection(k.Id + "/followers")
+			var isFollowingActor = false
+			for _, n := range bFollowers.Items {
+				if n.Id == activity.Actor.Id {
+					isFollowingActor = true
+				}
+			}
+			
+			if isFollowingActor {
+				tempActivity.To = append(tempActivity.To, k.Id)
+			}
 		}
+		
 		tempActivity.To = append(tempActivity.To, e.Id)
-
 		for _, k := range tempActivity.To {
 			var alreadyTo = false
 			for _, n := range nActivity.To {
