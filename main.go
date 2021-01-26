@@ -705,7 +705,6 @@ func main() {
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		}
-
 		
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(""))		

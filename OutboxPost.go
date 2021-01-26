@@ -517,7 +517,7 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		for _, e := range activity.To {
 			actor := GetActorFromDB(db, e)
 			if actor.Id != "" {
-				DeleteObjectFromCache(db, activity.Object.Id)
+				TombstoneObjectFromCache(db, activity.Object.Id)
 				return
 			}
 		}

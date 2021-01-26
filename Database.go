@@ -729,7 +729,6 @@ func GetObjectImgsTotalDB(db *sql.DB, actor Actor) int{
 func DeletePreviewFromFile(db *sql.DB, id string) {
 
 	var query = `select href, type from activitystream where id in (select preview from activitystream where id=$1)`
-	// var query = fmt.Sprintf("select href, type from activitystream where id in (select attachment from activitystream where id='%s')", id)
 
 	rows, err := db.Query(query, id)	
 
@@ -758,7 +757,6 @@ func DeletePreviewFromFile(db *sql.DB, id string) {
 func DeleteAttachmentFromFile(db *sql.DB, id string) {
 
 	var query = `select href, type from activitystream where id in (select attachment from activitystream where id=$1)`
-	// var query = fmt.Sprintf("select href, type from activitystream where id in (select attachment from activitystream where id='%s')", id)
 
 	rows, err := db.Query(query, id)	
 
@@ -787,7 +785,6 @@ func DeleteAttachmentFromFile(db *sql.DB, id string) {
 
 func DeletePreviewRepliesFromDB(db *sql.DB, id string) {
 	var query = `select id from activitystream where id in (select id from replies where inreplyto=$1)`
-	// var query = fmt.Sprintf("select id from activitystream where id (select id from replies where inreplyto='%s');", id)
 	
 	rows, err := db.Query(query, id)
 
@@ -807,7 +804,6 @@ func DeletePreviewRepliesFromDB(db *sql.DB, id string) {
 
 func DeleteAttachmentRepliesFromDB(db *sql.DB, id string) {
 	var query = `select id from activitystream where id in (select id from replies where inreplyto=$1)`
-	// var query = fmt.Sprintf("select id from activitystream where id (select id from replies where inreplyto='%s');", id)
 	
 	rows, err := db.Query(query, id)	
 
@@ -829,7 +825,6 @@ func DeleteAttachmentFromDB(db *sql.DB, id string) {
 	datetime := time.Now().Format(time.RFC3339)
 
 	var query = `update activitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', updated=$2, deleted=$3 where id in (select attachment from activitystream where id=$4)`
-	// var query = fmt.Sprintf("update activitystream set type='Tombstone', mediatype='image/png', href='%s', name='', content='', attributedto='deleted', updated='%s', deleted='%s' where id in (select attachment from activitystream where id='%s');", Domain + "/public/removed.png", datetime, datetime, id)
 
 	_, err := db.Exec(query, Domain + "/public/removed.png", datetime, datetime, id)	
 
@@ -840,7 +835,6 @@ func DeletePreviewFromDB(db *sql.DB, id string) {
 	datetime := time.Now().Format(time.RFC3339)
 
 	var query = `update activitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', updated=$2, deleted=$3 where id in (select preview from activitystream where id=$4)`
-	// var query = fmt.Sprintf("update activitystream set type='Tombstone', mediatype='image/png', href='%s', name='', content='', attributedto='deleted', updated='%s', deleted='%s' where id in (select attachment from activitystream where id='%s');", Domain + "/public/removed.png", datetime, datetime, id)
 
 	_, err := db.Exec(query, Domain + "/public/removed.png", datetime, datetime, id)	
 
@@ -857,7 +851,6 @@ func DeleteObjectRepliedTo(db *sql.DB, id string){
 func DeleteObjectFromDB(db *sql.DB, id string) {
 	datetime := time.Now().Format(time.RFC3339)
 	var query = `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', updated=$1, deleted=$2 where id=$3`
-	// var query = fmt.Sprintf("update activitystream set type='Tombstone', name='', content='', attributedto='deleted', updated='%s', deleted='%s' where id='%s';", datetime, datetime, id)
 
 	_, err := db.Exec(query, datetime, datetime, id)	
 
@@ -878,7 +871,6 @@ func DeleteObjectRepliesFromDB(db *sql.DB, id string) {
 	datetime := time.Now().Format(time.RFC3339)
 
 	var query = `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', updated=$1, deleted=$2 where id in (select id from replies where inreplyto=$3)`
-	// var query = fmt.Sprintf("update activitystream set type='Tombstone', name='', content='', attributedto='deleted' updated='%s', deleted='%s' where id in (select id from replies where inreplyto='%s');", datetime, datetime, id)
 
 	_, err := db.Exec(query, datetime, datetime, id)	
 	CheckError(err, "error with delete object replies")
