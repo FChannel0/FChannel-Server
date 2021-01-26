@@ -211,13 +211,25 @@ func WriteObjectReplyToLocalDB(db *sql.DB, id string, replyto string) {
 
 func writeObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 	for _, e := range obj.InReplyTo {
-		query := `insert into replies (id, inreplyto) values ($1, $2)`
+		query := `select id from replies where id=$1 and inreplyto=$2`
 
-		_, err := db.Exec(query, obj.Id, e.Id)			
-		
-		if err != nil{
-			fmt.Println("error inserting replies")
-			panic(err)			
+		rows, err := db.Query(query, obj.Id, e.Id)
+
+		CheckError(err, "error selecting replies db")
+
+		defer rows.Close()
+
+		var id string
+		rows.Next()
+		rows.Scan(&id)
+
+		if id == "" {		
+			query := `insert into replies (id, inreplyto) values ($1, $2)`
+
+			_, err := db.Exec(query, obj.Id, e.Id)			
+
+
+			CheckError(err, "error inserting replies db")			
 		}
 
 		update := true
@@ -238,13 +250,24 @@ func writeObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 	}
 
 	if len(obj.InReplyTo) < 1 {
-		query := `insert into replies (id, inreplyto) values ($1, $2)`
+		query := `select id from replies where id=$1 and inreplyto=$2`
 
-		_, err := db.Exec(query, obj.Id, "")			
-		
-		if err != nil{
-			fmt.Println("error inserting replies cache")
-			panic(err)			
+		rows, err := db.Query(query, obj.Id, "")
+
+		CheckError(err, "error selecting replies db")
+
+		defer rows.Close()
+
+		var id string
+		rows.Next()
+		rows.Scan(&id)
+
+		if id == "" {
+			query := `insert into replies (id, inreplyto) values ($1, $2)`
+
+			_, err := db.Exec(query, obj.Id, "")			
+
+			CheckError(err, "error inserting replies db")
 		}
 	}
 }
