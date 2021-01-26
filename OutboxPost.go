@@ -53,13 +53,12 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			MakeActivityRequest(activity)
 
 			var id string
-			re := regexp.MustCompile("\\w+$")		
 			op := len(nObj.InReplyTo) - 1
 			if op >= 0 {		
 				if nObj.InReplyTo[op].Id == "" {
-					id = re.FindString(nObj.Id)
+					id = nObj.Id
 				} else {
-					id = re.FindString(nObj.InReplyTo[op].Id)
+					id = nObj.InReplyTo[op].Id
 				}
 			}
 

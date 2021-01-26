@@ -331,7 +331,7 @@ func main() {
 		we.Close()
 
 		req, err := http.NewRequest("POST", r.FormValue("sendTo"), &b)
-		
+
 		CheckError(err, "error with post form req")
 		
 		req.Header.Set("Content-Type", we.FormDataContentType())
@@ -348,11 +348,12 @@ func main() {
 			body, _ := ioutil.ReadAll(resp.Body)
 			
 			var obj ObjectBase
+
 			obj = ParseOptions(r, obj)
 			for _, e := range obj.Option {
 				if(e == "noko" || e == "nokosage"){
-					http.Redirect(w, r, TP + "" + Domain + "/" + r.FormValue("boardName") + "/" + string(body) , http.StatusMovedPermanently)
-					break
+					http.Redirect(w, r, Domain + "/" + r.FormValue("boardName") + "/" + shortURL(r.FormValue("sendTo"), string(body)) , http.StatusMovedPermanently)
+					return					
 				}
 			}
 
@@ -1898,3 +1899,43 @@ func GetActorCollectionReq(r *http.Request, collection string) Collection {
 	return nCollection
 }
 
+
+func shortURL(actorName string, url string) string {
+
+	re := regexp.MustCompile(`outbox`)
+
+	actor := re.ReplaceAllString(actorName, "")
+	
+	re = regexp.MustCompile(`\w+$`)
+	temp := re.ReplaceAllString(url, "")
+
+	if(temp == actor){
+		short := StripTransferProtocol(url)
+
+		re := regexp.MustCompile(`\w+$`)
+
+		id := re.FindString(short);
+
+		return id;            
+	}else{
+		short := StripTransferProtocol(url)
+
+		re := regexp.MustCompile(`\w+$`)
+
+		id := re.FindString(short);
+
+		re = regexp.MustCompile(`.+/.+/`)
+
+		actorurl := re.FindString(short)
+
+		re = regexp.MustCompile(`/.+/`)
+
+		actorname := re.FindString(actorurl)
+
+		actorname = strings.Replace(actorname, "/", "", -1)
+
+		id = "f" + actorname + "-" + id
+
+		return id;                        
+	}
+}

@@ -27,7 +27,6 @@ function shortURL(actorName, url)
     var check = url.replace(actorName + "/", "")
     re = /.+\//g;
     temp = re.exec(url)
-    
 
     if(stripTransferProtocol(temp[0]) == stripTransferProtocol(actorName) + "/")
     {
