@@ -201,7 +201,7 @@ func main() {
 		}
 
 		if actorCatalog {
-			collection, valid := WantToServe(db, actor.Id)
+			collection, valid := WantToServe(db, actor.Name)
 			if valid {
 				CatalogGet(w, r, db, collection)
 			}
@@ -1027,17 +1027,18 @@ func CreateObject(objType string) ObjectBase {
 
 func AddFollowersToActivity(db *sql.DB, activity Activity) Activity{
 	followers := GetActorFollowDB(db, activity.Actor.Id)
-
+	
 	var nActivity Activity
+	var tempActivity Activity			
 	for _, e := range followers {
-		var tempActivity Activity		
 		aFollowers := GetActorCollection(e.Id + "/followers") 
 		for _, k := range aFollowers.Items {
-			bFollowers := GetActorCollection(k.Id + "/following")
+			bFollowing := GetActorCollection(k.Id + "/following")
 			var isFollowingActor = false
-			for _, n := range bFollowers.Items {
+			for _, n := range bFollowing.Items {
 				if n.Id == activity.Actor.Id {
 					isFollowingActor = true
+					break
 				}
 			}
 			
@@ -1047,19 +1048,20 @@ func AddFollowersToActivity(db *sql.DB, activity Activity) Activity{
 		}
 		
 		tempActivity.To = append(tempActivity.To, e.Id)
-		for _, k := range tempActivity.To {
-			var alreadyTo = false
-			for _, n := range nActivity.To {
-				if k == n || k == activity.Actor.Id {				
-					alreadyTo = true
-				}
-			}
+	}
 
-			if !alreadyTo {
-				nActivity.To = append(nActivity.To, k)
+	for _, e := range tempActivity.To {
+		var alreadyTo = false
+		for _, k := range nActivity.To {
+			if e == k || e == activity.Actor.Id {				
+				alreadyTo = true
 			}
 		}
-	}
+
+		if !alreadyTo {
+			nActivity.To = append(nActivity.To, e)
+		}
+	}	
 
 	activity.To = nActivity.To
 

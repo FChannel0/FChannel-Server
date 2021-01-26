@@ -410,6 +410,50 @@ func GetObjectFromDB(db *sql.DB, actor Actor) Collection {
 	return nColl	
 }
 
+func GetObjectByIDFromDB(db *sql.DB, postID string) Collection {
+	var nColl Collection
+	var result []ObjectBase
+
+	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor from activitystream where id=$1 and id in (select id from replies where inreplyto='') and type='Note' order by updated asc`
+
+	rows, err := db.Query(query, postID)	
+
+	CheckError(err, "error query object from db")
+	
+	defer rows.Close()
+	for rows.Next(){
+		var post ObjectBase
+		var actor Actor
+		var attachID string
+		var previewID string		
+		
+		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id)
+		
+		CheckError(err, "error scan object into post struct")
+
+		post.Actor = &actor
+
+		var postCnt int
+		var imgCnt int		
+		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
+
+		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
+
+		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
+		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
+
+		post.Attachment = GetObjectAttachment(db, attachID)
+
+		post.Preview = GetObjectPreview(db, previewID)
+
+		result = append(result, post)
+	}
+
+	nColl.OrderedItems = result
+
+	return nColl	
+}
+
 func GetInReplyToDB(db *sql.DB, parent ObjectBase) []ObjectBase {
 	var result []ObjectBase
 

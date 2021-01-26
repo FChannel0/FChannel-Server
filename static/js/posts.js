@@ -125,8 +125,8 @@ function convertContent(actorName, content, opid)
             {
                 isOP = " (OP)";
             }
-            
-            newContent = newContent.replace(quote, '<a title="' + link +  '" href="/'+ getBoardId(actorName) + "/" + shortURL(actorName, opid)  +  '#' + shortURL(actorName, link) + '"style="color:#af0a0f;">>>' + shortURL(actorName, link)  + isOP + '</a>');
+
+            newContent = newContent.replace(quote, '<a title="' + link +  '" href="'+ (actorName) + "/" + shortURL(actorName, opid)  +  '#' + shortURL(actorName, link) + '"style="color:#af0a0f;">>>' + shortURL(actorName, link)  + isOP + '</a>');
 
         })            
     }

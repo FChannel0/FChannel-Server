@@ -251,6 +251,50 @@ func GetObjectFromCache(db *sql.DB, id string) Collection {
 	return nColl	
 }
 
+func GetObjectByIDFromCache(db *sql.DB, postID string) Collection {
+	var nColl Collection
+	var result []ObjectBase
+
+	query := `select id, name, content, type, published, attributedto, attachment, preview, actor from cacheactivitystream where id=$1 order by published desc`	
+
+	rows, err := db.Query(query, postID)	
+
+	CheckError(err, "error query object from db cache")
+	
+	defer rows.Close()
+	for rows.Next(){
+		var post ObjectBase
+		var actor Actor
+		var attachID string
+		var previewID string		
+		
+		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id)
+		
+		CheckError(err, "error scan object into post struct cache")
+
+		post.Actor = &actor
+
+		var postCnt int
+		var imgCnt int		
+		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
+
+		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCacheCount(db, post)
+
+		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
+		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
+
+		post.Attachment = GetObjectAttachmentCache(db, attachID)
+
+		post.Preview = GetObjectPreviewCache(db, previewID)
+
+		result = append(result, post)
+	}
+
+	nColl.OrderedItems = result
+
+	return nColl	
+}
+
 func WriteObjectReplyToCache(db *sql.DB, obj ObjectBase) {
 	
 	for i, e := range obj.InReplyTo {
@@ -412,23 +456,6 @@ func GetObjectRepliesRepliesCache(db *sql.DB, parent ObjectBase) (*CollectionBas
 
 		result = append(result, post)			
 	}
-
-	/*
-	remoteCollection := GetObjectRepliesRemote(db, parent)
-
-	var postc int
-	var imgc int
-	for _, e := range remoteCollection.OrderedItems {
-		
-		nColl.OrderedItems = append(nColl.OrderedItems, e)
-		postc = postc + 1
-		if len(e.Attachment) > 0 {
-			imgc = imgc + 1
-		}			
-	}	
-
-	nColl.OrderedItems = result
-*/
 
 	return &nColl, 0, 0
 }

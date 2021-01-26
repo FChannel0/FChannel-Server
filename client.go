@@ -219,7 +219,9 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	if domainURL == Domain {
 		followCol := GetObjectsFromFollow(db, *actor)	
 		for _, e := range followCol {
-			mergeCollection.OrderedItems = append(mergeCollection.OrderedItems, e)
+			if e.Type != "Tombstone" {			
+				mergeCollection.OrderedItems = append(mergeCollection.OrderedItems, e)
+			}
 		}
 	}
 
@@ -289,8 +291,8 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 	if re.MatchString(path) {
 		name := GetActorFollowNameFromPath(path)
 		followActors := GetActorsFollowFromName(actor, name)
-		followCollection := GetActorsFollowPostFromId(followActors, postId)
-
+		followCollection := GetActorsFollowPostFromId(db, followActors, postId)
+		
 		DeleteRemovedPosts(db, &followCollection)
 		DeleteTombstoneReplies(&followCollection)
 
@@ -305,9 +307,8 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 		}
 
 	} else {
-
 		returnData.Board.InReplyTo = inReplyTo
-		collection := GetActorCollection(inReplyTo)
+		collection := GetActorCollectionByID(db, inReplyTo)
 
 		DeleteRemovedPosts(db, &collection)
 
@@ -689,30 +690,38 @@ func GetActorFollowNameFromPath(path string) string{
 	return actor
 }
 
-func GetActorsFollowFromName(actor Actor, name string) []Actor {
-	var followingActors []Actor
+func GetActorsFollowFromName(actor Actor, name string) []string {
+	var followingActors []string
 	follow := GetActorCollection(actor.Following)
 
 	re := regexp.MustCompile("\\w+?$")
 
 	for _, e := range follow.Items {
 		if re.FindString(e.Id) == name {
-			actor := GetActor(e.Id)
-			followingActors = append(followingActors, actor)
+			followingActors = append(followingActors, e.Id)
 		}
 	}
 
 	return followingActors
 }
 
-func GetActorsFollowPostFromId(actors []Actor, id string) Collection{
+func GetActorsFollowPostFromId(db *sql.DB, actors []string, id string) Collection{
 	var collection Collection
 
 	for _, e := range actors {
-		tempCol := GetActorCollection(e.Id + "/" + id)
+		tempCol := GetActorCollectionByID(db, e + "/" + id)
 		if len(tempCol.OrderedItems) > 0 {
 			collection = tempCol
 		}
+	}
+
+	return collection
+}
+
+func GetActorCollectionByID(db *sql.DB, postID string) Collection {
+	collection := GetObjectByIDFromDB(db, postID)
+	if len(collection.OrderedItems) < 1 {
+		collection = GetObjectByIDFromCache(db, postID)
 	}
 
 	return collection
