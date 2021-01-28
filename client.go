@@ -567,9 +567,9 @@ func DeleteRemovedPosts(db *sql.DB, collection *Collection) {
 }
 
 func CreateLocalDeleteDB(db *sql.DB, id string, _type string)	{
-	query := fmt.Sprintf("select id from removed where id='%s'", id)
+	query := `select id from removed where id=$1`
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, id)	
 
 	CheckError(err, "could not query removed")
 
@@ -581,17 +581,17 @@ func CreateLocalDeleteDB(db *sql.DB, id string, _type string)	{
 		rows.Scan(&i)
 
 		if i != "" {
-			query := fmt.Sprintf("update removed set type='%s' where id='%s'", _type, id)
-
-			_, err := db.Exec(query)
+			query := `update removed set type=$1 where id=$2`
+			
+			_, err := db.Exec(query, _type, id)			
 			
 			CheckError(err, "Could not update removed post")
 			
 		}
 	} else {
-		query := fmt.Sprintf("insert into removed (id, type) values ('%s', '%s')", id, _type)
+		query := `insert into removed (id, type) values ($1, $2)`
 		
-		_, err := db.Exec(query)
+		_, err := db.Exec(query, id, _type)		
 		
 		CheckError(err, "Could not insert removed post")
 	}
@@ -600,8 +600,8 @@ func CreateLocalDeleteDB(db *sql.DB, id string, _type string)	{
 func GetLocalDeleteDB(db *sql.DB) []Removed {
 	var deleted []Removed
 	
-	query := fmt.Sprintf("select id, type from removed")
-
+	query := `select id, type from removed`
+	
 	rows, err := db.Query(query)
 
 	CheckError(err, "could not query removed")
@@ -620,9 +620,9 @@ func GetLocalDeleteDB(db *sql.DB) []Removed {
 }
 
 func CreateLocalReportDB(db *sql.DB, id string, board string, reason string) {
-	query := fmt.Sprintf("select id, count from reported where id='%s' and board='%s'", id, board)
+	query := `select id, count from reported where id=$1 and board=$2`
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, id, board)	
 
 	CheckError(err, "could not query reported")
 
@@ -636,16 +636,16 @@ func CreateLocalReportDB(db *sql.DB, id string, board string, reason string) {
 
 		if i != "" {
 			count = count + 1
-			query := fmt.Sprintf("update reported set count='%d' where id='%s'", count, id)
+			query := `update reported set count=$1 where id=$2`
 
-			_, err := db.Exec(query)
+			_, err := db.Exec(query, count, id)			
 			
 			CheckError(err, "Could not update reported post")
 		}
 	} else {
-		query := fmt.Sprintf("insert into reported (id, count, board) values ('%s', '%d', '%s')", id, 1, board)
+		query := `insert into reported (id, count, board, reason) values ($1, $2, $3, $4)`
 		
-		_, err := db.Exec(query)
+		_, err := db.Exec(query, id, 1, board, reason)		
 		
 		CheckError(err, "Could not insert reported post")
 	}	
@@ -655,9 +655,9 @@ func CreateLocalReportDB(db *sql.DB, id string, board string, reason string) {
 func GetLocalReportDB(db *sql.DB, board string) []Report {
 	var reported []Report
 	
-	query := fmt.Sprintf("select id, count from reported where board='%s'", board)
+	query := `select id, count from reported where board=$1`
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, board)
 
 	CheckError(err, "could not query reported")
 
@@ -675,9 +675,9 @@ func GetLocalReportDB(db *sql.DB, board string) []Report {
 }
 
 func CloseLocalReportDB(db *sql.DB, id string, board string) {
-	query := fmt.Sprintf("delete from reported where id='%s' and board='%s'", id, board)
+	query := `delete from reported where id=$1 and board=$2`
 
-	_, err := db.Exec(query)
+	_, err := db.Exec(query, id, board)	
 
 	CheckError(err, "Could not delete local report from db")
 }

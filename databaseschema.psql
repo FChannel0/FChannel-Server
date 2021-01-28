@@ -36,7 +36,8 @@ created TIMESTAMP default NOW()
 CREATE TABLE IF NOT EXISTS reported(
 id varchar(100),
 count int,
-board varchar(100)
+board varchar(100),
+reason varchar(100)
 );
 
 CREATE TABLE IF NOT EXISTS verificationcooldown(

@@ -287,7 +287,7 @@ func main() {
 			return
 		}
 
-		if(len(r.FormValue("subject")) > 100 || len(r.FormValue("name")) > 100 || len(r.FormValue("options" > 100) {
+		if(len(r.FormValue("subject")) > 100 || len(r.FormValue("name")) > 100 || len(r.FormValue("options")) > 100) {
 			w.Write([]byte("Name, Subject or Options limit 100 characters"))
 			return
 		}		
@@ -1539,9 +1539,9 @@ func ReportActivity(db *sql.DB, id string, reason string) bool {
 	}
 
 	if count < 1 {
-		query = `insert into reported (id, count, board) values ($1, $2, $3)`
+		query = `insert into reported (id, count, board, reason) values ($1, $2, $3, $4)`
 
-		_, err := db.Exec(query, id, 1, actor.Actor.Id)
+		_, err := db.Exec(query, id, 1, actor.Actor.Id, reason)
 
 		if err != nil {
 			CheckError(err, "error inserting new reported activity")
