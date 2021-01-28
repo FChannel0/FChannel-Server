@@ -496,7 +496,7 @@ func CheckCaptcha(db *sql.DB, captcha string) bool {
 
 	if (code == strings.ToUpper(parts[1])) {
 		return true
-	}
+p	}
 
 	return false
 }
@@ -505,8 +505,7 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	activity := GetActivityFromJson(r, db)
 	
 	header := r.Header.Get("Authorization")
-
-	auth := strings.Split(header, " ")
+	auth := strings.Split(header, " ")		
 	switch(activity.Type) {
 	case "Create":
 		for _, e := range activity.To {

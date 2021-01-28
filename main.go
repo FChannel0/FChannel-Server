@@ -422,7 +422,7 @@ func main() {
 			CheckError(err, "error with follow req")		
 
 			_, pass := GetPasswordFromSession(r)
-			
+
 			req.Header.Set("Authorization", "Basic " + pass)
 			
 			req.Header.Set("Content-Type", activitystreams)
@@ -899,7 +899,9 @@ func CreateTripCode(input string) string {
 
 	CheckError(err, "error with create trip code")
 
-	return out.String()
+	code := strings.Split(out.String(), " ")
+
+	return code[0]
 }
 
 func CreateNameTripCode(input string) string {
@@ -1615,7 +1617,10 @@ func MakeActivityRequest(db *sql.DB, activity Activity) {
 			req, err := http.NewRequest("POST", actor.Inbox, bytes.NewBuffer(j))
 			
 			req.Header.Set("Content-Type", activitystreams)
-			req.Header.Set("Authorization", "Basic " + auth)			
+			
+			if activity.Type == "Create" {
+				req.Header.Set("Authorization", "Basic " + auth)
+			}
 
 			CheckError(err, "error with sending activity req to")
 
