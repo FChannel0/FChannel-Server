@@ -21,7 +21,7 @@
       media = document.getElementById("media-{{ .Id }}")
       if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "image"){
           var img = document.createElement("img");
-          img.style = "float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px; cursor: move;"
+          img.style = "float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px; cursor: pointer;"
           img.setAttribute("id", "img")
           img.setAttribute("main", "1")
           img.setAttribute("enlarge", "0")
@@ -85,7 +85,7 @@
             media = document.getElementById("media-{{ .Id }}")
             if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "image"){
                 var img = document.createElement("img");
-                img.style = "float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px; cursor: move;"
+                img.style = "float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px; cursor: pointer;"
                 img.setAttribute("id", "img")
                 img.setAttribute("main", "1")
                 img.setAttribute("enlarge", "0")

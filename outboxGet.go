@@ -9,7 +9,7 @@ func GetActorOutbox(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	actor := GetActorFromPath(db, r.URL.Path, "/")
 	var collection Collection
 
-	collection.OrderedItems = GetObjectFromDB(db, actor).OrderedItems
+	collection.OrderedItems = GetObjectFromDB(db, actor.Id).OrderedItems
 	collection.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 	collection.Actor = &actor
 
@@ -28,7 +28,11 @@ func GetObjectsFromFollow(db *sql.DB, actor Actor) []ObjectBase {
 	followingCol = GetActorCollection(actor.Following)
 	for _, e := range followingCol.Items {
 		var followOutbox Collection
-		followOutbox = GetObjectFromCache(db, e.Id)
+		if !IsActorLocal(db, e.Id) {
+			followOutbox = GetObjectFromCache(db, e.Id)
+		} else {
+			followOutbox = GetObjectFromDB(db, e.Id)
+		}
 		for _, e := range followOutbox.OrderedItems {
 			followObj = append(followObj, e)
 		}

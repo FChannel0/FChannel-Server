@@ -389,13 +389,13 @@ func GetActivityFromDB(db *sql.DB, id string) Collection {
 	return nColl	
 }
 
-func GetObjectFromDB(db *sql.DB, actor Actor) Collection {
+func GetObjectFromDB(db *sql.DB, id string) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
 	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' order by updated asc`
 
-	rows, err := db.Query(query, actor.Id)	
+	rows, err := db.Query(query, id)	
 
 	CheckError(err, "error query object from db")
 	

@@ -649,7 +649,7 @@ func main() {
 				http.SetCookie(w, &http.Cookie{
 					Name:    "session_token",
 					Value:   sessionToken.String(),
-					Expires: time.Now().Add(60 * 60 * 24 * 7 * time.Second),
+					Expires: time.Now().Add(60 * 60 * 48 * time.Second),
 				})
 
 				http.Redirect(w, r, "/", http.StatusSeeOther)				
@@ -1293,7 +1293,7 @@ func GetActorCollectionCache(db *sql.DB, actor Actor) Collection {
 func GetActorCollectionDB(db *sql.DB, actor Actor) Collection {
 	var collection Collection
 	
-	collection.OrderedItems = GetObjectFromDB(db, actor).OrderedItems
+	collection.OrderedItems = GetObjectFromDB(db, actor.Id).OrderedItems
 
 	collection.Actor = &actor
 
