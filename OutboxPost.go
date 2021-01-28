@@ -531,15 +531,16 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		
 	case "Follow":
 		for _, e := range activity.To {
-
-			if GetActorFromDB(db, e).Id != "" {
-				response := AcceptFollow(activity)
-				response = SetActorFollowerDB(db, response)
-				MakeActivityRequest(db, response)
-			} else {
-				fmt.Println("follow request for rejected")				
-				response := RejectFollow(activity)
-				MakeActivityRequest(db, response)
+			if len(auth) > 1 && RemoteActorHasAuth(activity.Actor.Id, auth[1]) {
+				if GetActorFromDB(db, e).Id != "" {
+					response := AcceptFollow(activity)
+					response = SetActorFollowerDB(db, response)
+					MakeActivityRequest(db, response)
+				} else {
+					fmt.Println("follow request for rejected")				
+					response := RejectFollow(activity)
+					MakeActivityRequest(db, response)
+				}
 			}
 		}
 		break
