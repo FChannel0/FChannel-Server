@@ -50,7 +50,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			nObj = writeObjectToDB(db, nObj)
 			activity := CreateActivity("Create", nObj)
 			activity = AddFollowersToActivity(db, activity)
-			MakeActivityRequest(activity)
+			MakeActivityRequest(db, activity)
 
 			var id string
 			op := len(nObj.InReplyTo) - 1
@@ -107,7 +107,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				if validActor && validLocalActor && verification.Board == activity.Actor.Id || verification.Board == Domain {
 					rActivity = AcceptFollow(activity)
 					SetActorFollowingDB(db, rActivity)
-					MakeActivityRequest(activity)
+					MakeActivityRequest(db, activity)
 				}
 
 				w.Write([]byte(""))
@@ -503,11 +503,15 @@ func CheckCaptcha(db *sql.DB, captcha string) bool {
 
 func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	activity := GetActivityFromJson(r, db)
+	
+	header := r.Header.Get("Authorization")
+
+	auth := strings.Split(header, " ")
 	switch(activity.Type) {
 	case "Create":
 		for _, e := range activity.To {
 			if IsActorLocal(db, e) {
-				if !IsActorLocal(db, activity.Actor.Id) {
+				if !IsActorLocal(db, activity.Actor.Id) && len(auth) > 1 && RemoteActorHasAuth(activity.Actor.Id, auth[1]){
 					WriteObjectToCache(db, *activity.Object)
 				}
 			}
@@ -532,11 +536,11 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			if GetActorFromDB(db, e).Id != "" {
 				response := AcceptFollow(activity)
 				response = SetActorFollowerDB(db, response)
-				MakeActivityRequest(response)
+				MakeActivityRequest(db, response)
 			} else {
 				fmt.Println("follow request for rejected")				
 				response := RejectFollow(activity)
-				MakeActivityRequest(response)
+				MakeActivityRequest(db, response)
 			}
 		}
 		break
@@ -566,6 +570,24 @@ func MakeActivityFollowingReq(w http.ResponseWriter, r *http.Request, activity A
 	err = json.Unmarshal(body, &respActivity)
 
 	if respActivity.Type == "Accept" {
+		return true
+	}
+
+	return false
+}
+
+func RemoteActorHasAuth(actor string, code string) bool {
+	req, err := http.NewRequest("GET", actor + "/verification&code=" + code, nil)
+
+	CheckError(err, "could not make remote actor auth req")
+
+	resp, err := http.DefaultClient.Do(req)
+
+	CheckError(err, "could not make remote actor auth resp")
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 200 {
 		return true
 	}
 

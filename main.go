@@ -4,7 +4,6 @@ import "fmt"
 import "strings"
 import "strconv"
 import "net/http"
-import "net/url"
 import "database/sql"
 import _ "github.com/lib/pq"
 import "math/rand"
@@ -225,35 +224,28 @@ func main() {
 		}
 
 		if actorVerification {
-			if method == "POST" {
-				p, _ := url.ParseQuery(r.URL.RawQuery)
-				if len(p["email"]) > 0 {
-					email := p["email"][0]
-					verify := GetVerificationByEmail(db, email)
-					if verify.Identifier != "" || !IsEmailSetup() {
-						w.WriteHeader(http.StatusForbidden)
-						w.Write([]byte("400 no path"))																	
-					} else {
-						var nVerify Verify
-						nVerify.Type = "email"						
-						nVerify.Identifier = email
-						nVerify.Code = CreateKey(32)
-						nVerify.Board = actor.Id
-						CreateVerification(db, nVerify)
-						SendVerification(nVerify)
-						w.WriteHeader(http.StatusCreated)
-						w.Write([]byte("Verification added"))																							
-					}
+			r.ParseForm()
 
-				} else {
-					w.WriteHeader(http.StatusForbidden)
-					w.Write([]byte("400 no path"))											
-				}
+			code := r.FormValue("code")
+
+			var verify Verify
+
+			verify.Board = actor.Id
+			verify.Identifier = "post"
+
+			verify = GetVerificationCode(db, verify)
+
+			auth := CreateTripCode(verify.Code)
+			auth = CreateTripCode(auth)
+		
+
+			if CreateTripCode(auth) == code {
+				w.WriteHeader(http.StatusOK)
 			} else {
-				w.WriteHeader(http.StatusForbidden)
-				w.Write([]byte("400 no path"))											
+				w.WriteHeader(http.StatusUnauthorized)
 			}
-			return 
+			
+			w.Write([]byte(""))																										
 		}
 
 		//catch all
@@ -344,7 +336,7 @@ func main() {
 		CheckError(err, "error with post form req")
 		
 		req.Header.Set("Content-Type", we.FormDataContentType())
-		req.Header.Set("Authorization", "basic: " + *Key)		
+		req.Header.Set("Authorization", "Basic " + *Key)		
 
 		resp, err := http.DefaultClient.Do(req)
 
@@ -1595,9 +1587,20 @@ func GetActorReported(w http.ResponseWriter, r *http.Request, db *sql.DB, id str
 	w.Write(enc)
 }
 
-func MakeActivityRequest(activity Activity) {
+func MakeActivityRequest(db *sql.DB, activity Activity) {
 
 	j, _ := json.MarshalIndent(activity, "", "\t")
+
+	var verify Verify
+
+	verify.Board = activity.Actor.Id
+	verify.Identifier = "post"
+
+	verify = GetVerificationCode(db, verify)
+
+	auth := CreateTripCode(verify.Code)
+
+	auth = CreateTripCode(auth)
 	
 	for _, e := range activity.To {
 
@@ -1605,8 +1608,9 @@ func MakeActivityRequest(activity Activity) {
 
 		if actor.Inbox != "" {
 			req, err := http.NewRequest("POST", actor.Inbox, bytes.NewBuffer(j))
-
-			req.Header.Set("Content-Type", activitystreams)				
+			
+			req.Header.Set("Content-Type", activitystreams)
+			req.Header.Set("Authorization", "Basic " + auth)			
 
 			CheckError(err, "error with sending activity req to")
 
@@ -1748,7 +1752,7 @@ func DeleteObjectRequest(db *sql.DB, id string) {
 		activity.To = append(activity.To, e.Id)
 	}	
 
-	MakeActivityRequest(activity)
+	MakeActivityRequest(db, activity)
 }
 
 func DeleteObjectAndRepliesRequest(db *sql.DB, id string) {
@@ -1764,7 +1768,7 @@ func DeleteObjectAndRepliesRequest(db *sql.DB, id string) {
 		activity.To = append(activity.To, e.Id)
 	}
 
-	MakeActivityRequest(activity)
+	MakeActivityRequest(db, activity)
 }
 
 func ResizeAttachmentToPreview(db *sql.DB) {

@@ -78,6 +78,12 @@ func CreateNewBoardDB(db *sql.DB, actor Actor) Actor{
 
 		CreateVerification(db, verify)
 
+		verify.Identifier = actor.Id
+		verify.Code  = CreateKey(50)
+		verify.Type  = "post"
+
+		CreateVerification(db, verify)		
+
 		var nverify Verify
 		nverify.Board = actor.Id
 		nverify.Identifier = "admin"
@@ -87,7 +93,12 @@ func CreateNewBoardDB(db *sql.DB, actor Actor) Actor{
 		nverify.Board = actor.Id
 		nverify.Identifier = "janitor"
 		nverify.Type = "janitor"
-		CreateBoardMod(db, nverify)			
+		CreateBoardMod(db, nverify)
+
+		nverify.Board = actor.Id
+		nverify.Identifier = "post"
+		nverify.Type = "post"
+		CreateBoardMod(db, nverify)					
 
 		if actor.Name != "main" {
 			var nActor Actor
@@ -106,7 +117,7 @@ func CreateNewBoardDB(db *sql.DB, actor Actor) Actor{
 
 			response := AcceptFollow(nActivity)
 			SetActorFollowingDB(db, response)
-			MakeActivityRequest(nActivity)
+			MakeActivityRequest(db, nActivity)
 		}
 	}
 

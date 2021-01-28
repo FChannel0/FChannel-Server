@@ -170,6 +170,29 @@ func GetVerificationByCode(db *sql.DB, code string) Verify {
 	return verify
 }
 
+func GetVerificationCode(db *sql.DB, verify Verify) Verify {
+	var nVerify Verify
+
+	query := `select type, identifier, code, board from boardaccess where identifier=$1 and board=$2`
+
+	rows, err := db.Query(query, verify.Identifier, verify.Board)	
+
+	defer rows.Close()
+
+	if err != nil {
+		CheckError(err, "error getting verify by code query")
+		return verify
+	}
+
+	for rows.Next() {
+		err := rows.Scan(&nVerify.Type, &nVerify.Identifier, &nVerify.Code, &nVerify.Board)
+
+		CheckError(err, "error getting verify by code scan")				
+	}
+	
+	return verify
+}
+
 func VerifyCooldownCurrent(db *sql.DB, auth string) VerifyCooldown {
 	var current VerifyCooldown
 
