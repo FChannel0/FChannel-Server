@@ -496,7 +496,7 @@ func CheckCaptcha(db *sql.DB, captcha string) bool {
 
 	if (code == strings.ToUpper(parts[1])) {
 		return true
-p	}
+	}
 
 	return false
 }
