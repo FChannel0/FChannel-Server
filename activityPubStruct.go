@@ -76,7 +76,7 @@ type Actor struct {
 	PreferredUsername string `json:"prefereedUsername,omitempty"`
 	Summary string `json:"summary,omitempty"`
 	AuthRequirement []string `json:"authrequirement,omitempty"`
-	Restricted bool `json:"restricted,omitempty"`	
+	Restricted bool `json:"restricted"`	
 }
 
 type Activity struct {

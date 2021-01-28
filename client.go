@@ -32,6 +32,7 @@ type Board struct{
 	ModCred string
 	Domain string
 	TP string
+	Restricted bool
 }
 
 type PageData struct {
@@ -84,6 +85,7 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		board.PrefName = boardActor.PreferredUsername
 		board.Location = "/" + boardActor.Name
 		boardCollection = append(boardCollection, board)
+		board.Restricted = boardActor.Restricted
 	}
 	
 	var data PageData
@@ -118,6 +120,7 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	returnData.Board.Actor = actor.Id
 	returnData.Board.ModCred, _ = GetPasswordFromSession(r)
 	returnData.Board.Domain = Domain
+	returnData.Board.Restricted = actor.Restricted
 	returnData.CurrentPage = page
 
 	returnData.Board.Captcha = GetCaptcha(*actor)
@@ -239,6 +242,7 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	returnData.Board.Summary = actor.Summary
 	returnData.Board.ModCred, _ = GetPasswordFromSession(r)
 	returnData.Board.Domain = Domain
+	returnData.Board.Restricted = actor.Restricted
 	returnData.Key = *Key
 
 	returnData.Board.Captcha = GetCaptcha(*actor)
@@ -272,7 +276,8 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 	returnData.Board.Actor = actor.Id
 	returnData.Board.Summary = actor.Summary
 	returnData.Board.ModCred, _ = GetPasswordFromSession(r)
-	returnData.Board.Domain = Domain 
+	returnData.Board.Domain = Domain
+	returnData.Board.Restricted = actor.Restricted
 
 
 	if GetDomainURL(actor) != "" {

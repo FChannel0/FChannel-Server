@@ -125,7 +125,7 @@ function convertContent(actorName, content, opid)
                 isOP = " (OP)";
             }
 
-            newContent = newContent.replace(quote, '<a title="' + link +  '" href="'+ (actorName) + "/" + shortURL(actorName, opid)  +  '#' + shortURL(actorName, link) + '"style="color:#af0a0f;">>>' + shortURL(actorName, link)  + isOP + '</a>');
+            newContent = newContent.replace(quote, '<a class="reply" title="' + link +  '" href="'+ (actorName) + "/" + shortURL(actorName, opid)  +  '#' + shortURL(actorName, link) + '";">>>' + shortURL(actorName, link)  + isOP + '</a>');
 
         })            
     }
@@ -136,7 +136,7 @@ function convertContent(actorName, content, opid)
     if(match)
     {
         match.forEach(function(quote, i) {
-            newContent = newContent.replace(quote, '<span style="color: green;">' + quote + '</span>');
+            newContent = newContent.replace(quote, '<span class="quote">' + quote + '</span>');
         })
     }
     
@@ -176,7 +176,7 @@ function quote(actorName, opid, id)
     var w = window.innerWidth / 2 - 200;
     var h = document.getElementById(id + "-content").offsetTop - 448;
 
-    box.setAttribute("style", "display: block; position: absolute; background-color: #eff5ff; width: 400px; height: 550px; z-index: 9; top: " + h + "px; left: " + w + "px; padding: 5px; border: 4px solid #d3caf0;");
+    box.setAttribute("style", "display: block; position: absolute; width: 400px; height: 550px; z-index: 9; top: " + h + "px; left: " + w + "px; padding: 5px;");
 
 
     if (inReplyTo.value != opid)

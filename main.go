@@ -147,7 +147,6 @@ func main() {
 			if method == "GET" {
 				GetActorOutbox(w, r, db)
 			} else if method == "POST" {
-				fmt.Println("parsing outbox req")
 				ParseOutboxRequest(w, r, db)
 			} else {
 				w.WriteHeader(http.StatusForbidden)			

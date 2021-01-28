@@ -71,7 +71,7 @@
     <div id="{{ .Id }}">
       <div  style="display: inline-block; overflow: auto;">
         <div style="float: left; display: block; margin-right: 5px;">>></div>
-        <div style="overflow: auto;background-color: #d5daf0; padding: 5px; margin-bottom: 2px;">
+        <div class="post" style="overflow: auto; padding: 5px; margin-bottom: 2px;">
           {{ if eq $board.ModCred $board.Domain $board.Actor }}          
           <a href="/delete?id={{ .Id }}">[Delete Post]</a>
           {{ end }}              

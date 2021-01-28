@@ -50,9 +50,9 @@ func GetActorByNameFromDB(db *sql.DB, name string) Actor {
 
 func CreateNewBoardDB(db *sql.DB, actor Actor) Actor{
 
-	query := `insert into actor (type, id, name, preferedusername, inbox, outbox, following, followers, summary) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	query := `insert into actor (type, id, name, preferedusername, inbox, outbox, following, followers, summary, restricted) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
-	_, err := db.Exec(query, actor.Type, actor.Id, actor.Name, actor.PreferredUsername, actor.Inbox, actor.Outbox, actor.Following, actor.Followers, actor.Summary)
+	_, err := db.Exec(query, actor.Type, actor.Id, actor.Name, actor.PreferredUsername, actor.Inbox, actor.Outbox, actor.Following, actor.Followers, actor.Summary, actor.Restricted)
 
 	if err != nil {
 		fmt.Println("board exists")
