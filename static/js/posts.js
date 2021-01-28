@@ -149,6 +149,12 @@ function closeReply()
     document.getElementById("reply-comment").value = "";        
 }
 
+function closeReport()
+{
+    document.getElementById("report-box").style.display = "none";
+    document.getElementById("report-comment").value = "";        
+}
+
 
 function previous(actorName, page)
 {
@@ -192,6 +198,24 @@ function quote(actorName, opid, id)
 
     dragElement(header);            
 
+}
+
+function report(actorName, id)
+{
+    var box = document.getElementById("report-box");
+    var header = document.getElementById("report-header");
+    var comment = document.getElementById("report-comment");
+    var inReplyTo = document.getElementById("report-inReplyTo-box");      
+
+    var w = window.innerWidth / 2 - 200;
+    var h = document.getElementById(id + "-content").offsetTop - 448;
+
+    box.setAttribute("style", "display: block; position: absolute; width: 400px; height: 480px; z-index: 9; top: " + h + "px; left: " + w + "px; padding: 5px;");
+
+    header.innerText = "Report Post No. " + shortURL(actorName, id);
+    inReplyTo.value = id;
+
+    dragElement(header);            
 }  
 
 function dragElement(elmnt) {

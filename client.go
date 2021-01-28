@@ -619,7 +619,7 @@ func GetLocalDeleteDB(db *sql.DB) []Removed {
 	return deleted
 }
 
-func CreateLocalReportDB(db *sql.DB, id string, board string) {
+func CreateLocalReportDB(db *sql.DB, id string, board string, reason string) {
 	query := fmt.Sprintf("select id, count from reported where id='%s' and board='%s'", id, board)
 
 	rows, err := db.Query(query)

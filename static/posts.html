@@ -60,7 +60,7 @@
       }                    
     </script>
     {{ end }}
-    <span style="color: #0f0c5d;"><b>{{ .Name }}</b></span><span style="color: #117743;"><b>{{ if .AttributedTo }} {{.AttributedTo }} {{ else }} Anonymous {{ end }}</b></span><span>{{ .Published }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/">No.</a> <a id="{{ .Id }}-link" title="{{ .Id }}" href="javascript:quote('{{ $board.Actor }}', '{{ $opId }}', '{{ .Id }}')">{{ .Id }}</a> {{ if ne .Type "Tombstone" }}<a href="/report?id={{ .Id }}&board={{ $board.Name }}">[Report]</a>{{ end }}</span>
+    <span style="color: #0f0c5d;"><b>{{ .Name }}</b></span><span style="color: #117743;"><b>{{ if .AttributedTo }} {{.AttributedTo }} {{ else }} Anonymous {{ end }}</b></span><span>{{ .Published }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/">No.</a> <a id="{{ .Id }}-link" title="{{ .Id }}" href="javascript:quote('{{ $board.Actor }}', '{{ $opId }}', '{{ .Id }}')">{{ .Id }}</a> {{ if ne .Type "Tombstone" }}<a href="javascript:report('{{ $board.Actor }}', '{{ .Id }}')">[Report]</a>{{ end }}</span>
     <p id="{{ .Id }}-content" style="white-space: pre-wrap; margin: 10px 30px 10px 30px;">{{.Content}}</p>
     {{ if .Replies }}
     {{ $replies := .Replies }}
@@ -124,7 +124,7 @@
             }                    
           </script>              
           {{ end }}
-          <span style="color: #0f0c5d;"><b>{{ .Name }}</b></span><span style="color: #117743;"><b>{{ if .AttributedTo }} {{.AttributedTo }} {{ else }} Anonymous {{ end }}</b></span><span>{{ .Published }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/post/{{ $opId }}#{{ .Id }}">No. </a><a id="{{ .Id }}-link" title="{{ .Id }}" href="javascript:quote('{{ $board.Actor }}', '{{ $opId }}', '{{ .Id }}')">{{ .Id }}</a> {{ if ne .Type "Tombstone" }}<a href="/report?id={{ .Id }}&board={{ $board.Name }}">[Report]</a>{{ end }}</span>
+          <span style="color: #0f0c5d;"><b>{{ .Name }}</b></span><span style="color: #117743;"><b>{{ if .AttributedTo }} {{.AttributedTo }} {{ else }} Anonymous {{ end }}</b></span><span>{{ .Published }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/post/{{ $opId }}#{{ .Id }}">No. </a><a id="{{ .Id }}-link" title="{{ .Id }}" href="javascript:quote('{{ $board.Actor }}', '{{ $opId }}', '{{ .Id }}')">{{ .Id }}</a> {{ if ne .Type "Tombstone" }}<a href="javascript:report('{{ $board.Actor }}', '{{ .Id }}')">[Report]</a>{{ end }}</span>
           {{ $parentId := .Id }}
           {{ if .Replies.OrderedItems }}
           {{ range .Replies.OrderedItems }}

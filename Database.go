@@ -982,7 +982,9 @@ func GetCaptchaCodeDB(db *sql.DB, verify string) string {
 	rows.Next()
 	err = rows.Scan(&code)
 
-	CheckError(err, "Could not get verification captcha")
+	if err != nil {
+		fmt.Println("Could not get verification captcha")
+	}
 
 	return code
 }

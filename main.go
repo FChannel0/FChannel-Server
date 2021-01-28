@@ -290,8 +290,18 @@ func main() {
 			}
 		}
 
+		if(len(r.FormValue("comment")) > 2000) {
+			w.Write([]byte("Comment limit 2000 characters"))
+			return
+		}
+
+		if(len(r.FormValue("subject")) > 100 || len(r.FormValue("name")) > 100) {
+			w.Write([]byte("Name or Subject limit 100 characters"))
+			return
+		}		
+
 		if(r.FormValue("captcha") == "") {
-			w.Write([]byte("Captcha required"))
+			w.Write([]byte("Incorrect Captcha"))
 			return
 		}			
 		
@@ -361,7 +371,7 @@ func main() {
 		}
 
 		if(resp.StatusCode == 403){
-			w.Write([]byte("Wrong Captcha"))
+			w.Write([]byte("Incorrect Captcha"))
 			return
 		}
 		
@@ -741,19 +751,25 @@ func main() {
 	})
 
 	http.HandleFunc("/report", func(w http.ResponseWriter, r *http.Request){
-		
-		id := r.URL.Query().Get("id")
-		close := r.URL.Query().Get("close")
-		board := r.URL.Query().Get("board")		
+
+		r.ParseForm()
+
+		id := r.FormValue("id")
+		board := r.FormValue("board")
+		reason := r.FormValue("comment")
+		close := r.FormValue("close")
+
 		actor := GetActorFromPath(db, id, "/")
 		_, auth := GetPasswordFromSession(r)
 
-		if id == "" || auth == "" {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(""))					
-			return				
-		}		
+		var captcha = r.FormValue("captchaCode") + ":" + r.FormValue("captcha")
 
+		if(!CheckCaptcha(db, captcha)) {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("captcha required"))					
+			return							
+		}
+		
 		if close == "1" {
 			if !HasAuth(db, auth, actor.Id) {
 				w.WriteHeader(http.StatusBadRequest)
@@ -780,12 +796,12 @@ func main() {
 
 		if !IsIDLocal(db, id) {
 			fmt.Println("not local")
-			CreateLocalReportDB(db, id, board)
+			CreateLocalReportDB(db, id, board, reason)
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return			
 		}
 		
-		reported := ReportActivity(db, id)
+		reported := ReportActivity(db, id, reason)
 		if reported {
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)			
 			return
@@ -1493,9 +1509,9 @@ func SupportedMIMEType(mime string) bool {
 
 func DeleteReportActivity(db *sql.DB, id string) bool {
 
-	query := fmt.Sprintf("delete from reported where id='%s'", id)
+	query := `delete from reported where id=$1`
 
-	_, err := db.Exec(query)
+	_, err := db.Exec(query, id)
 
 	if err != nil {
 		CheckError(err, "error closing reported activity")
@@ -1505,17 +1521,17 @@ func DeleteReportActivity(db *sql.DB, id string) bool {
 	return true
 }
 
-func ReportActivity(db *sql.DB, id string) bool {
+func ReportActivity(db *sql.DB, id string, reason string) bool {
 
 	if !IsIDLocal(db, id) {
 		return false
 	}
 
 	actor := GetActivityFromDB(db, id)
-	
-	query := fmt.Sprintf("select count from reported where id='%s'", id)
 
-	rows, err := db.Query(query)
+	query := `select count from reported where id=$1`
+	
+	rows, err := db.Query(query, id)
 
 	CheckError(err, "could not select count from reported")
 
@@ -1526,9 +1542,9 @@ func ReportActivity(db *sql.DB, id string) bool {
 	}
 
 	if count < 1 {
-		query = fmt.Sprintf("insert into reported (id, count, board) values ('%s', %d, '%s')", id, 1, actor.Actor.Id)
+		query = `insert into reported (id, count, board) values ($1, $2, $3)`
 
-		_, err := db.Exec(query)
+		_, err := db.Exec(query, id, 1, actor.Actor.Id)
 
 		if err != nil {
 			CheckError(err, "error inserting new reported activity")
@@ -1537,9 +1553,9 @@ func ReportActivity(db *sql.DB, id string) bool {
 		
 	} else {
 		count = count + 1
-		query = fmt.Sprintf("update reported set count=%d where id='%s'", count, id)
+		query = `update reported set count=$1 where id=$2`
 
-		_, err := db.Exec(query)
+		_, err := db.Exec(query, count, id)
 		
 		if err != nil {
 			CheckError(err, "error updating reported activity")
