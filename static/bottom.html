@@ -2,8 +2,8 @@
 <div id="reply-box" class="popup-box" style="display: none; ">
   <div id="reply-header" style="display: inline-block; width: 370px; z-index: 0; cursor: move;"></div><div id="reply-close" style="display: inline-block; float: right;"><a href="javascript:closeReply()">[X]</a></div>
   <form id="reply-post" action="/post" method="post" enctype="multipart/form-data">
-    <input id="reply-name" name="name" size="43" type="text" placeholder="Name">
-    <input id="reply-options" name="options" size="43" type="text" placeholder="Options">
+    <input id="reply-name" name="name" size="43" type="text" placeholder="Name" maxlength="100">
+    <input id="reply-options" name="options" size="43" type="text" placeholder="Options" maxlength="100">
     <textarea id="reply-comment" name="comment" rows="12" cols="54" style="width: 396px;" maxlength="2000"></textarea>
     <input id="reply-file" name="file" type="file">
     <input id="reply-submit" type="submit" value="Reply" style="float: right;">

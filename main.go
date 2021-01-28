@@ -287,8 +287,8 @@ func main() {
 			return
 		}
 
-		if(len(r.FormValue("subject")) > 100 || len(r.FormValue("name")) > 100) {
-			w.Write([]byte("Name or Subject limit 100 characters"))
+		if(len(r.FormValue("subject")) > 100 || len(r.FormValue("name")) > 100 || len(r.FormValue("options" > 100) {
+			w.Write([]byte("Name, Subject or Options limit 100 characters"))
 			return
 		}		
 
@@ -755,6 +755,11 @@ func main() {
 		_, auth := GetPasswordFromSession(r)
 
 		var captcha = r.FormValue("captchaCode") + ":" + r.FormValue("captcha")
+
+		if len(reason) > 100 {
+			w.Write([]byte("Report comment limit 100 characters"))
+			return
+		}
 
 		if(!CheckCaptcha(db, captcha)) {
 			w.WriteHeader(http.StatusBadRequest)

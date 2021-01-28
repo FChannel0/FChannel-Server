@@ -11,15 +11,15 @@
   <div id="newpost" style="display: none;">    
     <form id="new-post" action="/post" method="post" enctype="multipart/form-data">        
       <label for="name">Name:</label><br>
-      <input type="text" id="name" name="name" placeholder="Anonymous"><br>
+      <input type="text" id="name" name="name" placeholder="Anonymous" maxlength="100"><br>
       <label for="options">Options:</label><br>
-      <input type="text" id="options" name="options">{{ if .Board.InReplyTo }}<input type="submit" value="Post">{{ end }}<br>
+      <input type="text" id="options" name="options" maxlength="100">{{ if .Board.InReplyTo }}<input type="submit" value="Post">{{ end }}<br>
       {{ if eq .Board.InReplyTo "" }}
       <label for="subject">Subject:</label><br>      
-      <input type="text" id="subject" name="subject"><input type="submit" value="Post"><br>
+      <input type="text" id="subject" name="subject" maxlength="100"><input type="submit" value="Post"><br>
       {{ end }}
       <label for="comment">Comment:</label><br>
-      <textarea rows="10" cols="50" id="comment" name="comment"></textarea><br>
+      <textarea rows="10" cols="50" id="comment" name="comment" maxlength="2000"></textarea><br>
       <input type="hidden" id="inReplyTo" name="inReplyTo" value="{{ .Board.InReplyTo }}">
       <input type="hidden" id="sendTo" name="sendTo" value="{{ .Board.To }}">
       <input type="hidden" id="boardName" name="boardName" value="{{ .Board.Name }}">
