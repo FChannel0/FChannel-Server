@@ -180,7 +180,12 @@ function quote(actorName, opid, id)
     var inReplyTo = document.getElementById("inReplyTo-box");      
 
     var w = window.innerWidth / 2 - 200;
-    var h = document.getElementById(id + "-content").offsetTop - 448;
+    if(id == "reply") {
+        var h = document.getElementById(id + "-content").offsetTop - 548;
+    } else {
+        var h = document.getElementById(id + "-content").offsetTop - 448;
+    }
+
 
     box.setAttribute("style", "display: block; position: absolute; width: 400px; height: 550px; z-index: 9; top: " + h + "px; left: " + w + "px; padding: 5px;");
 
@@ -191,10 +196,12 @@ function quote(actorName, opid, id)
     header.innerText = "Replying to Thread No. " + shortURL(actorName, opid);
     inReplyTo.value = opid;
 
-    if(comment.value != "")
-        comment.value += "\n>>" + id;
-    else
-        comment.value += ">>" + id;
+    if(id != "reply") {
+        if(comment.value != "")
+            comment.value += "\n>>" + id;
+        else
+            comment.value += ">>" + id;
+    }
 
     dragElement(header);            
 

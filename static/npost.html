@@ -24,7 +24,7 @@
   <li style="display: inline"><a href="javascript:location.reload()">[Refresh]</a></li>
 </ul>
 <div style=": inline; text-align: center;">
-  <span><a href="javascript:quote('{{ $board.Actor }}', '{{ (index .Posts 0).Id }}', '{{ (index .Posts 0).Id }}')">[Post a Reply]</a></span>
+  <span><a id="reply-content" href="javascript:quote('{{ $board.Actor }}', '{{ (index .Posts 0).Id }}', 'reply')">[Post a Reply]</a></span>
   {{ $replies := (index .Posts 0).Replies }}            
   <span style="float: right;">{{ $replies.TotalItems }} / {{ $replies.TotalImgs }}</span>      
 </div>
