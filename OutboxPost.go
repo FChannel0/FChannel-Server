@@ -505,17 +505,25 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	activity := GetActivityFromJson(r, db)
 	
 	header := r.Header.Get("Authorization")
-	auth := strings.Split(header, " ")		
+	auth := strings.Split(header, " ")
+
+	if len(auth) < 2 {
+		return
+	}
+
+	if !RemoteActorHasAuth(activity.Actor.Id, auth[1]) {
+		return
+	}
+	
 	switch(activity.Type) {
 	case "Create":
 		for _, e := range activity.To {
 			if IsActorLocal(db, e) {
-				if !IsActorLocal(db, activity.Actor.Id) && len(auth) > 1 && RemoteActorHasAuth(activity.Actor.Id, auth[1]){
+				if !IsActorLocal(db, activity.Actor.Id) {
 					WriteObjectToCache(db, *activity.Object)
 				}
 			}
 		}
-		
 		break
 
 	case "Delete":
@@ -531,16 +539,14 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		
 	case "Follow":
 		for _, e := range activity.To {
-			if len(auth) > 1 && RemoteActorHasAuth(activity.Actor.Id, auth[1]) {
-				if GetActorFromDB(db, e).Id != "" {
-					response := AcceptFollow(activity)
-					response = SetActorFollowerDB(db, response)
-					MakeActivityRequest(db, response)
-				} else {
-					fmt.Println("follow request for rejected")				
-					response := RejectFollow(activity)
-					MakeActivityRequest(db, response)
-				}
+			if GetActorFromDB(db, e).Id != "" {
+				response := AcceptFollow(activity)
+				response = SetActorFollowerDB(db, response)
+				MakeActivityRequest(db, response)
+			} else {
+				fmt.Println("follow request for rejected")				
+				response := RejectFollow(activity)
+				MakeActivityRequest(db, response)
 			}
 		}
 		break
