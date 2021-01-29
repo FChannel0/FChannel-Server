@@ -512,6 +512,8 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	}
 
 	if !RemoteActorHasAuth(activity.Actor.Id, auth[1]) {
+		response := RejectActivity(activity)
+		MakeActivityRequest(db, response)		
 		return
 	}
 	
@@ -545,7 +547,7 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				MakeActivityRequest(db, response)
 			} else {
 				fmt.Println("follow request for rejected")				
-				response := RejectFollow(activity)
+				response := RejectActivity(activity)
 				MakeActivityRequest(db, response)
 			}
 		}

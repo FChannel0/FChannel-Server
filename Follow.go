@@ -135,7 +135,7 @@ func AcceptFollow(activity Activity) Activity {
 	return accept
 }
 
-func RejectFollow(activity Activity) Activity {
+func RejectActivity(activity Activity) Activity {
 	var accept Activity
 	accept.AtContext.Context = activity.AtContext.Context
 	accept.Type = "Reject"
