@@ -632,6 +632,8 @@ func DeleteActorCache(db *sql.DB, actorID string) {
 
 	rows, err := db.Query(query, actorID)
 
+
+
 	CheckError(err, "error selecting actors activity from cache")
 
 	defer rows.Close()

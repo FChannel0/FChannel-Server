@@ -651,10 +651,30 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 	return &nColl, 0, 0
 }
 
+func CheckIfObjectOP(db *sql.DB, id string) bool {
+
+	var count int
+	
+	query := `select count(id) from replies where inreplyto='' and id=$1 `
+
+	rows, err := db.Query(query, id)
+	CheckError(err, "error checking if ID is OP")
+
+	defer rows.Close()
+	rows.Next()
+	rows.Scan(&count)
+
+	if count > 0 {
+		return true
+	}
+
+	return false
+}
+
 func GetObjectRepliesDBCount(db *sql.DB, parent ObjectBase) (int, int) {
 
 	var countId int
-	var countImg int 
+	var countImg int
 
 	query := `select count(id) from replies where inreplyto=$1 and id in (select id from activitystream where type='Note')`
 	
@@ -889,8 +909,6 @@ func DeleteObjectFromDB(db *sql.DB, id string) {
 	_, err := db.Exec(query, datetime, datetime, id)	
 
 	CheckError(err, "error with delete object")
-	DeleteObjectsInReplyTo(db, id)
-	DeleteObjectRepliedTo(db, id)	
 }
 
 func DeleteObjectsInReplyTo(db *sql.DB, id string) {
@@ -908,6 +926,7 @@ func DeleteObjectRepliesFromDB(db *sql.DB, id string) {
 
 	_, err := db.Exec(query, datetime, datetime, id)	
 	CheckError(err, "error with delete object replies")
+
 }
 
 func DeleteObject(db *sql.DB, id string) {
@@ -917,11 +936,12 @@ func DeleteObject(db *sql.DB, id string) {
 	}
 
 
+	DeleteObjectRequest(db, id)	
 	DeleteReportActivity(db, id)	
 	DeleteAttachmentFromFile(db, id)
 	DeletePreviewFromFile(db, id)			
 	DeleteObjectFromDB(db, id)
-	DeleteObjectRequest(db, id)
+	DeleteObjectRepliedTo(db, id)
 }
 
 func DeleteObjectAndReplies(db *sql.DB, id string) {
@@ -930,14 +950,16 @@ func DeleteObjectAndReplies(db *sql.DB, id string) {
 		return
 	}
 
+	DeleteObjectAndRepliesRequest(db, id)					
 	DeleteReportActivity(db, id)	
 	DeleteAttachmentFromFile(db, id)
-	DeletePreviewFromFile(db, id)			
+	DeletePreviewFromFile(db, id)
+	DeleteObjectRepliedTo(db, id)
+	DeleteObjectsInReplyTo(db, id)	
 	DeleteObjectRepliesFromDB(db, id)
 	DeleteAttachmentRepliesFromDB(db, id)
 	DeletePreviewRepliesFromDB(db, id)
 	DeleteObjectFromDB(db, id)
-	DeleteObjectAndRepliesRequest(db, id)				
 }
 
 func GetRandomCaptcha(db *sql.DB) string{

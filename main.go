@@ -700,9 +700,9 @@ func main() {
 		obj.Id = id
 		obj.Actor = &actor
 		
-		count, _ := GetObjectRepliesDBCount(db, obj)		
+		isOP := CheckIfObjectOP(db, obj.Id)
 
-		if count == 0 {
+		if !isOP {
 			DeleteObject(db, obj.Id)
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
@@ -1771,13 +1771,21 @@ func DeleteObjectAndRepliesRequest(db *sql.DB, id string) {
 	
 	activity := CreateActivity("Delete", nObj)
 	
-	obj := GetObjectFromPath(db, id)
+	obj := GetObjectByIDFromDB(db, id)
 
-	nObj.Actor = obj.Actor
-	followers := GetActorFollowDB(db, obj.Actor.Id)	
+	activity.Actor.Id = obj.OrderedItems[0].Actor.Id
+
+	activity.Object = &obj.OrderedItems[0]
+	
+	followers := GetActorFollowDB(db, obj.OrderedItems[0].Actor.Id)
 	for _, e := range followers {
 		activity.To = append(activity.To, e.Id)
 	}
+
+	following := GetActorFollowingDB(db, obj.OrderedItems[0].Actor.Id)
+	for _, e := range following {
+		activity.To = append(activity.To, e.Id)
+	}	
 
 	MakeActivityRequest(db, activity)
 }
