@@ -1040,31 +1040,16 @@ func CreateObject(objType string) ObjectBase {
 }
 
 func AddFollowersToActivity(db *sql.DB, activity Activity) Activity{
-	followers := GetActorFollowDB(db, activity.Actor.Id)
-	
-	var nActivity Activity
-	var tempActivity Activity			
-	for _, e := range followers {
-		aFollowers := GetActorCollection(e.Id + "/followers") 
+	for _, e := range activity.To {
+		aFollowers := GetActorCollection(e + "/followers")
 		for _, k := range aFollowers.Items {
-			bFollowing := GetActorCollection(k.Id + "/following")
-			var isFollowingActor = false
-			for _, n := range bFollowing.Items {
-				if n.Id == activity.Actor.Id {
-					isFollowingActor = true
-					break
-				}
-			}
-			
-			if isFollowingActor {
-				tempActivity.To = append(tempActivity.To, k.Id)
-			}
+			activity.To = append(activity.To, k.Id)
 		}
-		
-		tempActivity.To = append(tempActivity.To, e.Id)
 	}
 
-	for _, e := range tempActivity.To {
+	var nActivity Activity
+	
+	for _, e := range activity.To {
 		var alreadyTo = false
 		for _, k := range nActivity.To {
 			if e == k || e == activity.Actor.Id {				
@@ -1077,8 +1062,8 @@ func AddFollowersToActivity(db *sql.DB, activity Activity) Activity{
 		}
 	}	
 
-	activity.To = nActivity.To
-
+	activity.To = nActivity.To	
+	
 	return activity
 }
 
