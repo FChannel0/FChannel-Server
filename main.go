@@ -1040,6 +1040,11 @@ func CreateObject(objType string) ObjectBase {
 }
 
 func AddFollowersToActivity(db *sql.DB, activity Activity) Activity{
+
+	if len(activity.To) < 1 {
+		activity.To = append(activity.To, activity.Actor.Id)
+	}
+	
 	for _, e := range activity.To {
 		aFollowers := GetActorCollection(e + "/followers")
 		for _, k := range aFollowers.Items {

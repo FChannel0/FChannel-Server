@@ -628,22 +628,20 @@ func GetObjectImgsTotalCache(db *sql.DB, actor Actor) int{
 }
 
 func DeleteActorCache(db *sql.DB, actorID string) {
-       query := `select id from cacheactivitystream where id in (select id from cacheactivitystream where actor=$1)`
+	query := `select id from cacheactivitystream where id in (select id from cacheactivitystream where actor=$1)`
 
-       rows, err := db.Query(query, actorID)
+	rows, err := db.Query(query, actorID)
 
+	CheckError(err, "error selecting actors activity from cache")
 
+	defer rows.Close()
 
-       CheckError(err, "error selecting actors activity from cache")
+	for rows.Next() {
+		var id string
+		rows.Scan(&id)
 
-       defer rows.Close()
-
-       for rows.Next() {
-               var id string
-               rows.Scan(&id)
-
-               DeleteObjectFromCache(db, id)
-       }
+		DeleteObjectFromCache(db, id)
+	}
 }
 
 func WriteActorToCache(db *sql.DB, actorID string) {
