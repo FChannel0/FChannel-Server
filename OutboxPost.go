@@ -97,7 +97,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				
 				var verify Verify
 				verify.Identifier = "admin"
-				verify.Board = activity.Actor.Id
+				verify.Board = Domain
 
 				verify = GetVerificationCode(db, verify)
 
@@ -141,9 +141,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				verify.Board = Domain
 				
 				verify = GetVerificationCode(db, verify)
-
-				fmt.Println(verify.Code)
-
+				
 				code := verify.Code
 				code = CreateTripCode(code)
 				code = CreateTripCode(code)								
