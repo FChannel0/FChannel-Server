@@ -14,7 +14,6 @@ import "strings"
 func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	
 	var activity Activity
-	var object ObjectBase
 
 	actor := GetActorFromPath(db, r.URL.Path, "/")
 	contentType := GetContentType(r.Header.Get("content-type"))
@@ -75,16 +74,9 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		if IsActivityLocal(db, activity) {
 			switch activity.Type {
 			case "Create":
-				if(true) { // add condition for creating
-					object = GetObjectFromActivity(activity)
-					writeObjectToDB(db, object)				
-					w.WriteHeader(http.StatusCreated)
-					w.Header().Set("Location", object.Id)
-				} else {
-					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte(""))					
-				}
-				
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(""))
+				break
 			case "Follow":
 
 				var validActor bool
@@ -121,14 +113,16 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				}
 
 				w.Write([]byte(""))
+				break
 			case "Delete":
 				fmt.Println("This is a delete")
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte("could not process activity"))										
-
+				break
 			case "Note":
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte("could not process activity"))
+				break
 
 			case "New":
 
@@ -175,13 +169,12 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte(""))
-				
+				break
 			default:
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte("could not process activity"))			
 			}
 		} else {
-
 			fmt.Println("is NOT activity")		
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("could not process activity"))			

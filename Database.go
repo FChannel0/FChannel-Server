@@ -600,6 +600,46 @@ func GetObjectRepliesRemote(db *sql.DB, parent ObjectBase) CollectionBase {
 	return nColl
 }
 
+func GetObjectRepliesReplies(db *sql.DB, parent ObjectBase) (*CollectionBase, int, int) {
+
+
+	var nColl CollectionBase
+	var result []ObjectBase
+
+	query := `select id, name, content, type, published, attributedto, attachment, preview, actor from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' order by published asc`
+
+	rows, err := db.Query(query, parent.Id)	
+
+	CheckError(err, "error with replies replies db query")
+
+	defer rows.Close()
+	for rows.Next() {
+		var post ObjectBase
+		var actor Actor
+		var attachID string
+		var previewID string		
+
+		post.InReplyTo = append(post.InReplyTo, parent)
+
+		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id)
+
+
+		CheckError(err, "error with replies replies db scan")
+
+		post.Actor = &actor
+
+		post.Attachment = GetObjectAttachment(db, attachID)
+
+		post.Preview = GetObjectPreview(db, previewID)				
+
+		result = append(result, post)			
+	}
+
+	nColl.OrderedItems = result
+
+	return &nColl, 0, 0	
+}
+
 func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, int) {
 
 	var nColl CollectionBase
@@ -634,7 +674,9 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 		result = append(result, post)			
 	}
 
-	remoteCollection, postc, imgc := GetObjectRepliesCache(db, parent)
+	nColl.OrderedItems = result	
+
+	remoteCollection, postc, imgc := GetObjectRepliesRepliesCache(db, parent)
 
 	for _, e := range remoteCollection.OrderedItems {
 		
@@ -644,9 +686,6 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 			imgc = imgc + 1
 		}			
 	}	
-
-
-	nColl.OrderedItems = result
 
 	return &nColl, 0, 0
 }

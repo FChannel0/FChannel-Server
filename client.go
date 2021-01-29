@@ -159,8 +159,6 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	DeleteTombstonePosts(&mergeCollection)
 	sort.Sort(ObjectBaseSortDesc(mergeCollection.OrderedItems))	
 
-
-
 	returnData.Boards = GetBoardCollection(db)
 
 	offset := 8
@@ -172,7 +170,6 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 			returnData.Posts = append(returnData.Posts, mergeCollection.OrderedItems[current])
 		}
 	}
-
 
 	for i, e := range returnData.Posts {
 		var replies []ObjectBase
@@ -190,6 +187,8 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 				orderedReplies = append(orderedReplies, replies[cur])
 			}
 		}
+		
+		returnData.Posts[i].Replies.TotalItems = len(returnData.Posts[i].Replies.OrderedItems)		
 		returnData.Posts[i].Replies.OrderedItems = orderedReplies
 	}
 

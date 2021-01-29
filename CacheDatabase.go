@@ -404,7 +404,7 @@ func GetObjectRepliesCache(db *sql.DB, parent ObjectBase) (*CollectionBase, int,
 
 		var postCnt int
 		var imgCnt int		
-		post.Replies, postCnt, imgCnt = GetObjectRepliesRepliesDB(db, post)
+		post.Replies, postCnt, imgCnt = GetObjectRepliesRepliesCache(db, post)
 
 		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCacheCount(db, post)
 		
@@ -445,17 +445,29 @@ func GetObjectRepliesRepliesCache(db *sql.DB, parent ObjectBase) (*CollectionBas
 
 		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id)
 
-
 		CheckError(err, "error with replies replies cache scan")
 
 		post.Actor = &actor
 
 		post.Attachment = GetObjectAttachmentCache(db, attachID)
 
-		post.Preview = GetObjectPreviewCache(db, previewID)				
+		post.Preview = GetObjectPreviewCache(db, previewID)
 
 		result = append(result, post)			
 	}
+
+	nColl.OrderedItems = result		
+
+	remoteCollection, postc, imgc := GetObjectRepliesReplies(db, parent)
+
+	for _, e := range remoteCollection.OrderedItems {
+		
+		nColl.OrderedItems = append(nColl.OrderedItems, e)
+		postc = postc + 1
+		if len(e.Attachment) > 0 {
+			imgc = imgc + 1
+		}			
+	}	
 
 	return &nColl, 0, 0
 }

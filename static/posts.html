@@ -65,7 +65,7 @@
     {{ if .Replies }}
     {{ $replies := .Replies }}
     {{ if gt $replies.TotalItems 5 }}
-    <span>{{ $replies.TotalItems }} replies{{ if gt $replies.TotalImgs 0}} and  {{ $replies.TotalImgs }} images{{ end }}, Click <a id="view" post="{{.Id}}" href="/{{ $board.Name }}/{{ .Id }}">here</a> to view all.</span>
+    <span>{{ $replies.TotalItems }} replies{{ if gt $replies.TotalImgs 0}} and {{ $replies.TotalImgs }} images{{ end }}, Click <a id="view" post="{{.Id}}" href="/{{ $board.Name }}/{{ .Id }}">here</a> to view all.</span>
     {{ end }}
     {{ range $replies.OrderedItems }}
     <div id="{{ .Id }}">
