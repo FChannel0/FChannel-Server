@@ -1608,7 +1608,7 @@ func MakeActivityRequest(db *sql.DB, activity Activity) {
 	auth := CreateTripCode(verify.Code)
 
 	auth = CreateTripCode(auth)
-	
+
 	for _, e := range activity.To {
 
 		actor := GetActor(e)
@@ -1618,9 +1618,7 @@ func MakeActivityRequest(db *sql.DB, activity Activity) {
 			
 			req.Header.Set("Content-Type", activitystreams)
 			
-			if activity.Type == "Create" {
-				req.Header.Set("Authorization", "Basic " + auth)
-			}
+			req.Header.Set("Authorization", "Basic " + auth)
 
 			CheckError(err, "error with sending activity req to")
 

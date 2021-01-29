@@ -507,7 +507,10 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	header := r.Header.Get("Authorization")
 	auth := strings.Split(header, " ")
 
+
 	if len(auth) < 2 {
+		response := RejectActivity(activity)
+		MakeActivityRequest(db, response)				
 		return
 	}
 
@@ -516,7 +519,7 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		MakeActivityRequest(db, response)		
 		return
 	}
-	
+
 	switch(activity.Type) {
 	case "Create":
 		for _, e := range activity.To {
