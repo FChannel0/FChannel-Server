@@ -448,7 +448,7 @@ func GetObjectByIDFromDB(db *sql.DB, postID string) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
-	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor from activitystream where id=$1 and id in (select id from replies where inreplyto='') and type='Note' order by updated asc`
+	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor from activitystream where id=$1 and type='Note' order by updated asc`
 
 	rows, err := db.Query(query, postID)	
 

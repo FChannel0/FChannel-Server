@@ -401,19 +401,27 @@ func main() {
 		if follow || adminFollow {
 			r.ParseForm()
 
+
 			var followActivity Activity
 
 			followActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 			followActivity.Type = "Follow"
+			
 			var nactor Actor
 			var obj ObjectBase 
 			followActivity.Actor = &nactor
 			followActivity.Object = &obj
 			followActivity.Actor.Id = r.FormValue("actor")
+			
 			var mactor Actor
 			followActivity.Object.Actor = &mactor
 			followActivity.Object.Actor.Id = r.FormValue("follow")
 			followActivity.To = append(followActivity.To, r.FormValue("follow"))
+
+			if followActivity.Actor.Id == Domain && !IsActorLocal(db, followActivity.Object.Actor.Id) {
+				w.Write([]byte("main board can only follow local boards. Create a new board and then follow outside boards from it."))
+				return
+			}
 
 			enc, _ := json.Marshal(followActivity)
 			
@@ -422,6 +430,9 @@ func main() {
 			CheckError(err, "error with follow req")		
 
 			_, pass := GetPasswordFromSession(r)
+
+			pass = CreateTripCode(pass)
+			pass = CreateTripCode(pass)			
 
 			req.Header.Set("Authorization", "Basic " + pass)
 			

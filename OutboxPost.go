@@ -86,6 +86,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				}
 				
 			case "Follow":
+
 				var validActor bool
 				var validLocalActor bool
 
@@ -104,13 +105,13 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				
 				var verify Verify
 				verify.Identifier = "admin"
-				verify.Board = activity.Object.Actor.Id
-				
+				verify.Board = activity.Actor.Id
+
 				verify = GetVerificationCode(db, verify)
 
 				code := verify.Code
 				code = CreateTripCode(code)
-				code = CreateTripCode(code)				
+				code = CreateTripCode(code)
 
 				var rActivity Activity
 				if validActor && validLocalActor && code == auth[1] || verify.Board == Domain {
