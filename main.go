@@ -563,7 +563,11 @@ func main() {
 
 		CheckError(err, "error with add board follow req")		
 
-		_, pass := GetPasswordFromSession(r)		
+		_, pass := GetPasswordFromSession(r)
+
+		pass = CreateTripCode(pass)
+		pass = CreateTripCode(pass)		
+		
 		req.Header.Set("Authorization", "Basic " + pass)
 		req.Header.Set("Content-Type", activitystreams)
 		
@@ -694,6 +698,7 @@ func main() {
 
 		var obj ObjectBase
 		obj.Id = id
+		obj.Actor = &actor
 		
 		count, _ := GetObjectRepliesDBCount(db, obj)		
 
@@ -1735,11 +1740,16 @@ func GetUniqueFilename(_type string) string {
 
 func DeleteObjectRequest(db *sql.DB, id string) {
 	var nObj ObjectBase
+	var nActor Actor
 	nObj.Id = id
+	nObj.Actor = &nActor
 
 	activity := CreateActivity("Delete", nObj)
 
 	obj := GetObjectFromPath(db, id)
+
+	activity.Actor.Id = obj.Actor.Id
+	
 	followers := GetActorFollowDB(db, obj.Actor.Id)
 	for _, e := range followers {
 		activity.To = append(activity.To, e.Id)
@@ -1748,19 +1758,22 @@ func DeleteObjectRequest(db *sql.DB, id string) {
 	following := GetActorFollowingDB(db, obj.Actor.Id)
 	for _, e := range following {
 		activity.To = append(activity.To, e.Id)
-	}	
+	}
 
 	MakeActivityRequest(db, activity)
 }
 
 func DeleteObjectAndRepliesRequest(db *sql.DB, id string) {
 	var nObj ObjectBase
+	var nActor Actor	
 	nObj.Id = id
+	nObj.Actor = &nActor
 	
 	activity := CreateActivity("Delete", nObj)
 	
 	obj := GetObjectFromPath(db, id)
 
+	nObj.Actor = obj.Actor
 	followers := GetActorFollowDB(db, obj.Actor.Id)	
 	for _, e := range followers {
 		activity.To = append(activity.To, e.Id)

@@ -93,7 +93,6 @@ func GetCollectionFromPath(db *sql.DB, path string) Collection {
 func GetObjectFromPath(db *sql.DB, path string) ObjectBase{
 
 	var nObj ObjectBase
-	var result []ObjectBase
 
 	query := `select id, name, content, type, published, attributedto, attachment, preview, actor from activitystream where id=$1 order by published desc`
 
@@ -102,37 +101,30 @@ func GetObjectFromPath(db *sql.DB, path string) ObjectBase{
 	CheckError(err, "error query collection path from db")
 	
 	defer rows.Close()
+	rows.Next()
+	var attachID string
+	var previewID string
 
-	for rows.Next(){
-		var post ObjectBase
-		var attachID string
-		var previewID string
+	var nActor Actor
+	nObj.Actor = &nActor
+	
+	err = rows.Scan(&nObj.Id, &nObj.Name, &nObj.Content, &nObj.Type, &nObj.Published, &nObj.AttributedTo, &attachID, &previewID, &nObj.Actor.Id)
+	
+	CheckError(err, "error scan object into post struct from path")
 
-		var nActor Actor
-		post.Actor = &nActor
-		
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &post.Actor.Id)
-		
-		CheckError(err, "error scan object into post struct from path")
+	var postCnt int
+	var imgCnt int
 
+	nObj.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, nObj)
 
-		var postCnt int
-		var imgCnt int
-		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
+	nObj.Replies.TotalItems, nObj.Replies.TotalImgs = GetObjectRepliesDBCount(db, nObj)
 
-		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
+	nObj.Replies.TotalItems = nObj.Replies.TotalItems + postCnt
+	nObj.Replies.TotalImgs = nObj.Replies.TotalImgs + imgCnt		
 
-		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
-		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
+	nObj.Attachment = GetObjectAttachment(db, attachID)
 
-		post.Attachment = GetObjectAttachment(db, attachID)
-
-		post.Preview = GetObjectPreview(db, previewID)
-
-		result = append(result, post)
-	}
-
-	nObj = result[0]
+	nObj.Preview = GetObjectPreview(db, previewID)
 
 	return nObj		
 }

@@ -190,7 +190,7 @@ func GetVerificationCode(db *sql.DB, verify Verify) Verify {
 		CheckError(err, "error getting verify by code scan")				
 	}
 	
-	return verify
+	return nVerify
 }
 
 func VerifyCooldownCurrent(db *sql.DB, auth string) VerifyCooldown {

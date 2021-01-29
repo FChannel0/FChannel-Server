@@ -101,10 +101,19 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				
 				_, validActor = IsValidActor(activity.Object.Actor.Id)
 				validLocalActor = (activity.Actor.Id == actor.Id)
-				verification := GetVerificationByCode(db, auth[1])
+				
+				var verify Verify
+				verify.Identifier = "admin"
+				verify.Board = activity.Object.Actor.Id
+				
+				verify = GetVerificationCode(db, verify)
+
+				code := verify.Code
+				code = CreateTripCode(code)
+				code = CreateTripCode(code)				
 
 				var rActivity Activity
-				if validActor && validLocalActor && verification.Board == activity.Actor.Id || verification.Board == Domain {
+				if validActor && validLocalActor && code == auth[1] || verify.Board == Domain {
 					rActivity = AcceptFollow(activity)
 					SetActorFollowingDB(db, rActivity)
 					MakeActivityRequest(db, activity)
@@ -132,9 +141,19 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 					return
 				}
 
-				verification := GetVerificationByCode(db, auth[1])
+				var verify Verify
+				verify.Identifier = "admin"
+				verify.Board = Domain
+				
+				verify = GetVerificationCode(db, verify)
 
-				if verification.Board != Domain {
+				fmt.Println(verify.Code)
+
+				code := verify.Code
+				code = CreateTripCode(code)
+				code = CreateTripCode(code)								
+
+				if code != auth[1] {
 					w.WriteHeader(http.StatusBadRequest)					
 					w.Write([]byte(""))					
 					return
@@ -588,6 +607,11 @@ func MakeActivityFollowingReq(w http.ResponseWriter, r *http.Request, activity A
 }
 
 func RemoteActorHasAuth(actor string, code string) bool {
+
+	if actor == "" || code == "" {
+		return false
+	}
+	
 	req, err := http.NewRequest("GET", actor + "/verification&code=" + code, nil)
 
 	CheckError(err, "could not make remote actor auth req")
