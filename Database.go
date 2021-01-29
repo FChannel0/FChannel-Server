@@ -7,6 +7,7 @@ import "time"
 import "os"
 import "strings"
 import "regexp"
+import "sort"
 
 func GetActorFromDB(db *sql.DB, id string) Actor {
 	var nActor Actor
@@ -379,14 +380,14 @@ func GetActivityFromDB(db *sql.DB, id string) Collection {
 
 		post.Actor = &actor
 
-		var postCnt int
-		var imgCnt int
-		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
+		// var postCnt int
+		// var imgCnt int
+		post.Replies, _, _ = GetObjectRepliesDB(db, post)
 
-		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
+		// post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
 
-		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
-		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt
+		// post.Replies.TotalItems = post.Replies.TotalItems + postCnt
+		// post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 
@@ -423,14 +424,14 @@ func GetObjectFromDB(db *sql.DB, id string) Collection {
 
 		post.Actor = &actor
 
-		var postCnt int
-		var imgCnt int		
-		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
+		// var postCnt int
+		// var imgCnt int		
+		post.Replies, _, _ = GetObjectRepliesDB(db, post)
 
-		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
+		// post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
 
-		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
-		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
+		// post.Replies.TotalItems = post.Replies.TotalItems + postCnt
+		// post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 
@@ -467,14 +468,14 @@ func GetObjectByIDFromDB(db *sql.DB, postID string) Collection {
 
 		post.Actor = &actor
 
-		var postCnt int
-		var imgCnt int		
-		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
+		// var postCnt int
+		// var imgCnt int		
+		post.Replies, _, _ = GetObjectRepliesDB(db, post)
 
-		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
+		// post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
 
-		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
-		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
+		// post.Replies.TotalItems = post.Replies.TotalItems + postCnt
+		// post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 
@@ -535,14 +536,14 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, in
 
 		post.Actor = &actor
 
-		var postCnt int
-		var imgCnt int		
-		post.Replies, postCnt, imgCnt = GetObjectRepliesRepliesDB(db, post)
+		// var postCnt int
+		// var imgCnt int		
+		post.Replies, _, _ = GetObjectRepliesRepliesDB(db, post)
 
-		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
+		// post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
 		
-		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
-		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
+		// post.Replies.TotalItems = post.Replies.TotalItems + postCnt
+		// post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
 		
 		post.Attachment = GetObjectAttachment(db, attachID)
 
@@ -606,7 +607,7 @@ func GetObjectRepliesReplies(db *sql.DB, parent ObjectBase) (*CollectionBase, in
 	var nColl CollectionBase
 	var result []ObjectBase
 
-	query := `select id, name, content, type, published, attributedto, attachment, preview, actor from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' order by published asc`
+	query := `select id, name, content, type, published, attributedto, attachment, preview, actor from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' order by updated asc`
 
 	rows, err := db.Query(query, parent.Id)	
 
@@ -685,7 +686,9 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 		if len(e.Attachment) > 0 {
 			imgc = imgc + 1
 		}			
-	}	
+	}
+
+	sort.Sort(ObjectBaseSortAsc(nColl.OrderedItems))		
 
 	return &nColl, 0, 0
 }

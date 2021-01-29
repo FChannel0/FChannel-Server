@@ -187,6 +187,12 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 				orderedReplies = append(orderedReplies, replies[cur])
 			}
 		}
+
+		for _, e := range returnData.Posts[i].Replies.OrderedItems {
+			if len(e.Attachment) > 0 {
+				returnData.Posts[i].Replies.TotalImgs = returnData.Posts[i].Replies.TotalImgs + 1
+			}
+		}				
 		
 		returnData.Posts[i].Replies.TotalItems = len(returnData.Posts[i].Replies.OrderedItems)		
 		returnData.Posts[i].Replies.OrderedItems = orderedReplies
@@ -252,6 +258,15 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	returnData.Boards = GetBoardCollection(db)
 
 	returnData.Posts = mergeCollection.OrderedItems
+
+	for i, _ := range returnData.Posts {
+		for _, e := range returnData.Posts[i].Replies.OrderedItems {
+			if len(e.Attachment) > 0 {
+				returnData.Posts[i].Replies.TotalImgs = returnData.Posts[i].Replies.TotalImgs + 1
+			}
+		}		
+		returnData.Posts[i].Replies.TotalItems = len(returnData.Posts[i].Replies.OrderedItems)		
+	}
 
 	t.ExecuteTemplate(w, "layout",  returnData)
 }
@@ -339,6 +354,15 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 			sort.Sort(ObjectBaseSortAsc(returnData.Posts[0].Replies.OrderedItems))
 		}
 	}
+
+	for i, _ := range returnData.Posts {
+		for _, e := range returnData.Posts[i].Replies.OrderedItems {
+			if len(e.Attachment) > 0 {
+				returnData.Posts[i].Replies.TotalImgs = returnData.Posts[i].Replies.TotalImgs + 1
+			}
+		}
+		returnData.Posts[i].Replies.TotalItems = len(returnData.Posts[i].Replies.OrderedItems)		
+	}	
 
 	t.ExecuteTemplate(w, "layout",  returnData)			
 }

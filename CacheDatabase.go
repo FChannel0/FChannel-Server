@@ -4,6 +4,7 @@ import "fmt"
 import "time"
 import "database/sql"
 import _ "github.com/lib/pq"
+import "sort"
 
 func WriteObjectToCache(db *sql.DB, obj ObjectBase) ObjectBase {
 	if len(obj.Attachment) > 0 {
@@ -185,15 +186,15 @@ func GetActivityFromCache(db *sql.DB, id string) Collection {
 
 		post.Actor = &actor
 
-		var postCnt int
-		var imgCnt int
+		// var postCnt int
+		// var imgCnt int
 
-		post.Replies, postCnt, imgCnt = GetObjectRepliesCache(db, post)
+		post.Replies, _, _ = GetObjectRepliesCache(db, post)
 
-		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCacheCount(db, post)
+		// post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCacheCount(db, post)
 
-		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
-		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
+		// post.Replies.TotalItems = post.Replies.TotalItems + postCnt
+		// post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
 
 		post.Attachment = GetObjectAttachmentCache(db, attachID)
 
@@ -230,14 +231,14 @@ func GetObjectFromCache(db *sql.DB, id string) Collection {
 
 		post.Actor = &actor
 
-		var postCnt int
-		var imgCnt int		
-		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
+		// var postCnt int
+		// var imgCnt int		
+		post.Replies, _, _ = GetObjectRepliesDB(db, post)
 
-		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCacheCount(db, post)
+		// post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCacheCount(db, post)
 
-		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
-		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
+		// post.Replies.TotalItems = post.Replies.TotalItems + postCnt
+		// post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
 
 		post.Attachment = GetObjectAttachmentCache(db, attachID)
 
@@ -274,14 +275,14 @@ func GetObjectByIDFromCache(db *sql.DB, postID string) Collection {
 
 		post.Actor = &actor
 
-		var postCnt int
-		var imgCnt int		
-		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
+		// var postCnt int
+		// var imgCnt int		
+		post.Replies, _, _ = GetObjectRepliesDB(db, post)
 
-		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCacheCount(db, post)
+		// post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCacheCount(db, post)
 
-		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
-		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
+		// post.Replies.TotalItems = post.Replies.TotalItems + postCnt
+		// post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
 
 		post.Attachment = GetObjectAttachmentCache(db, attachID)
 
@@ -402,14 +403,14 @@ func GetObjectRepliesCache(db *sql.DB, parent ObjectBase) (*CollectionBase, int,
 
 		post.Actor = &actor
 
-		var postCnt int
-		var imgCnt int		
-		post.Replies, postCnt, imgCnt = GetObjectRepliesRepliesCache(db, post)
+		// var postCnt int
+		// var imgCnt int		
+		post.Replies, _, _ = GetObjectRepliesRepliesCache(db, post)
 
-		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCacheCount(db, post)
+		// post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCacheCount(db, post)
 		
-		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
-		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
+		// post.Replies.TotalItems = post.Replies.TotalItems + postCnt
+		// post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
 		
 		post.Attachment = GetObjectAttachmentCache(db, attachID)
 
@@ -467,7 +468,9 @@ func GetObjectRepliesRepliesCache(db *sql.DB, parent ObjectBase) (*CollectionBas
 		if len(e.Attachment) > 0 {
 			imgc = imgc + 1
 		}			
-	}	
+	}
+
+	sort.Sort(ObjectBaseSortAsc(nColl.OrderedItems))			
 
 	return &nColl, 0, 0
 }
