@@ -556,7 +556,7 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			if actor.Id != "" {
 				for _, e := range activity.Object.Replies.OrderedItems {
 					TombstoneObjectFromCache(db, e.Id)
-					DeleteObject(db, e.Id)
+					DeleteObject(db, e.Id)					
 				}
 				TombstoneObjectFromCache(db, activity.Object.Id)				
 				break

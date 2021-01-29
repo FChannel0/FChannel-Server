@@ -935,8 +935,6 @@ func DeleteObject(db *sql.DB, id string) {
 		return
 	}
 
-
-	DeleteObjectRequest(db, id)	
 	DeleteReportActivity(db, id)	
 	DeleteAttachmentFromFile(db, id)
 	DeletePreviewFromFile(db, id)			
@@ -950,7 +948,6 @@ func DeleteObjectAndReplies(db *sql.DB, id string) {
 		return
 	}
 
-	DeleteObjectAndRepliesRequest(db, id)					
 	DeleteReportActivity(db, id)	
 	DeleteAttachmentFromFile(db, id)
 	DeletePreviewFromFile(db, id)

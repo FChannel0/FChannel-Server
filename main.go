@@ -703,10 +703,12 @@ func main() {
 		isOP := CheckIfObjectOP(db, obj.Id)
 
 		if !isOP {
+			DeleteObjectRequest(db, id)	
 			DeleteObject(db, obj.Id)
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		} else {
+			DeleteObjectAndRepliesRequest(db, id)					
 			DeleteObjectAndReplies(db, obj.Id)
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
