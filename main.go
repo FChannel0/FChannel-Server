@@ -118,7 +118,7 @@ func main() {
 			actorReported = (path == "/" + actor.Name + "/reported")				
 			actorVerification = (path == "/" + actor.Name + "/verification")
 
-			re := regexp.MustCompile("/" + actor.Name + "/[0-9]{1,2}")			
+			re := regexp.MustCompile("/" + actor.Name + "/[0-9]{1,2}$")			
 
 			actorMainPage = re.MatchString(path)
 			
