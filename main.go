@@ -926,7 +926,7 @@ func CreateNameTripCode(input string) string {
 	re := regexp.MustCompile("#.+")
 	chunck := re.FindString(input)
 	hash := CreateTripCode(chunck)
-	return re.ReplaceAllString(input, hash[0:8])
+	return re.ReplaceAllString(input, "!" + hash[42:50])
 }
 
 func GetActorFromPath(db *sql.DB, location string, prefix string) Actor {

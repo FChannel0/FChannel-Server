@@ -355,7 +355,8 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 		obj.Preview = CreatePreviewObject(obj.Attachment[0])
 	}
 
-	obj.AttributedTo = EscapeString(r.FormValue("name"))
+	obj.AttributedTo = CreateNameTripCode(r.FormValue("name"))
+	obj.AttributedTo = EscapeString(obj.AttributedTo)
 	obj.Name = EscapeString(r.FormValue("subject"))
 	obj.Content = EscapeString(r.FormValue("comment"))
 
