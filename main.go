@@ -682,10 +682,6 @@ func main() {
 		}
 	})			
 
-	http.HandleFunc("/getcaptcha", func(w http.ResponseWriter, r *http.Request){
-		w.Write([]byte(GetRandomCaptcha(db)))
-	})
-
 	http.HandleFunc("/delete", func(w http.ResponseWriter, r *http.Request){
 		id := r.URL.Query().Get("id")
 		board := r.URL.Query().Get("board")		

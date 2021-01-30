@@ -122,7 +122,7 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	returnData.Board.Restricted = actor.Restricted
 	returnData.CurrentPage = page
 
-	returnData.Board.Captcha = GetCaptcha(*actor)
+	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
 	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)
 
 	returnData.Title = "/" + actor.Name + "/ - " + actor.PreferredUsername
@@ -202,7 +202,7 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	for i := 0.0; i < pageLimit; i++ {
 		pages = append(pages, int(i))
 	}
-
+ 
 	returnData.Pages = pages
 	returnData.TotalPage = len(returnData.Pages) - 1
 
@@ -249,7 +249,7 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	returnData.Board.Restricted = actor.Restricted
 	returnData.Key = *Key
 
-	returnData.Board.Captcha = GetCaptcha(*actor)
+	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
 	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)	
 
 	returnData.Title = "/" + actor.Name + "/ - " + actor.PreferredUsername
@@ -294,7 +294,7 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 
 
 	if GetDomainURL(actor) != "" {
-		returnData.Board.Captcha = GetCaptcha(actor)
+		returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
 		returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)
 	}
 
@@ -453,26 +453,6 @@ func StripTransferProtocol(value string) string {
 	value = re.ReplaceAllString(value, "")
 
 	return value
-}
-
-func GetCaptcha(actor Actor) string {
-	re := regexp.MustCompile("(https://|http://)?(www)?.+/")
-
-	domainURL := re.FindString(actor.Id)
-
-	re = regexp.MustCompile("/$")
-
-	domainURL = re.ReplaceAllString(domainURL, "")
-
-	resp, err := http.Get(domainURL + "/getcaptcha")
-
-	CheckError(err, "error getting captcha")
-
-	defer resp.Body.Close()
-
-	body, _ := ioutil.ReadAll(resp.Body)			
-
-	return domainURL + "/" + string(body)
 }
 
 func GetCaptchaCode(captcha string) string {
