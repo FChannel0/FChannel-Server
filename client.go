@@ -7,7 +7,6 @@ import "database/sql"
 import _ "github.com/lib/pq"
 import "strings"
 import "strconv"
-import "math"
 import "sort"
 import "regexp"
 import "io/ioutil"
@@ -183,7 +182,7 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 		var orderedReplies []ObjectBase
 		for i := 0; i < 5; i++ {
 			cur := len(replies) - i - 1
-			if cur > -1 {
+			if cur > - 1 {
 				orderedReplies = append(orderedReplies, replies[cur])
 			}
 		}
@@ -199,8 +198,8 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	}
 
 	var pages []int
-	pageLimit := math.Round(float64(len(mergeCollection.OrderedItems) / offset))
-	for i := 0.0; i <= pageLimit; i++ {
+	pageLimit := (float64(len(mergeCollection.OrderedItems)) / float64(offset))
+	for i := 0.0; i < pageLimit; i++ {
 		pages = append(pages, int(i))
 	}
 

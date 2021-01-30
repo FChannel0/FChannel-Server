@@ -94,6 +94,7 @@ func main() {
 		var actorFollowers bool
 		var actorReported bool		
 		var actorVerification bool
+		var actorMainPage bool
 
 		var accept = r.Header.Get("Accept")
 		
@@ -108,7 +109,7 @@ func main() {
 			mainFollowing = (path == "/following")
 			mainFollowers = (path == "/followers")			
 		} else {
-			actorMain = (path == "/" + actor.Name)			
+			actorMain = (path == "/" + actor.Name)
 			actorInbox = (path == "/" + actor.Name + "/inbox")
 			actorCatalog = (path == "/" + actor.Name + "/catalog")
 			actorOutbox = (path == "/" + actor.Name + "/outbox")
@@ -116,9 +117,13 @@ func main() {
 			actorFollowers = (path == "/" + actor.Name + "/followers")
 			actorReported = (path == "/" + actor.Name + "/reported")				
 			actorVerification = (path == "/" + actor.Name + "/verification")
+
+			re := regexp.MustCompile("/" + actor.Name + "/[0-9]{1,2}")			
+
+			actorMainPage = re.MatchString(path)
 			
-			re := regexp.MustCompile("/" + actor.Name + "/\\w+")
-			actorPost = 	re.MatchString(path)				
+			re = regexp.MustCompile("/" + actor.Name + "/\\w+")
+			actorPost = 	re.MatchString(path)
 		}
 
 		if mainActor {
@@ -164,7 +169,7 @@ func main() {
 			return
 		}
 
-		if actorMain {
+		if actorMain || actorMainPage {
 			if accept == activitystreams || accept == ldjson {
 				GetActorInfo(w, db, actor.Id)
 				return 
@@ -810,7 +815,6 @@ func main() {
 		}
 
 		if !IsIDLocal(db, id) {
-			fmt.Println("not local")
 			CreateLocalReportDB(db, id, board, reason)
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return			
