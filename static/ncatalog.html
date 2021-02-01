@@ -49,7 +49,7 @@
         if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "video"){
             var video = document.createElement("video")
             video.controls = 'controls'
-            video.preload    = 'none'                          
+            video.preload    = 'metadata'                          
             video.muted    = 'muted'              
             video.src      = '{{ (index .Attachment 0).Href }}'
             video.type     = '{{ (index .Attachment 0).MediaType }}'              

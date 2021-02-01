@@ -503,8 +503,10 @@ func CheckCaptcha(db *sql.DB, captcha string) bool {
 	path  := "public/" + parts[0] + ".png"
 	code  := GetCaptchaCodeDB(db, path)
 
-	DeleteCaptchaCodeDB(db, path)
-	CreateNewCaptcha(db)	
+	if code != "" {
+		DeleteCaptchaCodeDB(db, path)
+		CreateNewCaptcha(db)
+	}
 
 	if (code == strings.ToUpper(parts[1])) {
 		return true

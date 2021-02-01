@@ -243,7 +243,6 @@ func main() {
 			auth := CreateTripCode(verify.Code)
 			auth = CreateTripCode(auth)
 		
-
 			if CreateTripCode(auth) == code {
 				w.WriteHeader(http.StatusOK)
 			} else {
@@ -266,7 +265,6 @@ func main() {
 
 		w.WriteHeader(http.StatusForbidden)			
 		w.Write([]byte("404 no path"))
-
 	})
 
 	http.HandleFunc("/post", func(w http.ResponseWriter, r *http.Request){
@@ -780,7 +778,7 @@ func main() {
 			return
 		}
 
-		if(!CheckCaptcha(db, captcha)) {
+		if(r.FormValue("captchaCode") == "" || !CheckCaptcha(db, captcha)) {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("captcha required"))					
 			return							
