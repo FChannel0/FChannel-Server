@@ -121,8 +121,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 					SetActorFollowingDB(db, rActivity)
 					MakeActivityRequest(db, activity)
 				}
-
-				w.Write([]byte(""))
+				
 				break
 			case "Delete":
 				fmt.Println("This is a delete")
@@ -572,7 +571,7 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 						DeleteObject(db, k.Id)					
 					}
 				}
-				TombstoneObjectFromCache(db, activity.Object.Id)				
+				TombstoneObjectFromCache(db, activity.Object.Id)
 				break
 			}
 		}

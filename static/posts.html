@@ -39,7 +39,7 @@
       if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "audio"){
           var audio = document.createElement("audio")
           audio.controls = 'controls'
-          audio.preload  = 'metadata'              
+          audio.preload  = 'none'              
           audio.src      = '{{ (index .Attachment 0).Href }}'
           audio.type     = '{{ (index .Attachment 0).MediaType }}'              
           audio.style = "float: left; margin-right: 10px; margin-bottom: 10px; width: 250px;"
@@ -50,7 +50,7 @@
       if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "video"){
           var video = document.createElement("video")
           video.controls = 'controls'
-          video.preload  = 'metadata'                        
+          video.preload  = 'none'                        
           video.muted    = 'muted'              
           video.src      = '{{ (index .Attachment 0).Href }}'
           video.type     = '{{ (index .Attachment 0).MediaType }}'              
