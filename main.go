@@ -778,7 +778,7 @@ func main() {
 			return
 		}
 
-		if(r.FormValue("captchaCode") == "" || !CheckCaptcha(db, captcha)) {
+		if(!CheckCaptcha(db, captcha)) {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("captcha required"))					
 			return							
@@ -966,7 +966,7 @@ func GetContentType(location string) string {
 
 func RandomID(size int) string {
 	rand.Seed(time.Now().UnixNano())
-	domain := "0123456789ABCDEFG"
+	domain := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	rng := size
 	newID := ""
 	for i := 0; i < rng; i++ {

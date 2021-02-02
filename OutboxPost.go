@@ -97,13 +97,23 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				
 				var verify Verify
 				verify.Identifier = "admin"
-				verify.Board = Domain
+				verify.Board = activity.Actor.Id
 
 				verify = GetVerificationCode(db, verify)
 
 				code := verify.Code
 				code = CreateTripCode(code)
 				code = CreateTripCode(code)
+
+				if code != auth[1] {
+					verify.Identifier = "admin"
+					verify.Board = Domain
+
+					verify = GetVerificationCode(db, verify)
+					code = verify.Code
+					code = CreateTripCode(code)
+					code = CreateTripCode(code)					
+				}
 
 				var rActivity Activity
 				if validActor && validLocalActor && code == auth[1] || verify.Board == Domain {
@@ -500,6 +510,11 @@ func GetActivityFromJson(r *http.Request, db *sql.DB) Activity {
 
 func CheckCaptcha(db *sql.DB, captcha string) bool {
 	parts := strings.Split(captcha, ":")
+
+	if strings.Trim(parts[0], " ") == "" {
+		return false
+	}
+	
 	path  := "public/" + parts[0] + ".png"
 	code  := GetCaptchaCodeDB(db, path)
 
@@ -529,9 +544,11 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	}
 
 	if !RemoteActorHasAuth(activity.Actor.Id, auth[1]) {
-		response := RejectActivity(activity)
-		MakeActivityRequest(db, response)		
-		return
+		if !RemoteActorHasAuth(Domain, auth[1]) {
+			response := RejectActivity(activity)
+			MakeActivityRequest(db, response)		
+			return
+		}
 	}
 
 	switch(activity.Type) {
