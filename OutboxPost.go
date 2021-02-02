@@ -566,9 +566,11 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		for _, e := range activity.To {
 			actor := GetActorFromDB(db, e)
 			if actor.Id != "" {
-				for _, e := range activity.Object.Replies.OrderedItems {
-					TombstoneObjectFromCache(db, e.Id)
-					DeleteObject(db, e.Id)					
+				if activity.Object.Replies != nil {
+					for _, k := range activity.Object.Replies.OrderedItems {
+						TombstoneObjectFromCache(db, k.Id)
+						DeleteObject(db, k.Id)					
+					}
 				}
 				TombstoneObjectFromCache(db, activity.Object.Id)				
 				break
@@ -587,6 +589,7 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				fmt.Println("follow request for rejected")				
 				response := RejectActivity(activity)
 				MakeActivityRequest(db, response)
+				return
 			}
 		}
 		break
@@ -597,7 +600,8 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			SetActorFollowingDB(db, activity)
 		}
 		break		
-	}	
+	}
+
 }
 
 func MakeActivityFollowingReq(w http.ResponseWriter, r *http.Request, activity Activity) bool {
