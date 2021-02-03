@@ -23,10 +23,10 @@
   <li style="display: inline"><a id="bottom" href="#top">[Top]</a></li>
   <li style="display: inline"><a href="javascript:location.reload()">[Refresh]</a></li>
 </ul>
-<div style=": inline; text-align: center;">
-  <span><a id="reply-content" href="javascript:quote('{{ $board.Actor }}', '{{ (index .Posts 0).Id }}', 'reply')">[Post a Reply]</a></span>
-  {{ $replies := (index .Posts 0).Replies }}            
-  <span style="float: right;">{{ $replies.TotalItems }} / {{ $replies.TotalImgs }}</span>      
+{{ $replies := (index .Posts 0).Replies }}            
+<span style="float: right;">{{ $replies.TotalItems }} / {{ $replies.TotalImgs }}</span>
+<div style="width: 500px; margin: 0 auto; text-align: center;">
+  <span ><a id="reply-content" href="javascript:quote('{{ $board.Actor }}', '{{ (index .Posts 0).Id }}', 'reply')">[Post a Reply]</a></span>
 </div>
 <hr>
 {{ end }}

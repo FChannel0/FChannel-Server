@@ -202,7 +202,7 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	for i := 0.0; i < pageLimit; i++ {
 		pages = append(pages, int(i))
 	}
- 
+
 	returnData.Pages = pages
 	returnData.TotalPage = len(returnData.Pages) - 1
 

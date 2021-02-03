@@ -510,7 +510,7 @@ func GetActivityFromJson(r *http.Request, db *sql.DB) Activity {
 func CheckCaptcha(db *sql.DB, captcha string) bool {
 	parts := strings.Split(captcha, ":")
 
-	if strings.Trim(parts[0], " ") == "" {
+	if strings.Trim(parts[0], " ") == "" || strings.Trim(parts[1], " ") == ""{
 		return false
 	}
 	
