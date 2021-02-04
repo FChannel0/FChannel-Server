@@ -26,7 +26,7 @@
 {{ $replies := (index .Posts 0).Replies }}            
 <span style="float: right;">{{ $replies.TotalItems }} / {{ $replies.TotalImgs }}</span>
 <div style="width: 500px; margin: 0 auto; text-align: center;">
-  <span ><a id="reply-content" href="javascript:quote('{{ $board.Actor }}', '{{ (index .Posts 0).Id }}', 'reply')">[Post a Reply]</a></span>
+  <span ><a id="reply-content" href="javascript:quote('{{ $board.Actor.Id }}', '{{ (index .Posts 0).Id }}', 'reply')">[Post a Reply]</a></span>
 </div>
 <hr>
 {{ end }}
@@ -34,6 +34,6 @@
 {{ define "script" }}
 <script src="/static/js/footerscript.js"></script>
 <script>
-  viewLink("{{ .Board.Name }}", "{{ .Board.Actor }}")
+  viewLink("{{ .Board.Name }}", "{{ .Board.Actor.Id }}")
 </script>    
 {{ end }}

@@ -67,7 +67,7 @@
       {{end}}
     </ul>
     {{ if .Board.ModCred }}
-    {{ if eq .Board.ModCred .Board.Domain .Board.Actor }}
+    {{ if eq .Board.ModCred .Board.Domain .Board.Actor.Id }}
     <span style="float: right;"><a href="/{{ .Key }}/{{ .Board.Name }}">[Manage Board]</a></span>
     {{ end }}
     {{ end }}

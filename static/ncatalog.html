@@ -15,11 +15,11 @@
 <div style="padding: 10px; text-align: center;">
   {{ range .Posts }}
   <div style="overflow: hidden; vertical-align: top; padding-right: 24px; padding-bottom: 24px; display: inline-block; width: 180px; max-height: 320px; margin-bottom: 10px;">
-    {{ if eq $board.ModCred $board.Domain $board.Actor }}              
+    {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}              
     <a href="/delete?id={{ .Id }}">[Delete Post]</a>
     {{ end }}
     {{ if .Attachment }}
-    {{ if eq $board.ModCred $board.Domain $board.Actor }}                  
+    {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}                  
     <a href="/deleteattach?id={{ .Id }}">[Delete Attachment]</a>
     {{ end }}        
     <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/">
@@ -74,7 +74,7 @@
     </a>        
   </div>
   <script>
-    document.getElementById("{{ .Id }}-anchor").href = "/{{ $board.Name }}/" + shortURL("{{$board.Actor}}", "{{ .Id }}")
+    document.getElementById("{{ .Id }}-anchor").href = "/{{ $board.Name }}/" + shortURL("{{$board.Actor.Id}}", "{{ .Id }}")
   </script>
   {{ end }}
 </div>

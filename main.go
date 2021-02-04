@@ -50,12 +50,12 @@ func main() {
 
 	go MakeCaptchas(db, 100)
 
-	*Key = CreateClientKey()	
+	*Key = CreateClientKey()
 
-	following := 	GetActorFollowingDB(db, Domain)
+	FollowingBoards = GetActorFollowingDB(db, Domain)
 	
-	Boards = &following
-
+	Boards = GetBoardCollection(db)
+	
 	// root actor is used to follow remote feeds that are not local
 	//name, prefname, summary, auth requirements, restricted
 	if GetConfigValue("instancename") != "" {
@@ -445,9 +445,9 @@ func main() {
 
 			CheckError(err, "error with add board follow resp")
 
-			following := 	GetActorFollowingDB(db, Domain)
-			
-			Boards = &following			
+			FollowingBoards = GetActorFollowingDB(db, Domain)
+
+			Boards = GetBoardCollection(db)			
 
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			
@@ -493,12 +493,8 @@ func main() {
 			adminData.Domain = Domain
 			adminData.IsLocal = IsActorLocal(db, actor.Id)
 
-			var boardCollection []Board
-
-			boardCollection = GetBoardCollection(db)
-			
 			adminData.Title = "Manage /" + actor.Name + "/"
-			adminData.Boards = boardCollection
+			adminData.Boards = Boards
 			adminData.Board.Name = actor.Name
 			adminData.Actor = actor.Id
 			adminData.Key = *Key
@@ -532,10 +528,7 @@ func main() {
 			adminData.Domain = Domain
 			adminData.Board.ModCred,_ = GetPasswordFromSession(r)
 
-			var boardCollection []Board
-
-			boardCollection = GetBoardCollection(db)
-			adminData.Boards = boardCollection			
+			adminData.Boards = Boards
 
 			t.ExecuteTemplate(w, "layout",  adminData)				
 		}
@@ -606,7 +599,7 @@ func main() {
 			var removed bool = false
 
 			item.Id = respActor.Id
-			for _, e := range *Boards {
+			for _, e := range FollowingBoards {
 				if e.Id != item.Id {
 					board = append(board, e)
 				} else {
@@ -618,7 +611,9 @@ func main() {
 				board = append(board, item)
 			}
 				
-			*Boards = board
+			FollowingBoards = board
+
+			Boards = GetBoardCollection(db)
 		}		
 
     http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)				
@@ -1902,14 +1897,9 @@ func ParseCommentForReply(comment string) string {
 
 func GetActorByName(db *sql.DB, name string) Actor {
 	var actor Actor
-		for _, e := range *Boards {
-			boardActor := GetActorFromDB(db, e.Id)
-			if boardActor.Id == "" {
-				boardActor = GetRemoteActor(e.Id)
-			}
-			
-			if boardActor.Name == name {
-				actor = boardActor
+		for _, e := range Boards {
+			if e.Actor.Name == name {
+				actor = e.Actor
 			}
 		}
 

@@ -15,11 +15,13 @@ import "os"
 
 var Key *string = new(string)
 
-var Boards *[]ObjectBase = new([]ObjectBase)
+var FollowingBoards []ObjectBase
+
+var Boards []Board
 
 type Board struct{
 	Name string
-	Actor string
+	Actor Actor
 	Summary string
 	PrefName string
 	InReplyTo string
@@ -74,23 +76,11 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	t := template.Must(template.ParseFiles("./static/main.html", "./static/index.html"))
 
 	actor := GetActorFromDB(db, Domain)
-
-	var boardCollection []Board
-
-	for _, e := range *Boards {
-		var board Board
-		boardActor := GetActor(e.Id)
-		board.Name = "/" + boardActor.Name + "/"
-		board.PrefName = boardActor.PreferredUsername
-		board.Location = "/" + boardActor.Name
-		boardCollection = append(boardCollection, board)
-		board.Restricted = boardActor.Restricted
-	}
 	
 	var data PageData
 	data.Title = "Welcome to " + actor.PreferredUsername
 	data.Message = fmt.Sprintf("%s is a federated image board based on activitypub. The current version of the code running the server is still a work in progress, expect a bumpy ride for the time being. Get the server code here https://github.com/FChannel0", Domain)
-	data.Boards = boardCollection
+	data.Boards = Boards
 	data.Board.Name = ""
 	data.Key = *Key
 	data.Board.Domain = Domain
@@ -116,7 +106,7 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	returnData.Board.Summary = actor.Summary
 	returnData.Board.InReplyTo = ""
 	returnData.Board.To = actor.Outbox
-	returnData.Board.Actor = actor.Id
+	returnData.Board.Actor.Id = actor.Id
 	returnData.Board.ModCred, _ = GetPasswordFromSession(r)
 	returnData.Board.Domain = Domain
 	returnData.Board.Restricted = actor.Restricted
@@ -158,7 +148,7 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	DeleteTombstonePosts(&mergeCollection)
 	sort.Sort(ObjectBaseSortDesc(mergeCollection.OrderedItems))	
 
-	returnData.Boards = GetBoardCollection(db)
+	returnData.Boards = Boards
 
 	offset := 8
 	start := page * offset
@@ -242,7 +232,7 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	returnData.Board.PrefName = actor.PreferredUsername
 	returnData.Board.InReplyTo = ""
 	returnData.Board.To = actor.Outbox
-	returnData.Board.Actor = actor.Id
+	returnData.Board.Actor.Id = actor.Id
 	returnData.Board.Summary = actor.Summary
 	returnData.Board.ModCred, _ = GetPasswordFromSession(r)
 	returnData.Board.Domain = Domain
@@ -254,7 +244,7 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 
 	returnData.Title = "/" + actor.Name + "/ - " + actor.PreferredUsername
 
-	returnData.Boards = GetBoardCollection(db)
+	returnData.Boards = Boards
 
 	returnData.Posts = mergeCollection.OrderedItems
 
@@ -286,7 +276,7 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 	returnData.Board.Name = actor.Name
 	returnData.Board.PrefName = actor.PreferredUsername
 	returnData.Board.To = actor.Outbox
-	returnData.Board.Actor = actor.Id
+	returnData.Board.Actor.Id = actor.Id
 	returnData.Board.Summary = actor.Summary
 	returnData.Board.ModCred, _ = GetPasswordFromSession(r)
 	returnData.Board.Domain = Domain
@@ -302,7 +292,7 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 
 	returnData.Key = *Key	
 
-	returnData.Boards = GetBoardCollection(db)
+	returnData.Boards = Boards
 
 	re = regexp.MustCompile("f\\w+-\\w+")
 
@@ -398,7 +388,7 @@ func GetRemoteActor(id string) Actor {
 
 func GetBoardCollection(db *sql.DB) []Board {
 	var collection []Board
-	for _, e := range *Boards {
+	for _, e := range FollowingBoards {
 		var board Board
 		boardActor := GetActorFromDB(db, e.Id)
 		if boardActor.Id == "" {
@@ -407,8 +397,11 @@ func GetBoardCollection(db *sql.DB) []Board {
 		board.Name = "/" + boardActor.Name + "/"
 		board.PrefName = boardActor.PreferredUsername
 		board.Location = "/" + boardActor.Name
+		board.Actor = boardActor
 		collection = append(collection, board)
 	}
+
+	sort.Sort(BoardSortAsc(collection))
 	
 	return collection
 }
@@ -425,7 +418,7 @@ func WantToServe(db *sql.DB, actorName string) (Collection, bool) {
 		return collection, true
 	}
 	
-	for _, e := range *Boards {
+	for _, e := range FollowingBoards {
 		boardActor := GetActorFromDB(db, e.Id)
 		
 		if boardActor.Id == "" {
@@ -757,3 +750,7 @@ func (a ObjectBaseSortAsc) Len() int { return len(a) }
 func (a ObjectBaseSortAsc) Less(i, j int) bool { return a[i].Published < a[j].Published }
 func (a ObjectBaseSortAsc) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 
+type BoardSortAsc []Board
+func (a BoardSortAsc) Len() int { return len(a) }
+func (a BoardSortAsc) Less(i, j int) bool { return a[i].Name < a[j].Name }
+func (a BoardSortAsc) Swap(i, j int) { a[i], a[j] = a[j], a[i] }

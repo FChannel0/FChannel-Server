@@ -33,10 +33,10 @@
       <form id="follow-form" action="/{{ .Key }}/follow" method="post" enctype="application/x-www-form-urlencoded">
         <label>Subscribe:</label><br>
         <input id="follow" name="follow" style="margin-bottom: 12px;" placeholder="http://localhost:3000/g"></input><input type="submit" value="Subscribe"><br>
-        <input type="hidden" name="actor" value="{{ .Actor }}">        
+        <input type="hidden" name="actor" value="{{ .Actor.Id }}">        
       </form>
       <ul style="display: inline-block; padding: 0; margin: 0;">
-        {{ $actor := .Actor }}
+        {{ $actor := .Actor.Id }}
         {{ $key := .Key }}
         {{ range .Following }}
         <li><a href="/{{ $key }}/follow?follow={{ . }}&actor={{ $actor }}">[Unfollow]</a><a href="{{ . }}">{{ . }}</a></li>
