@@ -415,7 +415,7 @@ func main() {
 			followActivity.Actor = &nactor
 			followActivity.Object = &obj
 			followActivity.Actor.Id = r.FormValue("actor")
-			
+
 			var mactor Actor
 			followActivity.Object.Actor = &mactor
 			followActivity.Object.Actor.Id = r.FormValue("follow")
@@ -496,9 +496,12 @@ func main() {
 			adminData.Title = "Manage /" + actor.Name + "/"
 			adminData.Boards = Boards
 			adminData.Board.Name = actor.Name
-			adminData.Actor = actor.Id
+			adminData.Board.Actor = actor
 			adminData.Key = *Key
 			adminData.Board.TP = TP
+
+			adminData.Board.Post.Actor = &actor
+			
 			t.ExecuteTemplate(w, "layout", adminData)
 			
 		} else if admin || actor.Id == Domain {
@@ -529,6 +532,8 @@ func main() {
 			adminData.Board.ModCred,_ = GetPasswordFromSession(r)
 
 			adminData.Boards = Boards
+			
+			adminData.Board.Post.Actor = &actor			
 
 			t.ExecuteTemplate(w, "layout",  adminData)				
 		}

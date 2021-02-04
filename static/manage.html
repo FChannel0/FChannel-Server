@@ -16,7 +16,7 @@
   </ul>
 </div>    
 <a href="/{{ .Board.Name }}">[Return]</a>
-{{ $actor := .Actor.Id }}
+{{ $actor := .Board.Actor.Id }}
 {{ $board := .Board }}
 {{ $key := .Key }}
 {{ if .IsLocal }}
@@ -24,9 +24,9 @@
   <h4>Subscribed</h4>
   <form id="follow-form" action="/{{ .Key }}/{{ .Board.Name }}/follow" method="post" enctype="application/x-www-form-urlencoded">  
     <label>Subscribe:</label><br>
-    <input id="follow" name="follow" style="margin-bottom: 12px;" placeholder="https://localhost:3000/g"></input>
+    <input id="follow" name="follow" style="margin-bottom: 12px;" placeholder="https://server.fchan.xyz/g"></input>
     <input type="submit" value="Subscribe"><br>
-    <input type="hidden" name="actor" value="{{ .Actor.Id }}">            
+    <input type="hidden" name="actor" value="{{ $board.Actor.Id }}">            
   </form>
   <ul style="display: inline-block; padding: 0; margin: 0;">
 
@@ -81,8 +81,8 @@
 
   reportedArray.forEach(function(r, i){
       var id = r.getAttribute("post")
-      r.innerText = "/" + {{ .Board.Name }} + "/" + shortURL("{{ .Actor.Id }}", id)
-      r.href = {{ .Domain }} + "/" + {{ .Board.Name }} + "/" + shortURL("{{ .Actor.Id }}", id)
+      r.innerText = "/" + {{ .Board.Name }} + "/" + shortURL("{{ .Board.Actor.Id }}", id)
+      r.href = {{ .Domain }} + "/" + {{ .Board.Name }} + "/" + shortURL("{{ .Board.Actor.Id }}", id)
   })  
 </script>
 {{ end }}

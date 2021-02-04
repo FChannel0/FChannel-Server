@@ -34,6 +34,7 @@ type Board struct{
 	Domain string
 	TP string
 	Restricted bool
+	Post ObjectBase
 }
 
 type PageData struct {
@@ -85,6 +86,8 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	data.Key = *Key
 	data.Board.Domain = Domain
 	data.Board.ModCred, _ = GetPasswordFromSession(r)
+	data.Board.Actor = actor
+	data.Board.Post.Actor = &actor	
 
 	t.ExecuteTemplate(w, "layout",  data)	
 }
@@ -106,11 +109,13 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	returnData.Board.Summary = actor.Summary
 	returnData.Board.InReplyTo = ""
 	returnData.Board.To = actor.Outbox
-	returnData.Board.Actor.Id = actor.Id
+	returnData.Board.Actor = *actor
 	returnData.Board.ModCred, _ = GetPasswordFromSession(r)
 	returnData.Board.Domain = Domain
 	returnData.Board.Restricted = actor.Restricted
 	returnData.CurrentPage = page
+
+	returnData.Board.Post.Actor = actor
 
 	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
 	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)
@@ -232,12 +237,14 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	returnData.Board.PrefName = actor.PreferredUsername
 	returnData.Board.InReplyTo = ""
 	returnData.Board.To = actor.Outbox
-	returnData.Board.Actor.Id = actor.Id
+	returnData.Board.Actor = *actor
 	returnData.Board.Summary = actor.Summary
 	returnData.Board.ModCred, _ = GetPasswordFromSession(r)
 	returnData.Board.Domain = Domain
 	returnData.Board.Restricted = actor.Restricted
 	returnData.Key = *Key
+
+	returnData.Board.Post.Actor = actor	
 
 	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
 	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)	
@@ -276,12 +283,11 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 	returnData.Board.Name = actor.Name
 	returnData.Board.PrefName = actor.PreferredUsername
 	returnData.Board.To = actor.Outbox
-	returnData.Board.Actor.Id = actor.Id
+	returnData.Board.Actor = actor
 	returnData.Board.Summary = actor.Summary
 	returnData.Board.ModCred, _ = GetPasswordFromSession(r)
 	returnData.Board.Domain = Domain
 	returnData.Board.Restricted = actor.Restricted
-
 
 	if GetDomainURL(actor) != "" {
 		returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
@@ -301,6 +307,8 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 		followActors := GetActorsFollowFromName(actor, name)
 		followCollection := GetActorsFollowPostFromId(db, followActors, postId)
 		
+		returnData.Board.Post.Actor = followCollection.Actor
+		
 		DeleteRemovedPosts(db, &followCollection)
 		DeleteTombstoneReplies(&followCollection)
 
@@ -317,6 +325,8 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 	} else {
 		returnData.Board.InReplyTo = inReplyTo
 		collection := GetActorCollectionByID(db, inReplyTo)
+
+		returnData.Board.Post.Actor = collection.Actor		
 
 		DeleteRemovedPosts(db, &collection)
 

@@ -466,7 +466,11 @@ func GetObjectByIDFromDB(db *sql.DB, postID string) Collection {
 		
 		CheckError(err, "error scan object into post struct")
 
+		actor = GetActorFromDB(db, actor.Id)
+
 		post.Actor = &actor
+
+		nColl.Actor = &actor		
 
 		// var postCnt int
 		// var imgCnt int		

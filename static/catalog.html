@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>{{ .Title }}</title>
+  </head>
+  <style>
+    a, a:link, a:visited, a:hover, a:active {
+        text-decoration: none
+    }
+
+    a:link, a:visited,  a:active {
+        color: black;
+    }
+
+    a:hover {
+        color: #de0808;
+    }
+  </style>
+  <script>
+
+    function getMIMEType(type)
+    {
+        re = /\/.+/g
+        return type.replace(re, "")
+    }
+    
+    function shortURL(url)
+    {
+        var check = url.replace("{{.Board.Actor}}/", "")
+        re = /.+\//g;
+        temp = re.exec(url)
+        if(temp[0] == "{{ .Board.Actor }}/")
+        {
+            var short = url.replace("https://", "");
+            short = short.replace("http://", "");
+            short = short.replace("www.", "");
+
+            var re = /^.{3}/g;
+
+            var u = re.exec(short);
+
+            re = /\w+$/g;              
+
+            u =  re.exec(short);
+
+            return u;            
+        }else{
+            var short = url.replace("https://", "");
+            short = short.replace("http://", "");
+            short = short.replace("www.", "");
+
+            var re = /^.{3}/g;
+
+            var u = re.exec(short);
+
+            re = /\w+$/g;              
+
+            u =  re.exec(short);
+
+
+            replace = short.replace(/\/+/g, " ")
+            replace = replace.replace(u, " ").trim()
+            re = /\w+$/;
+            v = re.exec(replace)
+
+            v = "f" + v[0] + "-" + u
+
+            return v;                        
+        }
+    }        
+
+  </script>
+  <body style="background-color: #eef2fe;">
+    <ul id="top" style="padding:0; display: inline;">
+      {{range .Boards}}
+      <li style="display: inline;"><a href="{{.Location}}">{{.Name }}</a></li>
+      {{end}}
+    </ul>
+    {{ $board := .Board }}
+    {{ if $board.IsMod }}
+    <span style="float: right;"><a href="/{{ .Key }}/{{ .Board.Name }}">[Manage Board]</a></span>
+    {{ end }}        
+    <div style="margin: 0 auto; width: 400px; margin-bottom: 100px;">
+      <h1 style="color: #af0a0f;">/{{ $board.Name }}/ - {{ $board.PrefName }}</h1>
+      <form id="new-post" action="/post" method="post" enctype="multipart/form-data">
+        <label for="name">Name:</label><br>
+        <input type="text" id="name" name="name" placeholder="Anonymous"><br>
+        <label for="options">Options:</label><br>
+        <input type="text" id="options" name="options"><br>
+        <label for="subject">Subject:</label><br>      
+        <input type="text" id="subject" name="subject"><input type="submit" value="Post"><br>
+        <label for="comment">Comment:</label><br>
+        <textarea rows="10" cols="50" id="comment" name="comment"></textarea><br>
+        <input type="hidden" id="inReplyTo" name="inReplyTo" value="{{ $board.InReplyTo }}">
+        <input type="hidden" id="sendTo" name="sendTo" value="{{ $board.To }}">
+        <input type="hidden" id="boardName" name="boardName" value="{{ $board.Name }}">
+        <input type="hidden" id="captchaCode" name="captchaCode" value="{{ $board.CaptchaCode }}">                
+        <input type="file" id="file" name="file"><br><br>
+        <label stye="display: inline-block;" for="captcha">Captcha:</label><br>      
+        <input style="display: inline-block;"  type="text" id="captcha" name="captcha"><br>
+        <div style="height: 65px;">
+          <img src="{{ $board.Captcha }}">
+        </div>                
+      </form>
+    </div>
+
+    <hr>
+    <ul style="margin: 0; padding: 0; display: inline">
+      <li style="display: inline"><a href="/{{ $board.Name }}">[Return]</a></li>
+      <li style="display: inline"><a href="#bottom">[Bottom]</a></li>
+      <li style="display: inline"><a href="javascript:location.reload()">[Refresh]</a></li>
+    </ul>    
+    <hr>    
+    
+    <div style="padding: 10px; text-align: center;">
+      {{ range .Posts }}
+      <div style="overflow: hidden; vertical-align: top; margin: 0 auto; display: inline-block; width: 180px; max-height: 320px; margin-bottom: 10px;">
+        {{ if $board.IsMod }}        
+        <a href="/delete?id={{ .Id }}">[Delete Post]</a>
+        {{ end }}
+        {{ if .Attachment }}
+        {{ if $board.IsMod }}        
+        <a href="/deleteattach?id={{ .Id }}">[Delete Attachment]</a>
+        {{ end }}        
+        <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/">
+          <div id="media-{{ .Id }}"></div>
+          <script>
+            media = document.getElementById("media-{{ .Id }}")
+            if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "image"){
+                var img = document.createElement("img");
+                img.style = "float: left; margin-right: 10px; margin-bottom: 10px; max-width: 150px; max-height: 150px; cursor: move;"
+                img.setAttribute("id", "img")
+                img.setAttribute("main", "1")
+                img.setAttribute("src", "{{ (index .Attachment 0).Href }}")
+                media.appendChild(img)
+            }                                
+
+            if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "audio"){
+                var audio = document.createElement("audio")
+                audio.controls = 'controls'
+                audio.muted    = 'muted'              
+                audio.src      = '{{ (index .Attachment 0).Href }}'
+                audio.type     = '{{ (index .Attachment 0).MediaType }}'              
+                audio.style = "float: left; margin-right: 10px; margin-bottom: 10px; width: 150px;"
+                audio.innerText = 'Audio is not supported.'
+                media.appendChild(audio)                            
+            }
+
+            if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "video"){
+                var video = document.createElement("video")
+                video.controls = 'controls'
+                video.muted    = 'muted'              
+                video.src      = '{{ (index .Attachment 0).Href }}'
+                video.type     = '{{ (index .Attachment 0).MediaType }}'              
+                video.style = "float: left; margin-right: 10px; margin-bottom: 10px; width: 150px;"
+                video.innerText = 'Video is not supported.'
+                media.appendChild(video)                                          
+            }                    
+          </script>                        
+
+
+        {{ end }}
+        <div>
+        {{ $replies := .Replies }}
+        <span style="display: block">R: {{ $replies.TotalItems }}{{ if $replies.TotalImgs }}/ A: {{ $replies.TotalImgs }}{{ end }}</span>
+        {{ if .Name }}
+        <span style="display: block; color: #0f0c5d;"><b>{{ .Name }}</b></span>
+        {{ end }}
+        {{ if .Content }}
+        <span style="display: block">{{.Content}}</span>
+        {{ end }}
+        </div>
+        </a>        
+      </div>
+      <script>
+        document.getElementById("{{ .Id }}-anchor").href = "/{{ $board.Name }}/" + shortURL("{{ .Id }}")
+      </script>
+      {{ end }}
+    </div>
+    <hr>
+    <ul style="margin: 0; padding: 0; display: inline">
+      <li style="display: inline"><a href="/{{ $board.Name }}">[Return]</a></li>
+      <li style="display: inline"><a id="bottom" href="#top">[Top]</a></li>
+      <li style="display: inline"><a href="javascript:location.reload()">[Refresh]</a></li>
+    </ul>
+    <hr>    
+  </body>
+</html>
+

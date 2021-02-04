@@ -273,7 +273,11 @@ func GetObjectByIDFromCache(db *sql.DB, postID string) Collection {
 		
 		CheckError(err, "error scan object into post struct cache")
 
+		actor = GetRemoteActor(actor.Id)
+
 		post.Actor = &actor
+
+		nColl.Actor = &actor
 
 		// var postCnt int
 		// var imgCnt int		
