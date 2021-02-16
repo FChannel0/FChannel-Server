@@ -40,6 +40,24 @@ func GetObjectsFromFollow(db *sql.DB, actor Actor) []ObjectBase {
 	return followObj
 }
 
+func GetObjectsFromFollowCatalog(db *sql.DB, actor Actor) []ObjectBase {
+	var followingCol Collection
+	var followObj []ObjectBase
+	followingCol = GetActorCollection(actor.Following)
+	for _, e := range followingCol.Items {
+		var followOutbox Collection
+		if !IsActorLocal(db, e.Id) {
+			followOutbox = GetObjectFromCacheCatalog(db, e.Id)
+		} else {
+			followOutbox = GetObjectFromDBCatalog(db, e.Id)
+		}
+		for _, e := range followOutbox.OrderedItems {
+			followObj = append(followObj, e)
+		}
+	}
+	return followObj
+}
+
 func GetCollectionFromPath(db *sql.DB, path string) Collection {
 
 	var nColl Collection
@@ -71,7 +89,7 @@ func GetCollectionFromPath(db *sql.DB, path string) Collection {
 		var imgCnt int		
 		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
 
-		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
+		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCount(db, post)
 
 		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
 		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
@@ -117,7 +135,7 @@ func GetObjectFromPath(db *sql.DB, path string) ObjectBase{
 
 	nObj.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, nObj)
 
-	nObj.Replies.TotalItems, nObj.Replies.TotalImgs = GetObjectRepliesDBCount(db, nObj)
+	nObj.Replies.TotalItems, nObj.Replies.TotalImgs = GetObjectRepliesCount(db, nObj)
 
 	nObj.Replies.TotalItems = nObj.Replies.TotalItems + postCnt
 	nObj.Replies.TotalImgs = nObj.Replies.TotalImgs + imgCnt		

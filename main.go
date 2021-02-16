@@ -204,7 +204,7 @@ func main() {
 		}
 
 		if actorCatalog {
-			collection, valid := WantToServe(db, actor.Name)
+			collection, valid := WantToServeCatalog(db, actor.Name)
 			if valid {
 				CatalogGet(w, r, db, collection)
 			}
@@ -1311,10 +1311,36 @@ func GetActorCollectionCache(db *sql.DB, actor Actor) Collection {
 	return collection
 }
 
+func GetActorCollectionCacheCatalog(db *sql.DB, actor Actor) Collection {
+	var collection Collection
+
+	collection.OrderedItems = GetObjectFromCacheCatalog(db, actor.Id).OrderedItems
+
+	collection.Actor = &actor
+
+	collection.TotalItems = GetObjectPostsTotalCache(db, actor)
+	collection.TotalImgs = GetObjectImgsTotalCache(db, actor)
+
+	return collection
+}
+
 func GetActorCollectionDB(db *sql.DB, actor Actor) Collection {
 	var collection Collection
 	
 	collection.OrderedItems = GetObjectFromDB(db, actor.Id).OrderedItems
+
+	collection.Actor = &actor
+
+	collection.TotalItems = GetObjectPostsTotalDB(db, actor)
+	collection.TotalImgs = GetObjectImgsTotalDB(db, actor)
+	
+	return collection
+}
+
+func GetActorCollectionDBCatalog(db *sql.DB, actor Actor) Collection {
+	var collection Collection
+	
+	collection.OrderedItems = GetObjectFromDBCatalog(db, actor.Id).OrderedItems
 
 	collection.Actor = &actor
 

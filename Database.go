@@ -445,6 +445,47 @@ func GetObjectFromDB(db *sql.DB, id string) Collection {
 	return nColl	
 }
 
+func GetObjectFromDBCatalog(db *sql.DB, id string) Collection {
+	var nColl Collection
+	var result []ObjectBase
+
+	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' order by updated asc`
+
+	rows, err := db.Query(query, id)	
+
+	CheckError(err, "error query object from db")
+	
+	defer rows.Close()
+	for rows.Next(){
+		var post ObjectBase
+		var actor Actor
+		var attachID string
+		var previewID string		
+		
+		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id)
+		
+		CheckError(err, "error scan object into post struct")
+
+		post.Actor = &actor
+
+		var replies CollectionBase
+
+		post.Replies = &replies
+
+		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCount(db, post)		
+
+		post.Attachment = GetObjectAttachment(db, attachID)
+
+		post.Preview = GetObjectPreview(db, previewID)
+
+		result = append(result, post)
+	}
+
+	nColl.OrderedItems = result
+
+	return nColl	
+}
+
 func GetObjectByIDFromDB(db *sql.DB, postID string) Collection {
 	var nColl Collection
 	var result []ObjectBase
@@ -717,12 +758,12 @@ func CheckIfObjectOP(db *sql.DB, id string) bool {
 	return false
 }
 
-func GetObjectRepliesDBCount(db *sql.DB, parent ObjectBase) (int, int) {
+func GetObjectRepliesCount(db *sql.DB, parent ObjectBase) (int, int) {
 
 	var countId int
 	var countImg int
 
-	query := `select count(id) from replies where inreplyto=$1 and id in (select id from activitystream where type='Note')`
+	query := `select count(id) from replies where inreplyto=$1 and id in (select id from activitystream where type='Note' union select id from cacheactivitystream where type='Note')`
 	
 	rows, err := db.Query(query, parent.Id)	
 	
@@ -732,7 +773,7 @@ func GetObjectRepliesDBCount(db *sql.DB, parent ObjectBase) (int, int) {
 	rows.Next()
 	rows.Scan(&countId)
 
-	query = `select count(attachment) from activitystream where id in (select id from replies where inreplyto=$1) and attachment != ''`
+	query = `select count(attach) from (select attachment from activitystream where id in (select id from replies where inreplyto=$1) and attachment != '' union select attachment from cacheactivitystream where id in (select id from replies where inreplyto=$1) and attachment != '') as attach`
 	
 	rows, err = db.Query(query,  parent.Id)	
 

@@ -61,7 +61,9 @@
       {{ end }}
       <div>
         {{ $replies := .Replies }}
-        <span style="display: block;">R: {{ $replies.TotalItems }}{{ if $replies.TotalImgs }}/ A: {{ $replies.TotalImgs }}{{ end }}</span>                        
+        {{ if $replies }}
+        <span style="display: block;">R: {{ $replies.TotalItems }}{{ if $replies.TotalImgs }}/ A: {{ $replies.TotalImgs }}{{ end }}</span>
+        {{ end }}
         {{ if .Name }}
         <span style="display: block; color: #0f0c5d;"><b>{{ .Name }}</b></span>
         {{ end }}

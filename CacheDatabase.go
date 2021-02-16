@@ -252,6 +252,47 @@ func GetObjectFromCache(db *sql.DB, id string) Collection {
 	return nColl	
 }
 
+func GetObjectFromCacheCatalog(db *sql.DB, id string) Collection {
+	var nColl Collection
+	var result []ObjectBase
+
+	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor from cacheactivitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' order by updated asc`	
+
+	rows, err := db.Query(query, id)	
+
+	CheckError(err, "error query object from db cache")
+	
+	defer rows.Close()
+	for rows.Next(){
+		var post ObjectBase
+		var actor Actor
+		var attachID string
+		var previewID string		
+		
+		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id)
+		
+		CheckError(err, "error scan object into post struct cache")
+
+		post.Actor = &actor
+
+		var replies CollectionBase
+
+		post.Replies = &replies		
+
+		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCount(db, post)		
+
+		post.Attachment = GetObjectAttachmentCache(db, attachID)
+
+		post.Preview = GetObjectPreviewCache(db, previewID)
+
+		result = append(result, post)
+	}
+
+	nColl.OrderedItems = result
+
+	return nColl	
+}
+
 func GetObjectByIDFromCache(db *sql.DB, postID string) Collection {
 	var nColl Collection
 	var result []ObjectBase
@@ -477,34 +518,6 @@ func GetObjectRepliesRepliesCache(db *sql.DB, parent ObjectBase) (*CollectionBas
 	sort.Sort(ObjectBaseSortAsc(nColl.OrderedItems))			
 
 	return &nColl, 0, 0
-}
-
-func GetObjectRepliesCacheCount(db *sql.DB, parent ObjectBase) (int, int) {
-
-	var countId int
-	var countImg int 
-
-	query := `select count(id) from replies where inreplyto=$1 and id in (select id from activitystream where type='Note')`
-	
-	rows, err := db.Query(query, parent.Id)	
-	
-	CheckError(err, "error with replies count db query")
-
-	defer rows.Close()
-	rows.Next()
-	rows.Scan(&countId)
-
-	query = `select count(attachment) from activitystream where id in (select id from replies where inreplyto=$1) and attachment != ''`
-	
-	rows, err = db.Query(query,  parent.Id)	
-
-	CheckError(err, "error with select attachment count db query")
-	
-	defer rows.Close()	
-	rows.Next()
-	rows.Scan(&countImg)
-
-	return countId, countImg
 }
 
 func GetObjectAttachmentCache(db *sql.DB, id string) []ObjectBase {

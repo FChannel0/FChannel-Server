@@ -212,9 +212,9 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 
 	var mergeCollection Collection
 
-	for _, e := range collection.OrderedItems {
-		mergeCollection.OrderedItems = append(mergeCollection.OrderedItems, e)
-	}
+
+
+	mergeCollection.OrderedItems = collection.OrderedItems
 
 	domainURL := GetDomainURL(*actor)
 
@@ -229,7 +229,7 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 
 	DeleteRemovedPosts(db, &mergeCollection)
 	DeleteTombstonePosts(&mergeCollection)
-	
+
 	sort.Sort(ObjectBaseSortDesc(mergeCollection.OrderedItems))
 	
 	var returnData PageData
@@ -254,15 +254,6 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	returnData.Boards = Boards
 
 	returnData.Posts = mergeCollection.OrderedItems
-
-	for i, _ := range returnData.Posts {
-		for _, e := range returnData.Posts[i].Replies.OrderedItems {
-			if len(e.Attachment) > 0 {
-				returnData.Posts[i].Replies.TotalImgs = returnData.Posts[i].Replies.TotalImgs + 1
-			}
-		}		
-		returnData.Posts[i].Replies.TotalItems = len(returnData.Posts[i].Replies.OrderedItems)		
-	}
 
 	t.ExecuteTemplate(w, "layout",  returnData)
 }
@@ -450,6 +441,40 @@ func WantToServe(db *sql.DB, actorName string) (Collection, bool) {
 	return collection, serve
 }
 
+func WantToServeCatalog(db *sql.DB, actorName string) (Collection, bool) {
+
+	var collection Collection
+	serve := false
+
+	boardActor := GetActorByNameFromDB(db, actorName)
+
+	if boardActor.Id != "" {
+		collection = GetActorCollectionDBCatalog(db, boardActor)
+		return collection, true
+	}
+	
+	for _, e := range FollowingBoards {
+		boardActor := GetActorFromDB(db, e.Id)
+		
+		if boardActor.Id == "" {
+			boardActor = GetActor(e.Id)
+		}
+
+		if boardActor.Name == actorName {
+			serve = true
+			if IsActorLocal(db, boardActor.Id) {
+				collection = GetActorCollectionDBCatalog(db, boardActor)
+			} else {
+				collection = GetActorCollectionCacheCatalog(db, boardActor)
+			}
+			collection.Actor = &boardActor
+			return collection, serve
+		}
+	}
+
+	return collection, serve
+}
+
 func StripTransferProtocol(value string) string {
 	re := regexp.MustCompile("(http://|https://)?(www.)?")
 
@@ -538,7 +563,7 @@ func DeleteRemovedPosts(db *sql.DB, collection *Collection) {
 				}
 			}
 		}
-		
+
 		for i, r := range e.Replies.OrderedItems {
 			for _, k := range removed {
 				if r.Id == k.ID {
