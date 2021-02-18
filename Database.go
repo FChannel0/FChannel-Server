@@ -406,7 +406,7 @@ func GetObjectFromDBPage(db *sql.DB, id string, page int) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
-	query := `select count (x.id) over(), x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor from (select * from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select * from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select * from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc limit 8 offset $2`
+	query := `select count (x.id) over(), x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc limit 8 offset $2`
 
 	rows, err := db.Query(query, id, page * 8)	
 
@@ -496,7 +496,7 @@ func GetObjectFromDBCatalog(db *sql.DB, id string) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
-	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' order by updated asc`
+	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc`	
 
 	rows, err := db.Query(query, id)	
 
@@ -847,7 +847,7 @@ func GetObjectRepliesCount(db *sql.DB, parent ObjectBase) (int, int) {
 	var countId int
 	var countImg int
 
-	query := `select count(id) from replies where inreplyto=$1 and id in (select id from activitystream where type='Note' union select id from cacheactivitystream where type='Note')`
+	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over() from (select id, attachment from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' union select id, attachment from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note') as x`
 	
 	rows, err := db.Query(query, parent.Id)	
 	
@@ -855,17 +855,7 @@ func GetObjectRepliesCount(db *sql.DB, parent ObjectBase) (int, int) {
 
 	defer rows.Close()
 	rows.Next()
-	rows.Scan(&countId)
-
-	query = `select count(attach) from (select attachment from activitystream where id in (select id from replies where inreplyto=$1) and attachment != '' union select attachment from cacheactivitystream where id in (select id from replies where inreplyto=$1) and attachment != '') as attach`
-	
-	rows, err = db.Query(query,  parent.Id)	
-
-	CheckError(err, "error with select attachment count db query")
-	
-	defer rows.Close()	
-	rows.Next()
-	rows.Scan(&countImg)
+	rows.Scan(&countId, &countImg)
 
 	return countId, countImg
 }

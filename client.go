@@ -150,28 +150,6 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	
 	actor := collection.Actor
 
-	var mergeCollection Collection
-
-
-
-	mergeCollection.OrderedItems = collection.OrderedItems
-
-	domainURL := GetDomainURL(*actor)
-
-	if domainURL == Domain {
-		followCol := GetObjectsFromFollow(db, *actor)	
-		for _, e := range followCol {
-			if e.Type != "Tombstone" {			
-				mergeCollection.OrderedItems = append(mergeCollection.OrderedItems, e)
-			}
-		}
-	}
-
-	DeleteRemovedPosts(db, &mergeCollection)
-	DeleteTombstonePosts(&mergeCollection)
-
-	sort.Sort(ObjectBaseSortDesc(mergeCollection.OrderedItems))
-	
 	var returnData PageData
 	returnData.Board.Name = actor.Name
 	returnData.Board.PrefName = actor.PreferredUsername
@@ -193,7 +171,10 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 
 	returnData.Boards = Boards
 
-	returnData.Posts = mergeCollection.OrderedItems
+	DeleteRemovedPosts(db, &collection)
+	DeleteTombstonePosts(&collection)
+
+	returnData.Posts = collection.OrderedItems
 
 	t.ExecuteTemplate(w, "layout",  returnData)
 }
