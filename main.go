@@ -175,7 +175,10 @@ func main() {
 				return 
 			}
 
-			collection, valid := WantToServe(db, actor.Name)
+			postNum := strings.Replace(r.URL.EscapedPath(), "/" + actor.Name + "/", "", 1)
+
+			page, _ := strconv.Atoi(postNum)			
+			collection, valid := WantToServePage(db, actor.Name, page)
 			if valid {
 				OutboxGet(w, r, db, collection)
 			}			

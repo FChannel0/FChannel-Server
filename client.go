@@ -124,76 +124,16 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 
 	returnData.Key = *Key	
 
-	var mergeCollection Collection
-
-	for _, e := range collection.OrderedItems {
-		if e.Type != "Tombstone" {
-			mergeCollection.OrderedItems = append(mergeCollection.OrderedItems, e)
-		}
-	}
-
-	domainURL := GetDomainURL(*actor)
-	
-	if domainURL == Domain {
-		followCol := GetObjectsFromFollow(db, *actor)
-		for _, e := range followCol {
-			if e.Type != "Tombstone" {
-				mergeCollection.OrderedItems = append(mergeCollection.OrderedItems, e)
-			}
-		}
-	}
-	
-	DeleteRemovedPosts(db, &mergeCollection)
-	DeleteTombstoneReplies(&mergeCollection)
-
-	for i, _ := range mergeCollection.OrderedItems {
-		sort.Sort(ObjectBaseSortAsc(mergeCollection.OrderedItems[i].Replies.OrderedItems))
-	}
-
-	DeleteTombstonePosts(&mergeCollection)
-	sort.Sort(ObjectBaseSortDesc(mergeCollection.OrderedItems))	
+	DeleteRemovedPosts(db, &collection)
+	DeleteTombstoneReplies(&collection)
+	DeleteTombstonePosts(&collection)
 
 	returnData.Boards = Boards
+	returnData.Posts = collection.OrderedItems
 
-	offset := 8
-	start := page * offset
-	for i := 0; i < offset; i++ {
-		length := len(mergeCollection.OrderedItems)
-		current := start + i
-		if(current < length) {
-			returnData.Posts = append(returnData.Posts, mergeCollection.OrderedItems[current])
-		}
-	}
-
-	for i, e := range returnData.Posts {
-		var replies []ObjectBase
-		for i := 0; i < 5; i++ {
-			cur := len(e.Replies.OrderedItems) - i - 1
-			if cur > -1 {
-				replies = append(replies, e.Replies.OrderedItems[cur])
-			}
-		}
-
-		var orderedReplies []ObjectBase
-		for i := 0; i < 5; i++ {
-			cur := len(replies) - i - 1
-			if cur > - 1 {
-				orderedReplies = append(orderedReplies, replies[cur])
-			}
-		}
-
-		for _, e := range returnData.Posts[i].Replies.OrderedItems {
-			if len(e.Attachment) > 0 {
-				returnData.Posts[i].Replies.TotalImgs = returnData.Posts[i].Replies.TotalImgs + 1
-			}
-		}				
-		
-		returnData.Posts[i].Replies.TotalItems = len(returnData.Posts[i].Replies.OrderedItems)		
-		returnData.Posts[i].Replies.OrderedItems = orderedReplies
-	}
-
+	var offset = 8
 	var pages []int
-	pageLimit := (float64(len(mergeCollection.OrderedItems)) / float64(offset))
+	pageLimit := (float64(collection.TotalItems) / float64(offset))
 	for i := 0.0; i < pageLimit; i++ {
 		pages = append(pages, int(i))
 	}
@@ -438,6 +378,22 @@ func WantToServe(db *sql.DB, actorName string) (Collection, bool) {
 		}
 	}
 
+	return collection, serve
+}
+
+func WantToServePage(db *sql.DB, actorName string, page int) (Collection, bool) {
+
+	var collection Collection
+	serve := false
+
+	actor := GetActorByNameFromDB(db, actorName)
+
+	if actor.Id != "" {
+		collection = GetObjectFromDBPage(db, actor.Id, page)
+		collection.Actor = &actor		
+		return collection, true
+	}
+	
 	return collection, serve
 }
 
