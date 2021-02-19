@@ -22,42 +22,6 @@ func GetActorOutbox(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	w.Write(enc)
 }
 
-func GetObjectsFromFollow(db *sql.DB, actor Actor) []ObjectBase {
-	var followingCol Collection
-	var followObj []ObjectBase
-	followingCol = GetActorCollection(actor.Following)
-	for _, e := range followingCol.Items {
-		var followOutbox Collection
-		if !IsActorLocal(db, e.Id) {
-			followOutbox = GetObjectFromCache(db, e.Id)
-		} else {
-			followOutbox = GetObjectFromDB(db, e.Id)
-		}
-		for _, e := range followOutbox.OrderedItems {
-			followObj = append(followObj, e)
-		}
-	}
-	return followObj
-}
-
-func GetObjectsFromFollowCatalog(db *sql.DB, actor Actor) []ObjectBase {
-	var followingCol Collection
-	var followObj []ObjectBase
-	followingCol = GetActorCollection(actor.Following)
-	for _, e := range followingCol.Items {
-		var followOutbox Collection
-		if !IsActorLocal(db, e.Id) {
-			followOutbox = GetObjectFromCacheCatalog(db, e.Id)
-		} else {
-			followOutbox = GetObjectFromDBCatalog(db, e.Id)
-		}
-		for _, e := range followOutbox.OrderedItems {
-			followObj = append(followObj, e)
-		}
-	}
-	return followObj
-}
-
 func GetCollectionFromPath(db *sql.DB, path string) Collection {
 
 	var nColl Collection

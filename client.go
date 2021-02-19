@@ -149,7 +149,7 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	t := template.Must(template.ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))			
 	
 	actor := collection.Actor
-
+	
 	var returnData PageData
 	returnData.Board.Name = actor.Name
 	returnData.Board.PrefName = actor.PreferredUsername
@@ -201,10 +201,8 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 	returnData.Board.Domain = Domain
 	returnData.Board.Restricted = actor.Restricted
 
-	if GetDomainURL(actor) != "" {
-		returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
-		returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)
-	}
+	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
+	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)
 
 	returnData.Title = "/" + returnData.Board.Name + "/ - " + returnData.Board.PrefName
 
@@ -214,7 +212,7 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 
 	re = regexp.MustCompile("f\\w+-\\w+")
 
-	if re.MatchString(path) {
+	if re.MatchString(path) { // if non local actor post
 		name := GetActorFollowNameFromPath(path)
 		followActors := GetActorsFollowFromName(actor, name)
 		followCollection := GetActorsFollowPostFromId(db, followActors, postId)
@@ -224,56 +222,23 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 		DeleteRemovedPosts(db, &followCollection)
 		DeleteTombstoneReplies(&followCollection)
 
-		for i, _ := range followCollection.OrderedItems {
-			sort.Sort(ObjectBaseSortAsc(followCollection.OrderedItems[i].Replies.OrderedItems))
-		}
-
 		if len(followCollection.OrderedItems) > 0 {		
 			returnData.Board.InReplyTo = followCollection.OrderedItems[0].Id
 			returnData.Posts = append(returnData.Posts, followCollection.OrderedItems[0])
-			sort.Sort(ObjectBaseSortAsc(returnData.Posts[0].Replies.OrderedItems))			
 		}
-
 	} else {
-		returnData.Board.InReplyTo = inReplyTo
-		collection := GetActorCollectionByID(db, inReplyTo)
+		collection := GetObjectByIDFromDB(db, inReplyTo)
 
-		returnData.Board.Post.Actor = collection.Actor		
+		returnData.Board.Post.Actor = collection.Actor
+		returnData.Board.InReplyTo = inReplyTo							
 
 		DeleteRemovedPosts(db, &collection)
-
-		for i, e := range collection.OrderedItems {
-			var replies CollectionBase
-			for _, k := range e.Replies.OrderedItems {
-				if k.Type != "Tombstone" {
-					replies.OrderedItems = append(replies.OrderedItems, k)
-				} else {
-					collection.OrderedItems[i].Replies.TotalItems = collection.OrderedItems[i].Replies.TotalItems - 1
-					if k.Preview.Id != "" {
-						collection.OrderedItems[i].Replies.TotalImgs = collection.OrderedItems[i].Replies.TotalImgs - 1
-					}
-				}
-			}
-			collection.TotalItems = collection.OrderedItems[i].Replies.TotalItems
-			collection.TotalImgs = collection.OrderedItems[i].Replies.TotalImgs			
-			collection.OrderedItems[i].Replies = &replies
-			sort.Sort(ObjectBaseSortAsc(e.Replies.OrderedItems))
-		}				
+		DeleteTombstoneReplies(&collection)		
 
 		if len(collection.OrderedItems) > 0 {
 			returnData.Posts = append(returnData.Posts, collection.OrderedItems[0])
-			sort.Sort(ObjectBaseSortAsc(returnData.Posts[0].Replies.OrderedItems))
 		}
 	}
-
-	for i, _ := range returnData.Posts {
-		for _, e := range returnData.Posts[i].Replies.OrderedItems {
-			if len(e.Attachment) > 0 {
-				returnData.Posts[i].Replies.TotalImgs = returnData.Posts[i].Replies.TotalImgs + 1
-			}
-		}
-		returnData.Posts[i].Replies.TotalItems = len(returnData.Posts[i].Replies.OrderedItems)		
-	}	
 
 	t.ExecuteTemplate(w, "layout",  returnData)			
 }
@@ -328,40 +293,6 @@ func GetBoardCollection(db *sql.DB) []Board {
 	return collection
 }
 
-func WantToServe(db *sql.DB, actorName string) (Collection, bool) {
-
-	var collection Collection
-	serve := false
-
-	boardActor := GetActorByNameFromDB(db, actorName)
-
-	if boardActor.Id != "" {
-		collection = GetActorCollectionDB(db, boardActor)
-		return collection, true
-	}
-	
-	for _, e := range FollowingBoards {
-		boardActor := GetActorFromDB(db, e.Id)
-		
-		if boardActor.Id == "" {
-			boardActor = GetActor(e.Id)
-		}
-
-		if boardActor.Name == actorName {
-			serve = true
-			if IsActorLocal(db, boardActor.Id) {
-				collection = GetActorCollectionDB(db, boardActor)
-			} else {
-				collection = GetActorCollectionCache(db, boardActor)
-			}
-			collection.Actor = &boardActor
-			return collection, serve
-		}
-	}
-
-	return collection, serve
-}
-
 func WantToServePage(db *sql.DB, actorName string, page int) (Collection, bool) {
 
 	var collection Collection
@@ -383,32 +314,14 @@ func WantToServeCatalog(db *sql.DB, actorName string) (Collection, bool) {
 	var collection Collection
 	serve := false
 
-	boardActor := GetActorByNameFromDB(db, actorName)
+	actor := GetActorByNameFromDB(db, actorName)
 
-	if boardActor.Id != "" {
-		collection = GetActorCollectionDBCatalog(db, boardActor)
+	if actor.Id != "" {
+		collection = GetObjectFromDBCatalog(db, actor.Id)
+		collection.Actor = &actor		
 		return collection, true
 	}
 	
-	for _, e := range FollowingBoards {
-		boardActor := GetActorFromDB(db, e.Id)
-		
-		if boardActor.Id == "" {
-			boardActor = GetActor(e.Id)
-		}
-
-		if boardActor.Name == actorName {
-			serve = true
-			if IsActorLocal(db, boardActor.Id) {
-				collection = GetActorCollectionDBCatalog(db, boardActor)
-			} else {
-				collection = GetActorCollectionCacheCatalog(db, boardActor)
-			}
-			collection.Actor = &boardActor
-			return collection, serve
-		}
-	}
-
 	return collection, serve
 }
 
@@ -430,18 +343,6 @@ func GetCaptchaCode(captcha string) string {
 	code = re.FindString(code)
 
 	return code
-}
-
-func GetDomainURL(actor Actor) string {
-	re := regexp.MustCompile("(https://|http://)?(www)?.+/")
-
-	domainURL := re.FindString(actor.Id)
-
-	re = regexp.MustCompile("/$")
-
-	domainURL = re.ReplaceAllString(domainURL, "")
-
-	return domainURL
 }
 
 func DeleteTombstoneReplies(collection *Collection) {
@@ -681,19 +582,11 @@ func GetActorsFollowPostFromId(db *sql.DB, actors []string, id string) Collectio
 	var collection Collection
 
 	for _, e := range actors {
-		tempCol := GetActorCollectionByID(db, e + "/" + id)
+		tempCol := GetObjectByIDFromDB(db, e + "/" + id)
 		if len(tempCol.OrderedItems) > 0 {
 			collection = tempCol
+			return collection
 		}
-	}
-
-	return collection
-}
-
-func GetActorCollectionByID(db *sql.DB, postID string) Collection {
-	collection := GetObjectByIDFromDB(db, postID)
-	if len(collection.OrderedItems) < 1 {
-		collection = GetObjectByIDFromCache(db, postID)
 	}
 
 	return collection

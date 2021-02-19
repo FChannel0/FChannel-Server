@@ -151,7 +151,7 @@ func GetBoards(db *sql.DB) []Actor {
 	return board
 }
 
-func writeObjectToDB(db *sql.DB, obj ObjectBase) ObjectBase {
+func WriteObjectToDB(db *sql.DB, obj ObjectBase) ObjectBase {
 	obj.Id = fmt.Sprintf("%s/%s", obj.Actor.Id, CreateUniqueID(db, obj.Actor.Id))
 	if len(obj.Attachment) > 0 {
 		if obj.Preview.Href != "" {
@@ -167,15 +167,15 @@ func writeObjectToDB(db *sql.DB, obj ObjectBase) ObjectBase {
 			obj.Attachment[i].Published = time.Now().Format(time.RFC3339)
 			obj.Attachment[i].Updated = time.Now().Format(time.RFC3339)
 			obj.Attachment[i].AttributedTo = obj.Id
-			writeAttachmentToDB(db, obj.Attachment[i])
-			writeActivitytoDBWithAttachment(db, obj, obj.Attachment[i], *obj.Preview)
+			WriteAttachmentToDB(db, obj.Attachment[i])
+			WriteActivitytoDBWithAttachment(db, obj, obj.Attachment[i], *obj.Preview)
 		}
 
 	} else {
-		writeActivitytoDB(db, obj)
+		WriteActivitytoDB(db, obj)
 	}
 
-	writeObjectReplyToDB(db, obj)
+	WriteObjectReplyToDB(db, obj)
 	WriteWalletToDB(db, obj)
 
 	return obj
@@ -221,7 +221,7 @@ func WriteObjectReplyToLocalDB(db *sql.DB, id string, replyto string) {
 	}
 }
 
-func writeObjectReplyToDB(db *sql.DB, obj ObjectBase) {
+func WriteObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 	for _, e := range obj.InReplyTo {
 		query := `select id from replies where id=$1 and inreplyto=$2`
 
@@ -299,7 +299,7 @@ func WriteWalletToDB(db *sql.DB, obj ObjectBase) {
 	}	
 }
 
-func writeActivitytoDB(db *sql.DB, obj ObjectBase) {
+func WriteActivitytoDB(db *sql.DB, obj ObjectBase) {
 
 	obj.Name = EscapeString(obj.Name)
 	obj.Content = EscapeString(obj.Content)
@@ -315,7 +315,7 @@ func writeActivitytoDB(db *sql.DB, obj ObjectBase) {
 	}	
 }
 
-func writeActivitytoDBWithAttachment(db *sql.DB, obj ObjectBase, attachment ObjectBase, preview NestedObjectBase) {
+func WriteActivitytoDBWithAttachment(db *sql.DB, obj ObjectBase, attachment ObjectBase, preview NestedObjectBase) {
 	
 	obj.Name = EscapeString(obj.Name)
 	obj.Content = EscapeString(obj.Content)
@@ -331,7 +331,7 @@ func writeActivitytoDBWithAttachment(db *sql.DB, obj ObjectBase, attachment Obje
 	}	
 }
 
-func writeAttachmentToDB(db *sql.DB, obj ObjectBase) {
+func WriteAttachmentToDB(db *sql.DB, obj ObjectBase) {
 	query := `insert into activitystream (id, type, name, href, published, updated, attributedTo, mediatype, size) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 	
 	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)	
@@ -379,14 +379,12 @@ func GetActivityFromDB(db *sql.DB, id string) Collection {
 
 		post.Actor = &actor
 
-		// var postCnt int
-		// var imgCnt int
-		post.Replies, _, _ = GetObjectRepliesDB(db, post)
+		var postCnt int
+		var imgCnt int
+		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
 
-		// post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
-
-		// post.Replies.TotalItems = post.Replies.TotalItems + postCnt
-		// post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt
+		post.Replies.TotalItems = postCnt
+		post.Replies.TotalImgs = imgCnt
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 
@@ -399,8 +397,6 @@ func GetActivityFromDB(db *sql.DB, id string) Collection {
 
 	return nColl	
 }
-
-
 
 func GetObjectFromDBPage(db *sql.DB, id string, page int) Collection {
 	var nColl Collection
@@ -429,8 +425,6 @@ func GetObjectFromDBPage(db *sql.DB, id string, page int) Collection {
 		var postCnt int
 		var imgCnt int		
 		post.Replies, postCnt, imgCnt = GetObjectRepliesDBLimit(db, post, 5)
-
-		// post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
 
 		post.Replies.TotalItems = postCnt
 		post.Replies.TotalImgs = imgCnt		
@@ -471,14 +465,12 @@ func GetObjectFromDB(db *sql.DB, id string) Collection {
 
 		post.Actor = &actor
 
-		// var postCnt int
-		// var imgCnt int		
-		post.Replies, _, _ = GetObjectRepliesDB(db, post)
+		var postCnt int
+		var imgCnt int		
+		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
 
-		// post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
-
-		// post.Replies.TotalItems = post.Replies.TotalItems + postCnt
-		// post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
+		post.Replies.TotalItems = postCnt
+		post.Replies.TotalImgs = imgCnt		
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 
@@ -537,7 +529,7 @@ func GetObjectByIDFromDB(db *sql.DB, postID string) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
-	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor from activitystream where id=$1 and type='Note' order by updated asc`
+	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor from activitystream where id=$1 and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor from cacheactivitystream where id=$1 and type='Note') as x`
 
 	rows, err := db.Query(query, postID)	
 
@@ -560,14 +552,12 @@ func GetObjectByIDFromDB(db *sql.DB, postID string) Collection {
 
 		nColl.Actor = &actor		
 
-		// var postCnt int
-		// var imgCnt int		
-		post.Replies, _, _ = GetObjectRepliesDB(db, post)
+		var postCnt int
+		var imgCnt int		
+		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
 
-		// post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
-
-		// post.Replies.TotalItems = post.Replies.TotalItems + postCnt
-		// post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
+		post.Replies.TotalItems = postCnt
+		post.Replies.TotalImgs = imgCnt		
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 
@@ -613,8 +603,8 @@ func GetObjectRepliesDBLimit(db *sql.DB, parent ObjectBase, limit int) (*Collect
 
 	CheckError(err, "error with replies db query")	
 
-	var total int
-	var attach int
+	var postCount int
+	var attachCount int
 	
 	defer rows.Close()	
 	for rows.Next() {
@@ -625,7 +615,7 @@ func GetObjectRepliesDBLimit(db *sql.DB, parent ObjectBase, limit int) (*Collect
 
 		post.InReplyTo = append(post.InReplyTo, parent)
 		
-		err = rows.Scan(&total, &attach, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id)
+		err = rows.Scan(&postCount, &attachCount, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id)
 
 		CheckError(err, "error with replies db scan")
 
@@ -649,7 +639,7 @@ func GetObjectRepliesDBLimit(db *sql.DB, parent ObjectBase, limit int) (*Collect
 
 	sort.Sort(ObjectBaseSortAsc(nColl.OrderedItems))			
 
-	return &nColl, total, attach
+	return &nColl, postCount, attachCount
 }
 
 func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, int) {
@@ -657,11 +647,14 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, in
 	var nColl CollectionBase
 	var result []ObjectBase
 
-	query := `select id, name, content, type, published, attributedto, attachment, preview, actor from activitystream WHERE id in (select id from replies where inreplyto=$1) and type='Note' order by published asc`
+	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over(), x.id, x.name, x.content, x.type, x.published, x.attributedto, x.attachment, x.preview, x.actor from (select * from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' union select * from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note') as x order by x.published asc`	
 
 	rows, err := db.Query(query, parent.Id)	
 
-	CheckError(err, "error with replies db query")	
+	CheckError(err, "error with replies db query")
+
+	var postCount int
+	var attachCount int
 
 	defer rows.Close()	
 	for rows.Next() {
@@ -672,20 +665,18 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, in
 
 		post.InReplyTo = append(post.InReplyTo, parent)
 		
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id)
+		err = rows.Scan(&postCount, &attachCount, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id)
 
 		CheckError(err, "error with replies db scan")
 
 		post.Actor = &actor
 
-		// var postCnt int
-		// var imgCnt int		
-		post.Replies, _, _ = GetObjectRepliesRepliesDB(db, post)
+		var postCnt int
+		var imgCnt int		
+		post.Replies, postCnt, imgCnt = GetObjectRepliesRepliesDB(db, post)
 
-		// post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesDBCount(db, post)
-		
-		// post.Replies.TotalItems = post.Replies.TotalItems + postCnt
-		// post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt		
+		post.Replies.TotalItems = postCnt
+		post.Replies.TotalImgs = imgCnt		
 		
 		post.Attachment = GetObjectAttachment(db, attachID)
 
@@ -696,55 +687,10 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, in
 
 	nColl.OrderedItems = result
 
-	
-	remoteCollection, postc, imgc := GetObjectRepliesCache(db, parent)
-
-	for _, e := range remoteCollection.OrderedItems {
-		nColl.OrderedItems = append(nColl.OrderedItems, e)
-		postc = postc + 1
-		if len(e.Attachment) > 0 {
-			imgc = imgc + 1
-		}
-	}
-
-	return &nColl, 0, 0
-}
-
-func GetObjectRepliesRemote(db *sql.DB, parent ObjectBase) CollectionBase {
-	var nColl CollectionBase
-	var result []ObjectBase
-	query := `select id from replies where id not in (select id from activitystream) and inreplyto=$1`
-
-	rows, err := db.Query(query, parent.Id)	
-
-	CheckError(err, "could not get remote id query")
-
-	defer rows.Close()
-	for rows.Next() {
-		var id string
-		rows.Scan(&id)
-
-		cacheColl := GetObjectFromCache(db, id)
-
-		if len(cacheColl.OrderedItems) < 1 {
-			cacheColl = GetCollectionFromID(id)
-			for _, e := range cacheColl.OrderedItems {
-				WriteObjectToCache(db, e)
-			}
-		}
-
-		for _, e := range cacheColl.OrderedItems {
-			result = append(result, e)
-		}
-	}
-
-	nColl.OrderedItems = result
-
-	return nColl
+	return &nColl, postCount, attachCount
 }
 
 func GetObjectRepliesReplies(db *sql.DB, parent ObjectBase) (*CollectionBase, int, int) {
-
 
 	var nColl CollectionBase
 	var result []ObjectBase
@@ -793,8 +739,8 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 
 	CheckError(err, "error with replies replies db query")
 
-	var total int
-	var attach int
+	var postCount int
+	var attachCount int
 	defer rows.Close()
 	for rows.Next() {
 		var post ObjectBase
@@ -804,7 +750,7 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 
 		post.InReplyTo = append(post.InReplyTo, parent)
 
-		err = rows.Scan(&total, &attach, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id)
+		err = rows.Scan(&postCount, &attachCount, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id)
 
 		CheckError(err, "error with replies replies db scan")
 
@@ -819,7 +765,7 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 
 	nColl.OrderedItems = result	
 
-	return &nColl, total, attach
+	return &nColl, postCount, attachCount
 }
 
 func CheckIfObjectOP(db *sql.DB, id string) bool {
@@ -890,8 +836,8 @@ func GetObjectPreview(db *sql.DB, id string) *NestedObjectBase {
 
 	var preview NestedObjectBase
 
-	query := `select id, type, name, href, mediatype, size, published from activitystream where id=$1`
-
+	query := `select x.id, x.type, x.name, x.href, x.mediatype, x.size, x.published from (select id, type, name, href, mediatype, size, published from activitystream where id=$1 union select id, type, name, href, mediatype, size, published from cacheactivitystream where id=$1) as x`
+	
 	rows, err := db.Query(query, id)	
 
 	CheckError(err, "could not select object preview query")	
