@@ -118,11 +118,19 @@ func main() {
 			actorReported = (path == "/" + actor.Name + "/reported")				
 			actorVerification = (path == "/" + actor.Name + "/verification")
 
-			re := regexp.MustCompile("/" + actor.Name + "/[0-9]{1,2}$")			
+			escapedActorName := strings.Replace(actor.Name, "*", "\\*", -1)
+			escapedActorName = strings.Replace(escapedActorName, "^", "\\^", -1)
+			escapedActorName = strings.Replace(escapedActorName, "$", "\\$", -1)
+			escapedActorName = strings.Replace(escapedActorName, "?", "\\?", -1)
+			escapedActorName = strings.Replace(escapedActorName, "+", "\\+", -1)
+			escapedActorName = strings.Replace(escapedActorName, ".", "\\.", -1)															
+
+			re := regexp.MustCompile("/" + escapedActorName + "/[0-9]{1,2}$")
 
 			actorMainPage = re.MatchString(path)
 			
-			re = regexp.MustCompile("/" + actor.Name + "/\\w+")
+			re = regexp.MustCompile("/" + escapedActorName + "/\\w+")
+			
 			actorPost = 	re.MatchString(path)
 		}
 

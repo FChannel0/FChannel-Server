@@ -210,7 +210,7 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 
 	returnData.Boards = Boards
 
-	re = regexp.MustCompile("f\\w+-\\w+")
+	re = regexp.MustCompile("f(\\w|[!@#$%^&*<>])+-(\\w|[!@#$%^&*<>])+")
 
 	if re.MatchString(path) { // if non local actor post
 		name := GetActorFollowNameFromPath(path)

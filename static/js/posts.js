@@ -24,10 +24,9 @@ function getMIMEType(type)
 
 function shortURL(actorName, url)
 {
-    var check = url.replace(actorName + "/", "")
     re = /.+\//g;
     temp = re.exec(url)
-
+    
     if(stripTransferProtocol(temp[0]) == stripTransferProtocol(actorName) + "/")
     {
         var short = url.replace("https://", "");
@@ -57,11 +56,13 @@ function shortURL(actorName, url)
 
         u =  re.exec(short);
 
+        str = short.replace(/\/+/g, " ")
 
-        replace = short.replace(/\/+/g, " ")
-        replace = replace.replace(u, " ").trim()
-        re = /\w+$/;
-        v = re.exec(replace)
+        str = str.replace(u, " ").trim()
+
+        re = /(\w|[!@#$%^&*<>])+$/;
+        
+        v = re.exec(str)
 
         v = "f" + v[0] + "-" + u
 
