@@ -1160,11 +1160,11 @@ func DeleteCaptchaCodeDB(db *sql.DB, verify string) {
 }
 
 func EscapeString(text string) string {
-	re := regexp.MustCompile("(?i)(n)+(\\s+)?(i)+(\\s+)?(g)+(\\s+)?(e)+?(\\s+)?(r)+(\\s+)?")
-	text = re.ReplaceAllString(text, "I love black people")
-	re = regexp.MustCompile("(?i)(n)+(\\s+)?(i)+(\\s+)?(g)(\\s+)?(g)+(\\s+)?")
-	text = re.ReplaceAllString(text, "I love black people")		
-	text = strings.Replace(text, "<", "&lt;", -1)
+	// re := regexp.MustCompile("(?i)(n)+(\\s+)?(i)+(\\s+)?(g)+(\\s+)?(e)+?(\\s+)?(r)+(\\s+)?")
+	// text = re.ReplaceAllString(text, "I love black people")
+	// re = regexp.MustCompile("(?i)(n)+(\\s+)?(i)+(\\s+)?(g)(\\s+)?(g)+(\\s+)?")
+	// text = re.ReplaceAllString(text, "I love black people")		
+	// text = strings.Replace(text, "<", "&lt;", -1)
 	return text
 }
 
