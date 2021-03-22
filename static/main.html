@@ -57,6 +57,14 @@
           background-color: #f0e0d6;
           {{ end }}
       }
+      
+      :target > div > .post {
+          {{ if .Board.Post.Actor.Restricted }}
+          background-color: #d6bad0;
+          {{ else }}
+          background-color: #f0c0b0;
+          {{ end }}
+      }
     </style>
     {{ template "header" . }}    
   </head>
