@@ -38,10 +38,10 @@
         if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "audio"){
             var audio = document.createElement("audio")
             audio.controls = 'controls'
-            audio.preload    = 'none'              
+            audio.preload    = 'metadata'              
             audio.src      = '{{ (index .Attachment 0).Href }}'
             audio.type     = '{{ (index .Attachment 0).MediaType }}'              
-            audio.style = "margin-right: 10px; margin-bottom: 10px; width: 180px;"
+            audio.style = "margin-right: 10px; margin-bottom: 10px; max-width: 180px; max-height: 180px;"
             audio.innerText = 'Audio is not supported.'
             media.appendChild(audio)                            
         }
@@ -49,11 +49,11 @@
         if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "video"){
             var video = document.createElement("video")
             video.controls = 'controls'
-            video.preload    = 'none'                          
+            video.preload    = 'metadata'                          
             video.muted    = 'muted'              
             video.src      = '{{ (index .Attachment 0).Href }}'
             video.type     = '{{ (index .Attachment 0).MediaType }}'              
-            video.style = "margin-right: 10px; margin-bottom: 10px; width: 180px;"
+            video.style = "margin-right: 10px; margin-bottom: 10px; max-width: 180px; max-height: 180px;"
             video.innerText = 'Video is not supported.'
             media.appendChild(video)                                          
         }                    
