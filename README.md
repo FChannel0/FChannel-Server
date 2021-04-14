@@ -4,14 +4,17 @@ FChannel is a [libre](https://en.wikipedia.org/wiki/Free_and_open-source_softwar
 
 There are currently two instances federated with each other: https://fchan.xyz and https://0x00000000.xyz
 
-There is an anon testing FChannel instances on tor/loki/i2p, find more information here: https://fchan.xyz/g/MORL0KUT
+There is an anon testing FChannel instances on TOR/Loki/I2P. Find more information here: https://fchan.xyz/g/MORL0KUT
 It is a testing envirmoent, so the instances might come and go.
 
-Current things that will be implemented first are a way to automatically index new instances into a list so others can discover instances as they come online. And setting up a server proxy so that clearnet instances can talk to tor/loki/i2p instances. Other improvements will be made over time, first it needs to be as  easy as possible for new instances to come online and connect with others reliably.
+## To Do List
+Current things that will be implemented first are:
+- A way to automatically index new instances into a list so others can discover instances as they come online. 
+- Setting up a server proxy so that clearnet instances can talk to TOR/Loki/I2P instances. 
+- Other improvements will be made over time, first it needs to be as  easy as possible for new instances to come online and connect with others reliably.
 
 Try and run your own instances and federate with one of the instances above.
-
-Any contributions or suggestions are appreciated. Best way to give immediate feedback is the matrix channel #fchan:matrix.org
+Any contributions or suggestions are appreciated. Best way to give immediate feedback is the Matrix channel #fchan:matrix.org
 
 # Server Installation and Configuration
 
@@ -39,29 +42,29 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
 
 ### config file
 
-  `instance:fchan.xyz`  Domain name that the host can be located at without www and http:// or https://
+  `instance:fchan.xyz`  Domain name that the host can be located at without www and `http://` or `https://`
   
-  `instancetp:https://` Transfer protocol your domain is using, should be https if possible, do not put https:// if it is http:// you are using
+  `instancetp:https://` Transfer protocol your domain is using, should be https if possible. Do not put `https://` if you are using `http://`
   
-  `instanceport:3000`   Port your server is running on locally on your server
+  `instanceport:3000`   Port the server is running on locally, on your server.
   
-  `instancename:FChan`  Full name that you want your instances to be called
+  `instancename:FChan`  Full name that you want your instances to be called.
   
-  `instancesummary:FChan is a federated image board instance.` Brief description of your instance
+  `instancesummary:FChan is a federated image board instance.` Brief description of your instance.
 
 
-  `dbhost:localhost`    Database host, most likely leave to localhost
+  `dbhost:localhost`    Database host. Most likely leave as `localhost`.
   
-  `dbport:5432`         Port number for database, most likely leave default
+  `dbport:5432`         Port number for database. Most likely leave the default value.
   
-  `dbname:fchan_server` Database name for psql
+  `dbname:fchan_server` Database name for psql.
   
-  `dbuser:admin`        Database user that can connect to dbname
+  `dbuser:admin`        Database user that can connect to dbname.
   
-  `dbpass:password`     Database password for dbuser
+  `dbpass:password`     Database password for dbuser.
 
 
-  Currently email is not hooked up to do anything special, but code is in place
+  Currently e-mail is not implemented to do anything special, but the code is in place
   
   `emailserver:mail.fchan.xyz`
   
@@ -76,7 +79,7 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
 
   `CreateNewBoardDB(db *sql.DB, actor Actor)`
   
-  returns Actor  
+  returns Actor.
   
 ### Creating a new actor
 
@@ -84,26 +87,26 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
  
  returns Actor
  
- - board is the abbreviated name such as `g`
+ - `board` is the abbreviated name such as `g`
  
- - prefName is the fully readable name such as `Technology`
+ - `prefName` is the fully readable name such as `Technology`
  
- - summary is a summary of the board
+ - `summary` is a summary of the board
  
- - authReq is an array string of required privileges to post on the board, default is: `[]string{"captcha","email","passphrase"}`
+ - `authReq` is an array string of required privileges to post on the board, default is: `[]string{"captcha","email","passphrase"}`
  
- - restricted is bool, true is blue board, false is red board
+ - `restricted` is bool. `true` is blue board, `false` is red board
  
 
 ## Server Update
 
- Check the git repo for latest commits. If there are commits you want to update to, pull and restart instance.
+ Check the git repo for the latest commits. If there are commits you want to update to, pull and restart instance.
 
 ## Networking
 
 ### NGINX Template
 
-Use certbot to setup ssl
+Use [Certbot](https://github.com/certbot/certbot), (or your tool of choice) to setup SSL.
 
 ```
 server {
@@ -112,7 +115,7 @@ server {
 
         root /var/www/html;
 
-        server_name fchan.xyz www.fchan.xyz;
+        server_name DOMAIN_NAME;
 
         client_max_body_size 100M;
 
@@ -132,6 +135,12 @@ server {
         }
 }
 ```
+
+#### Using Certbot With NGINX
+
+- After installing Certbot and the Nginx plugin, generate the certificate: `sudo certbot --nginx --agree-tos --redirect --rsa-key-size 4096 --hsts --staple-ocsp --email YOUR_EMAIL -d DOMAIN_NAME`
+
+- Add a job to cron so the certificate will be renewed automatically: `echo "0 0 * * *  root  certbot renew --quiet --no-self-upgrade --post-hook 'systemctl reload nginx'" | sudo tee -a /etc/cron.d/renew_certbot`
 
 ### Apache
 
