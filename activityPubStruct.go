@@ -73,7 +73,7 @@ type Actor struct {
 	Following string `json:"following,omitempty"`
 	Followers string `json:"followers,omitempty"`
 	Name string `json:"name,omitempty"`
-	PreferredUsername string `json:"prefereedUsername,omitempty"`
+	PreferredUsername string `json:"preferredUsername,omitempty"`
 	Summary string `json:"summary,omitempty"`
 	AuthRequirement []string `json:"authrequirement,omitempty"`
 	Restricted bool `json:"restricted"`	
