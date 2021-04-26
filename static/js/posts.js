@@ -197,12 +197,8 @@ function quote(actorName, opid, id)
     header.innerText = "Replying to Thread No. " + shortURL(actorName, opid);
     inReplyTo.value = opid;
 
-    if(id != "reply") {
-        if(comment.value != "")
-            comment.value += "\n>>" + id;
-        else
-            comment.value += ">>" + id;
-    }
+    if(id != "reply")
+        comment.value += ">>" + id + "\n";
 
     dragElement(header);            
 

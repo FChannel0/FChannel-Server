@@ -26,7 +26,7 @@ var Domain = TP + "" + GetConfigValue("instance")
 
 var authReq = []string{"captcha","email","passphrase"}
 
-var supportedFiles = []string{"image/gif","image/jpeg","image/png","image/svg+xml","image/webp","image/avif","image/apng","video/mp4","video/ogg","video/webm","audio/mpeg","audio/ogg","audio/wav", "audio/wave", "audio/x-wav"}
+var supportedFiles = []string{"image/gif","image/jpeg","image/png","image/svg+xml","image/svg","image/webp","image/avif","image/apng","video/mp4","video/ogg","video/webm","audio/mpeg","audio/ogg","audio/wav", "audio/wave", "audio/x-wav"}
 
 var SiteEmail = GetConfigValue("emailaddress")        //contact@fchan.xyz
 var SiteEmailPassword = GetConfigValue("emailpass")
