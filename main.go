@@ -1930,31 +1930,65 @@ func GetActorCollectionReq(r *http.Request, collection string) Collection {
 
 func shortURL(actorName string, url string) string {
 
-	re := regexp.MustCompile(`outbox`)
+	re := regexp.MustCompile(`.+\/`)
 
-	actor := re.ReplaceAllString(actorName, "")
-	
+	actor := re.FindString(actorName)
+
+	urlParts := strings.Split(url, "|")
+
+	op := urlParts[0]
+
+	var reply string
+
+	if len(urlParts) > 1 {
+		reply = urlParts[1]
+	}
+
 	re = regexp.MustCompile(`\w+$`)
-	temp := re.ReplaceAllString(url, "")
+	temp := re.ReplaceAllString(op, "")
 
 	if(temp == actor){
-		short := StripTransferProtocol(url)
+		id := localShort(op)
 
-		re := regexp.MustCompile(`\w+$`)
+    re := regexp.MustCompile(`.+\/`)
+    replyCheck := re.FindString(reply)
 
-		id := re.FindString(short);
+		if(reply != "" && replyCheck == actor){
+			id = id + "#" + localShort(reply)
+		} else if reply != "" {
+			id = id + "#" + remoteShort(reply)
+		}
 
 		return id;            
 	}else{
-		short := StripTransferProtocol(url)
+		id := remoteShort(op)
 
+    re := regexp.MustCompile(`.+\/`)
+    replyCheck := re.FindString(reply)
+
+		if(reply != "" && replyCheck == actor){
+			id = id + "#" + localShort(reply)
+		} else if reply != "" {
+			id = id + "#" + remoteShort(reply)
+		}		
+
+		return id;                        
+	}
+}
+
+func localShort(url string) string {
+		re := regexp.MustCompile(`\w+$`)
+		return re.FindString(StripTransferProtocol(url));
+}
+
+func remoteShort(url string) string {
 		re := regexp.MustCompile(`\w+$`)
 
-		id := re.FindString(short);
+		id := re.FindString(StripTransferProtocol(url));
 
 		re = regexp.MustCompile(`.+/.+/`)
 
-		actorurl := re.FindString(short)
+		actorurl := re.FindString(StripTransferProtocol(url))
 
 		re = regexp.MustCompile(`/.+/`)
 
@@ -1962,8 +1996,5 @@ func shortURL(actorName string, url string) string {
 
 		actorname = strings.Replace(actorname, "/", "", -1)
 
-		id = "f" + actorname + "-" + id
-
-		return id;                        
-	}
+		return "f" + actorname + "-" + id
 }

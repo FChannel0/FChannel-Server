@@ -55,9 +55,9 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			op := len(nObj.InReplyTo) - 1
 			if op >= 0 {		
 				if nObj.InReplyTo[op].Id == "" {
-					id = nObj.Id
+					id = nObj.Id  
 				} else {
-					id = nObj.InReplyTo[op].Id
+					id = nObj.InReplyTo[0].Id + "|" + nObj.Id
 				}
 			}
 
