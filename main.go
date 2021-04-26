@@ -789,7 +789,7 @@ func main() {
 			return
 		}
 
-		if(!CheckCaptcha(db, captcha)) {
+		if(close != "1" && !CheckCaptcha(db, captcha)) {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("captcha required"))					
 			return							
