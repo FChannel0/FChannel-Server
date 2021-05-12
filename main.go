@@ -4,6 +4,7 @@ import "fmt"
 import "strings"
 import "strconv"
 import "net/http"
+import "net/url"
 import "database/sql"
 import _ "github.com/lib/pq"
 import "math/rand"
@@ -33,6 +34,8 @@ var SiteEmailPassword = GetConfigValue("emailpass")
 var SiteEmailServer = GetConfigValue("emailserver")   //mail.fchan.xyz
 var SiteEmailPort = GetConfigValue("emailport")       //587
 
+var TorProxy = "127.0.0.1:9050"
+
 var ldjson = "application/ld+json"		
 var activitystreams = "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
 
@@ -55,7 +58,7 @@ func main() {
 	FollowingBoards = GetActorFollowingDB(db, Domain)
 	
 	Boards = GetBoardCollection(db)
-	
+
 	// root actor is used to follow remote feeds that are not local
 	//name, prefname, summary, auth requirements, restricted
 	if GetConfigValue("instancename") != "" {
@@ -1982,19 +1985,48 @@ func localShort(url string) string {
 }
 
 func remoteShort(url string) string {
-		re := regexp.MustCompile(`\w+$`)
+	re := regexp.MustCompile(`\w+$`)
 
-		id := re.FindString(StripTransferProtocol(url));
+	id := re.FindString(StripTransferProtocol(url));
 
-		re = regexp.MustCompile(`.+/.+/`)
+	re = regexp.MustCompile(`.+/.+/`)
 
-		actorurl := re.FindString(StripTransferProtocol(url))
+	actorurl := re.FindString(StripTransferProtocol(url))
 
-		re = regexp.MustCompile(`/.+/`)
+	re = regexp.MustCompile(`/.+/`)
 
-		actorname := re.FindString(actorurl)
+	actorname := re.FindString(actorurl)
 
-		actorname = strings.Replace(actorname, "/", "", -1)
+	actorname = strings.Replace(actorname, "/", "", -1)
 
-		return "f" + actorname + "-" + id
+	return "f" + actorname + "-" + id
+}
+
+func RouteProxy(req *http.Request) (*http.Response, error) {
+
+	var proxyType = GetPathProxyType(req.URL.Host)
+
+	if proxyType == "tor" {
+		proxyUrl, err := url.Parse("socks5://" + TorProxy)
+
+		CheckError(err, "error parsing tor proxy url")
+
+		proxyTransport := &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
+		client := &http.Client{ Transport: proxyTransport, Timeout: time.Second * 10 }
+		return client.Do(req)
+	}
+
+	return http.DefaultClient.Do(req)
+}
+
+func GetPathProxyType(path string) string {
+	if TorProxy != "" {
+		re := regexp.MustCompile(`(http://|http://)?(www.)?\w+\.onion`)
+		onion := re.MatchString(path)
+		if onion {
+			return "tor"
+		}
+	}
+
+	return "clearnet"
 }
