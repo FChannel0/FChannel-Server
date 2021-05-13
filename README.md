@@ -5,7 +5,7 @@ FChannel is a [libre](https://en.wikipedia.org/wiki/Free_and_open-source_softwar
 There are currently two instances federated with each other: https://fchan.xyz and https://0x00000000.xyz
 
 There is an anon testing FChannel instances on TOR/Loki/I2P. Find more information here: https://fchan.xyz/g/MORL0KUT
-It is a testing envirmoent, so the instances might come and go.
+It is a testing environment, so the instances might come and go.
 
 ## To Do List
 Current things that will be implemented first are:
@@ -20,11 +20,13 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
 
 ## Minimum Server Requirements
 
-- golang v1.11+
+- Go v1.11+
   
-- postgresql
+- PostgreSQL
   
-- redis
+- Redis
+
+- ImageMagick
 
 ## Server Installation Instructions
 
