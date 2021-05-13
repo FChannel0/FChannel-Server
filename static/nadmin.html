@@ -19,20 +19,19 @@
   </form>
 
   <ul style="display: inline-block; padding: 0;">
-    <li style="display: inline-block;"><a href="javascript:show('following')">Subscribed</a></li>
+    <li style="display: inline-block;"><a href="#following">Subscribed</a></li>
     <!-- <li style="display: inline-block;"><a href="javascript:show('followers')">Followers</a></li> -->
-    <li style="display: inline-block;"><a href="javascript:show('reported')">Reported</a></li>            
+    <li style="display: inline-block;"><a href="#reported">Reported</a></li>            
   </ul>
 </div>    
 
-<div id="following">
-  <h4>Following</h4>
+<div id="following" class="popup-box" style="margin-bottom: 25px; padding: 12px;">
+  <h4 style="margin: 0; margin-bottom: 5px;">Subscribed</h4>
   <form id="follow-form" action="/{{ .Key }}/follow" method="post" enctype="application/x-www-form-urlencoded">
-    <label>Subscribe:</label><br>
     <input id="follow" name="follow" style="margin-bottom: 12px;" placeholder="http://localhost:3000/g"></input><input type="submit" value="Subscribe"><br>
     <input type="hidden" name="actor" value="{{ .Actor }}">        
   </form>
-  <ul style="display: inline-block; padding: 0; margin: 0;">
+  <ul style="display: inline-block; padding: 0; margin: 0; list-style-type: none;">  
     {{ $actor := .Actor }}
     {{ $key := .Key }}
     {{ range .Following }}
@@ -41,36 +40,22 @@
   </ul>
 </div>
 
-<div id="followers" style="display: none;">
-  <h4>Followers</h4>
-  <ul style="display: inline-block; padding: 0; margin: 0;">
+<div id="followers" class="popup-box" style="margin-bottom: 25px; padding: 12px; display:none;">
+  <h4 style="margin: 0; margin-bottom: 5px;">Followers</h4>
+  <ul style="display: inline-block; padding: 0; margin: 0; list-style-type: none;">    
     {{ range .Followers }}
     <li><a href="http://localhost:3000/g">{{ . }}</a></li>
     {{ end }}        
   </ul>      
 </div>
 
-<div id="reported" style="display: none;">
-  <h4>Reported</h4>
-  <ul style="display: inline-block; padding: 0; margin: 0;">
+<div id="reported" class="popup-box" style="margin-bottom: 25px; padding: 12px;">
+  <h4 style="margin: 0; margin-bottom: 5px;">Reported</h4>
+  <ul style="display: inline-block; padding: 0; margin: 0; list-style-type: none;">      
   </ul>            
 </div>
 {{ end }}
 {{ define "bottom" }}{{ end }}
 
 {{ define "script" }}
-<script>
-  function show(element)
-  {
-      var following = document.getElementById("following");
-      // var followers = document.getElementById("followers");
-      var reported = document.getElementById("reported");
-
-      following.style.display = "none";
-      // followers.style.display = "none";
-      reported.style.display = "none";
-
-      document.getElementById(element).style.display = "block";
-  }
-</script>
 {{ end }}

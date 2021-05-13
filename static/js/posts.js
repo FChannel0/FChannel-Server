@@ -131,7 +131,7 @@ function convertContent(actorName, content, opid)
         })            
     }
     
-    re =  /^>.+/gm;
+    re =  /^(\s+)?>.+/gm;
 
     match = newContent.match(re);
     if(match)
