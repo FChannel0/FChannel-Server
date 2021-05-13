@@ -289,6 +289,12 @@ func main() {
 			return
 		}
 
+		if(r.FormValue("inReplyTo") == "" && file == nil) {
+				w.Write([]byte("Media is required for new posts"))
+				return			
+		}
+		
+
 		if(r.FormValue("inReplyTo") == "" || file == nil) {
 			if(r.FormValue("comment") == "" && r.FormValue("subject") == ""){
 				w.Write([]byte("Comment or Subject required"))
@@ -331,7 +337,10 @@ func main() {
 		for key, r0 := range r.Form {
 			if(key == "captcha") {
 				err := we.WriteField(key, r.FormValue("captchaCode") + ":" + r.FormValue("captcha"))
-				CheckError(err, "error with writing field")					
+				CheckError(err, "error with writing captcha field")
+			}else if(key == "name") {
+				err := we.WriteField(key, CreateNameTripCode(r))
+				CheckError(err, "error with writing name field")
 			}else{
 				err := we.WriteField(key, r0[0])
 				CheckError(err, "error with writing field")
@@ -931,11 +940,19 @@ func CreateTripCode(input string) string {
 	return code[0]
 }
 
-func CreateNameTripCode(input string) string {
+func CreateNameTripCode(r *http.Request) string {
+	input := r.FormValue("name")
 	re := regexp.MustCompile("#.+")
 	chunck := re.FindString(input)
-	hash := CreateTripCode(chunck)
-	return re.ReplaceAllString(input, "!" + hash[42:50])
+	ce := regexp.MustCompile(`(?i)#Admin`)
+	admin := ce.MatchString(chunck)
+	_, modcred := GetPasswordFromSession(r)
+	if(admin && modcred != "" ) {
+		return re.ReplaceAllString(input, "#Admin")
+	} else {
+		hash := CreateTripCode(chunck)
+		return re.ReplaceAllString(input, "!" + hash[42:50])
+	}
 }
 
 func GetActorFromPath(db *sql.DB, location string, prefix string) Actor {

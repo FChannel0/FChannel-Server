@@ -77,7 +77,7 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	t := template.Must(template.ParseFiles("./static/main.html", "./static/index.html"))
 
 	actor := GetActorFromDB(db, Domain)
-	
+
 	var data PageData
 	data.Title = "Welcome to " + actor.PreferredUsername
 	data.Message = fmt.Sprintf("%s is a federated image board based on activitypub. The current version of the code running the server is still a work in progress, expect a bumpy ride for the time being. Get the server code here https://github.com/FChannel0", Domain)
@@ -149,7 +149,7 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	t := template.Must(template.ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))			
 	
 	actor := collection.Actor
-	
+
 	var returnData PageData
 	returnData.Board.Name = actor.Name
 	returnData.Board.PrefName = actor.PreferredUsername
@@ -191,7 +191,6 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 	inReplyTo := actor.Id + "/" + postId
 
 	var returnData PageData
-
 	returnData.Board.Name = actor.Name
 	returnData.Board.PrefName = actor.PreferredUsername
 	returnData.Board.To = actor.Outbox
