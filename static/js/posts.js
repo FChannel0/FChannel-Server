@@ -184,7 +184,7 @@ function quote(actorName, opid, id)
     if(id == "reply") {
         var h = document.getElementById(id + "-content").offsetTop - 548;
     } else {
-        var h = document.getElementById(id + "-content").offsetTop - 448;
+        var h = document.getElementById(id + "-content").offsetTop - 348;
     }
 
 
