@@ -48,6 +48,8 @@ func main() {
 
 	defer db.Close()
 
+	RunDatabaseSchema(db)
+	
 	go MakeCaptchas(db, 100)
 
 	*Key = CreateClientKey()
@@ -55,7 +57,7 @@ func main() {
 	FollowingBoards = GetActorFollowingDB(db, Domain)
 	
 	Boards = GetBoardCollection(db)
-	
+
 	// root actor is used to follow remote feeds that are not local
 	//name, prefname, summary, auth requirements, restricted
 	if GetConfigValue("instancename") != "" {
@@ -2014,4 +2016,12 @@ func remoteShort(url string) string {
 		actorname = strings.Replace(actorname, "/", "", -1)
 
 		return "f" + actorname + "-" + id
+}
+
+func RunDatabaseSchema(db *sql.DB) {
+	query, err := ioutil.ReadFile("databaseschema.psql")
+	CheckError(err, "could not read databaseschema.psql file")
+	if _, err := db.Exec(string(query)); err != nil {
+		CheckError(err, "could not exec databaseschema.psql")		
+	}
 }

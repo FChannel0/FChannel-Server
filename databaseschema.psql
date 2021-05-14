@@ -206,3 +206,7 @@ CREATE TABLE IF NOT EXISTS removed(
 id varchar(100),
 type varchar(25)
 );
+
+
+ALTER TABLE activitystream ADD COLUMN IF NOT EXISTS tripcode varchar(50) default '';
+ALTER TABLE cacheactivitystream ADD COLUMN IF NOT EXISTS tripcode varchar(50) default '';
