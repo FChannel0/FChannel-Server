@@ -74,6 +74,12 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
   
   `emailpass:password`
 
+### Managing the server
+
+  To access the managment page to create new boards or subscribe to other boards, when you start the server the console will output the `Mod key` and `Admin Login`
+  Use the `Mod key` by appending it to your servers url, `https://fchan.xyz/[Mod key]` once there you will be prompted for the `Admin Login` credentials.
+  You can manage each board by appending the `Mod key` to the desired board url: `https://fchan.xyz/g/[Mod Key]`
+  The `Mod key` is not static and is reset on server restart.
 
 ### Creating a new board
 

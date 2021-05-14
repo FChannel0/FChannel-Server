@@ -330,8 +330,6 @@ func HasAuth(db *sql.DB, code string, board string) bool {
 		return true
 	}
 
-	fmt.Println("has auth is false")
-	
 	return false;
 }
 
