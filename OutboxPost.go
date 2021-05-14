@@ -365,6 +365,7 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 	}
 
 	obj.AttributedTo = EscapeString(r.FormValue("name"))
+	obj.TripCode = EscapeString(r.FormValue("tripcode"))
 	obj.Name = EscapeString(r.FormValue("subject"))
 	obj.Content = EscapeString(r.FormValue("comment"))
 

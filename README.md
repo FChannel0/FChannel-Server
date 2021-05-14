@@ -36,9 +36,7 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
 
 - Create the database, user name, and password for psql that is used in config file.
 
-- Run `psql -U (user) -d (database) -f databaseschema.psql`
-
-- Finally start the server with `go run`.
+- Start the server with `go run`.
 
 ## Server Configuration
 

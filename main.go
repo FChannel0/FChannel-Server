@@ -341,8 +341,11 @@ func main() {
 				err := we.WriteField(key, r.FormValue("captchaCode") + ":" + r.FormValue("captcha"))
 				CheckError(err, "error with writing captcha field")
 			}else if(key == "name") {
-				err := we.WriteField(key, CreateNameTripCode(r))
+				name, tripcode := CreateNameTripCode(r, db)
+				err := we.WriteField(key, name)
 				CheckError(err, "error with writing name field")
+				err = we.WriteField("tripcode", tripcode)
+				CheckError(err, "error with writing tripcode field")				
 			}else{
 				err := we.WriteField(key, r0[0])
 				CheckError(err, "error with writing field")
@@ -942,18 +945,18 @@ func CreateTripCode(input string) string {
 	return code[0]
 }
 
-func CreateNameTripCode(r *http.Request) string {
+func CreateNameTripCode(r *http.Request, db *sql.DB) (string, string) {
 	input := r.FormValue("name")
 	re := regexp.MustCompile("#.+")
 	chunck := re.FindString(input)
 	ce := regexp.MustCompile(`(?i)#Admin`)
 	admin := ce.MatchString(chunck)
-	_, modcred := GetPasswordFromSession(r)
-	if(admin && modcred != "" ) {
-		return re.ReplaceAllString(input, "#Admin")
+	board, modcred := GetPasswordFromSession(r)	
+	if(admin && HasAuth(db, modcred, board)) {
+		return re.ReplaceAllString(input, ""), "#Admin"
 	} else {
 		hash := CreateTripCode(chunck)
-		return re.ReplaceAllString(input, "!" + hash[42:50])
+		return re.ReplaceAllString(input, ""), "!" + hash[42:50]
 	}
 }
 

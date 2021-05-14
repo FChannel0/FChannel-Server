@@ -303,11 +303,11 @@ func WriteActivitytoDB(db *sql.DB, obj ObjectBase) {
 
 	obj.Name = EscapeString(obj.Name)
 	obj.Content = EscapeString(obj.Content)
-	obj.AttributedTo = EscapeString(obj.AttributedTo)		
+	obj.AttributedTo = EscapeString(obj.AttributedTo)
 
-	query := `insert into activitystream (id, type, name, content, published, updated, attributedto, actor) values ($1, $2, $3, $4, $5, $6, $7, $8)`
+	query := `insert into activitystream (id, type, name, content, published, updated, attributedto, actor, tripcode) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor.Id)	
+	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor.Id, obj.TripCode)	
 	
 	if e != nil{
 		fmt.Println("error inserting new activity")
@@ -321,9 +321,9 @@ func WriteActivitytoDBWithAttachment(db *sql.DB, obj ObjectBase, attachment Obje
 	obj.Content = EscapeString(obj.Content)
 	obj.AttributedTo = EscapeString(obj.AttributedTo)
 
-	query := `insert into activitystream (id, type, name, content, attachment, preview, published, updated, attributedto, actor) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+	query := `insert into activitystream (id, type, name, content, attachment, preview, published, updated, attributedto, actor, tripcode) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
 
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, attachment.Id, preview.Id, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor.Id)	
+	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, attachment.Id, preview.Id, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor.Id, obj.TripCode)	
 	
 	if e != nil{
 		fmt.Println("error inserting new activity with attachment")
@@ -360,7 +360,7 @@ func GetActivityFromDB(db *sql.DB, id string) Collection {
 
 	nColl.Actor = &nActor
 
-	query := `select  actor, id, name, content, type, published, updated, attributedto, attachment, preview, actor from  activitystream where id=$1 order by updated asc`
+	query := `select  actor, id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode from  activitystream where id=$1 order by updated asc`
 
 	rows, err := db.Query(query, id)	
 
@@ -373,7 +373,7 @@ func GetActivityFromDB(db *sql.DB, id string) Collection {
 		var attachID string	
 		var previewID	string
 		
-		err = rows.Scan(&nColl.Actor.Id, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id)
+		err = rows.Scan(&nColl.Actor.Id, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode)
 		
 		CheckError(err, "error scan object into post struct")
 
@@ -402,7 +402,7 @@ func GetObjectFromDBPage(db *sql.DB, id string, page int) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
-	query := `select count (x.id) over(), x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc limit 8 offset $2`
+	query := `select count (x.id) over(), x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc limit 8 offset $2`
 
 	rows, err := db.Query(query, id, page * 8)	
 
@@ -416,7 +416,7 @@ func GetObjectFromDBPage(db *sql.DB, id string, page int) Collection {
 		var attachID string
 		var previewID string		
 		
-		err = rows.Scan(&count, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id)
+		err = rows.Scan(&count, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode)
 		
 		CheckError(err, "error scan object into post struct")
 
@@ -446,7 +446,7 @@ func GetObjectFromDB(db *sql.DB, id string) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
-	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' order by updated asc`
+	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' order by updated asc`
 
 	rows, err := db.Query(query, id)	
 
@@ -459,7 +459,7 @@ func GetObjectFromDB(db *sql.DB, id string) Collection {
 		var attachID string
 		var previewID string		
 		
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id)
+		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode)
 		
 		CheckError(err, "error scan object into post struct")
 
@@ -488,7 +488,7 @@ func GetObjectFromDBCatalog(db *sql.DB, id string) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
-	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc`	
+	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc`	
 
 	rows, err := db.Query(query, id)	
 
@@ -501,7 +501,7 @@ func GetObjectFromDBCatalog(db *sql.DB, id string) Collection {
 		var attachID string
 		var previewID string		
 		
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id)
+		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode)
 		
 		CheckError(err, "error scan object into post struct")
 
@@ -529,7 +529,7 @@ func GetObjectByIDFromDB(db *sql.DB, postID string) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
-	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor from activitystream where id=$1 and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor from cacheactivitystream where id=$1 and type='Note') as x`
+	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode from activitystream where id=$1 and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode from cacheactivitystream where id=$1 and type='Note') as x`
 
 	rows, err := db.Query(query, postID)	
 
@@ -542,7 +542,7 @@ func GetObjectByIDFromDB(db *sql.DB, postID string) Collection {
 		var attachID string
 		var previewID string		
 		
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id)
+		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode)
 		
 		CheckError(err, "error scan object into post struct")
 
@@ -597,7 +597,7 @@ func GetObjectRepliesDBLimit(db *sql.DB, parent ObjectBase, limit int) (*Collect
 	var nColl CollectionBase
 	var result []ObjectBase
 
-	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over(), x.id, x.name, x.content, x.type, x.published, x.attributedto, x.attachment, x.preview, x.actor from (select * from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' union select * from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note') as x order by x.published desc limit $2`
+	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over(), x.id, x.name, x.content, x.type, x.published, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode from (select * from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' union select * from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note') as x order by x.published desc limit $2`
 
 	rows, err := db.Query(query, parent.Id, limit)	
 
@@ -615,7 +615,7 @@ func GetObjectRepliesDBLimit(db *sql.DB, parent ObjectBase, limit int) (*Collect
 
 		post.InReplyTo = append(post.InReplyTo, parent)
 		
-		err = rows.Scan(&postCount, &attachCount, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id)
+		err = rows.Scan(&postCount, &attachCount, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode)
 
 		CheckError(err, "error with replies db scan")
 
@@ -647,7 +647,7 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, in
 	var nColl CollectionBase
 	var result []ObjectBase
 
-	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over(), x.id, x.name, x.content, x.type, x.published, x.attributedto, x.attachment, x.preview, x.actor from (select * from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' union select * from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note') as x order by x.published asc`	
+	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over(), x.id, x.name, x.content, x.type, x.published, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode from (select * from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' union select * from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note') as x order by x.published asc`	
 
 	rows, err := db.Query(query, parent.Id)	
 
@@ -665,7 +665,7 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, in
 
 		post.InReplyTo = append(post.InReplyTo, parent)
 		
-		err = rows.Scan(&postCount, &attachCount, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id)
+		err = rows.Scan(&postCount, &attachCount, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode)
 
 		CheckError(err, "error with replies db scan")
 
@@ -695,7 +695,7 @@ func GetObjectRepliesReplies(db *sql.DB, parent ObjectBase) (*CollectionBase, in
 	var nColl CollectionBase
 	var result []ObjectBase
 
-	query := `select id, name, content, type, published, attributedto, attachment, preview, actor from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' order by updated asc`
+	query := `select id, name, content, type, published, attributedto, attachment, preview, actor, tripcode from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' order by updated asc`
 
 	rows, err := db.Query(query, parent.Id)	
 
@@ -710,7 +710,7 @@ func GetObjectRepliesReplies(db *sql.DB, parent ObjectBase) (*CollectionBase, in
 
 		post.InReplyTo = append(post.InReplyTo, parent)
 
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id)
+		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode)
 
 		CheckError(err, "error with replies replies db scan")
 
@@ -733,7 +733,7 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 	var nColl CollectionBase
 	var result []ObjectBase
 
-	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over(), x.id, x.name, x.content, x.type, x.published, x.attributedto, x.attachment, x.preview, x.actor from (select * from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' union select * from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note') as x order by x.published asc`	
+	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over(), x.id, x.name, x.content, x.type, x.published, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode from (select * from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' union select * from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note') as x order by x.published asc`	
 
 	rows, err := db.Query(query, parent.Id)	
 
@@ -750,7 +750,7 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 
 		post.InReplyTo = append(post.InReplyTo, parent)
 
-		err = rows.Scan(&postCount, &attachCount, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id)
+		err = rows.Scan(&postCount, &attachCount, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode)
 
 		CheckError(err, "error with replies replies db scan")
 
@@ -1011,7 +1011,7 @@ func DeleteObjectRepliedTo(db *sql.DB, id string){
 
 func DeleteObjectFromDB(db *sql.DB, id string) {
 	datetime := time.Now().Format(time.RFC3339)
-	var query = `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', updated=$1, deleted=$2 where id=$3`
+	var query = `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', updated=$1, deleted=$2 where id=$3`
 
 	_, err := db.Exec(query, datetime, datetime, id)	
 
@@ -1029,7 +1029,7 @@ func DeleteObjectsInReplyTo(db *sql.DB, id string) {
 func DeleteObjectRepliesFromDB(db *sql.DB, id string) {
 	datetime := time.Now().Format(time.RFC3339)
 
-	var query = `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', updated=$1, deleted=$2 where id in (select id from replies where inreplyto=$3)`
+	var query = `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', updated=$1, deleted=$2 where id in (select id from replies where inreplyto=$3)`
 
 	_, err := db.Exec(query, datetime, datetime, id)	
 	CheckError(err, "error with delete object replies")
