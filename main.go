@@ -954,10 +954,11 @@ func CreateNameTripCode(r *http.Request, db *sql.DB) (string, string) {
 	board, modcred := GetPasswordFromSession(r)	
 	if(admin && HasAuth(db, modcred, board)) {
 		return re.ReplaceAllString(input, ""), "#Admin"
-	} else {
+	} else if(chunck != "") {
 		hash := CreateTripCode(chunck)
 		return re.ReplaceAllString(input, ""), "!" + hash[42:50]
 	}
+	return input, ""
 }
 
 func GetActorFromPath(db *sql.DB, location string, prefix string) Actor {
