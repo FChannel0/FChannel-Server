@@ -472,9 +472,14 @@ func main() {
 
 			FollowingBoards = GetActorFollowingDB(db, Domain)
 
-			Boards = GetBoardCollection(db)			
+			Boards = GetBoardCollection(db)
 
-			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			var redirect string
+			if(actor.Name != "main") {
+				redirect = "/" + actor.Name
+			}
+
+			http.Redirect(w, r, "/" + *Key + "/" + redirect, http.StatusSeeOther)
 			
 		} else if manage && actor.Name != "" {
 			t := template.Must(template.ParseFiles("./static/main.html", "./static/manage.html"))
@@ -646,7 +651,7 @@ func main() {
 			Boards = GetBoardCollection(db)
 		}		
 
-    http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)				
+    http.Redirect(w, r, "/" + *Key, http.StatusSeeOther)				
 	})
 
 	http.HandleFunc("/verify", func(w http.ResponseWriter, r *http.Request){
@@ -707,8 +712,9 @@ func main() {
 
 	http.HandleFunc("/delete", func(w http.ResponseWriter, r *http.Request){
 		id := r.URL.Query().Get("id")
-		board := r.URL.Query().Get("board")		
-		actor := GetActorFromPath(db, id, "/")
+		board := r.URL.Query().Get("board")
+		col := GetCollectionFromID(id)		
+		actor := col.OrderedItems[0].Actor
 		_, auth := GetPasswordFromSession(r)
 
 		if id == "" || auth == "" {
@@ -723,29 +729,51 @@ func main() {
 			return
 		}
 
+		var OP string
+		if len(col.OrderedItems[0].InReplyTo) > 0 {
+			OP = col.OrderedItems[0].InReplyTo[0].Id
+		}
+
 		if !IsIDLocal(db, id) {
 			CreateLocalDeleteDB(db, id, "post")
-			CloseLocalReportDB(db, id, board)
-			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			CloseLocalReportDB(db, id, actor.Id)
+			
+			if(board != "") {
+				http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)
+			} else if(OP != ""){
+				http.Redirect(w, r, OP, http.StatusSeeOther)
+			} else {
+				http.Redirect(w, r, actor.Id, http.StatusSeeOther)
+			}
+			
 			return
 		}
 
 
 		var obj ObjectBase
 		obj.Id = id
-		obj.Actor = &actor
+		obj.Actor = actor
 		
 		isOP := CheckIfObjectOP(db, obj.Id)
 
 		if !isOP {
 			DeleteObjectRequest(db, id)	
 			DeleteObject(db, obj.Id)
-			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			if(board != ""){
+				http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)				
+			}else{
+				http.Redirect(w, r, OP, http.StatusSeeOther)
+			}
 			return
+			
 		} else {
 			DeleteObjectAndRepliesRequest(db, id)					
 			DeleteObjectAndReplies(db, obj.Id)
-			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			if(board != ""){
+				http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)								
+			}else{
+				http.Redirect(w, r, actor.Id, http.StatusSeeOther)				
+			}
 			return
 		}
 		
@@ -756,7 +784,16 @@ func main() {
 	http.HandleFunc("/deleteattach", func(w http.ResponseWriter, r *http.Request){
 		
 		id := r.URL.Query().Get("id")
+		col := GetCollectionFromID(id)		
+		actor := col.OrderedItems[0].Actor
 
+		var OP string
+		if (len(col.OrderedItems[0].InReplyTo) > 0 && col.OrderedItems[0].InReplyTo[0].Id != "") {
+			OP = col.OrderedItems[0].InReplyTo[0].Id
+		} else {
+			OP = id
+		}
+		
 		_, auth := GetPasswordFromSession(r)
 
 		if id == "" || auth == "" {
@@ -764,8 +801,6 @@ func main() {
 			w.Write([]byte(""))
 			return
 		}
-
-		actor := GetActorFromPath(db, id, "/")
 
 		if !HasAuth(db, auth, actor.Id) {
 			w.WriteHeader(http.StatusBadRequest)
@@ -775,13 +810,13 @@ func main() {
 
 		if !IsIDLocal(db, id) {
 			CreateLocalDeleteDB(db, id, "attachment")
-			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)									
+			http.Redirect(w, r, OP, http.StatusSeeOther)									
 			return
 		}
 
 		DeleteAttachmentFromFile(db, id)
 		DeletePreviewFromFile(db, id)
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)									
+		http.Redirect(w, r, OP, http.StatusSeeOther)									
 	})
 
 	http.HandleFunc("/report", func(w http.ResponseWriter, r *http.Request){
@@ -818,13 +853,13 @@ func main() {
 
 			if !IsIDLocal(db, id) {
 				CloseLocalReportDB(db, id, board)				
-				http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+				http.Redirect(w, r, "/" + *Key + "/" + board, http.StatusSeeOther)
 				return 
 			}
 
 			reported := DeleteReportActivity(db, id)
 			if reported {
-				http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)							
+				http.Redirect(w, r, "/" + *Key + "/" + board, http.StatusSeeOther)							
 				return
 			}
 
@@ -835,13 +870,13 @@ func main() {
 
 		if !IsIDLocal(db, id) {
 			CreateLocalReportDB(db, id, board, reason)
-			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			http.Redirect(w, r, "/" + board + "/" + remoteShort(id), http.StatusSeeOther)
 			return			
 		}
 		
 		reported := ReportActivity(db, id, reason)
 		if reported {
-			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)			
+			http.Redirect(w, r, id, http.StatusSeeOther)			
 			return
 		}
 

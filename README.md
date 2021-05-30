@@ -74,35 +74,17 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
   
   `emailpass:password`
 
+#### local testing
+     When testing on a local env when setting the `instance` value in the config file you have to append the port number to the local address eg. `instance:localhost:3000` with `instanceport` also being set to the same port.
+
+     If you want to test federation between servers locally you have to use your local ip as the `instance` eg. `instance:192.168.0.2:3000` and `instance:192:168:0:3:3000` adding the port to localhost will not route correctly.
+
 ### Managing the server
 
   To access the managment page to create new boards or subscribe to other boards, when you start the server the console will output the `Mod key` and `Admin Login`
   Use the `Mod key` by appending it to your servers url, `https://fchan.xyz/[Mod key]` once there you will be prompted for the `Admin Login` credentials.
-  You can manage each board by appending the `Mod key` to the desired board url: `https://fchan.xyz/g/[Mod Key]`
+  You can manage each board by appending the `Mod key` to the desired board url: `https://fchan.xyz/[Mod Key]/g`
   The `Mod key` is not static and is reset on server restart.
-
-### Creating a new board
-
-  `CreateNewBoardDB(db *sql.DB, actor Actor)`
-  
-  returns Actor.
-  
-### Creating a new actor
-
- `CreateNewActor(board string, prefName string, summary string, authReq []string, restricted bool)`
- 
- returns Actor
- 
- - `board` is the abbreviated name such as `g`
- 
- - `prefName` is the fully readable name such as `Technology`
- 
- - `summary` is a summary of the board
- 
- - `authReq` is an array string of required privileges to post on the board, default is: `[]string{"captcha","email","passphrase"}`
- 
- - `restricted` is bool. `true` is blue board, `false` is red board
- 
 
 ## Server Update
 
