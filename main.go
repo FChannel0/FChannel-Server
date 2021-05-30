@@ -905,6 +905,48 @@ func main() {
 		w.Write([]byte(""))		
 	})
 
+	http.HandleFunc("/.well-known/webfinger", func(w http.ResponseWriter, r *http.Request) {
+		acct := r.URL.Query()["resource"]
+
+		if(len(acct) < 1) {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("resource needs a value"))		
+			return
+		}
+
+		acct[0] = strings.Replace(acct[0], "acct:", "", -1)
+
+		actorDomain := strings.Split(acct[0], "@")
+
+		if(len(actorDomain) < 2) {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("accpets only subject form of acct:board@instance"))		
+			return
+		}
+
+		if !IsActorLocal(db, TP + "" + actorDomain[1] + "/" + actorDomain[0]) {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("actor not local"))		
+			return
+		}
+
+		var finger Webfinger
+		var link WebfingerLink
+		
+		finger.Subject = "acct:" + actorDomain[0] + "@" + actorDomain[1]
+		link.Rel = "self"
+		link.Type = "application/activity+json"
+		link.Href = TP + "" + actorDomain[1] + "/" + actorDomain[0]
+
+		finger.Links = append(finger.Links, link)
+
+		enc, _ := json.Marshal(finger)
+
+		w.Header().Set("Content-Type", activitystreams)
+		w.Write(enc)
+		
+	})
+
 	fmt.Println("Server for " + Domain + " running on port " + Port)
 
 	fmt.Println("Mod key: " + *Key)
