@@ -33,7 +33,6 @@ var SiteEmailPassword = GetConfigValue("emailpass")
 var SiteEmailServer = GetConfigValue("emailserver")   //mail.fchan.xyz
 var SiteEmailPort = GetConfigValue("emailport")       //587
 
-var ldjson = "application/ld+json"		
 var activitystreams = "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
 
 func main() {
@@ -135,7 +134,7 @@ func main() {
 		}
 
 		if mainActor {
-			if accept == activitystreams || accept == ldjson {
+			if acceptActivity(accept) {
 				GetActorInfo(w, db, Domain)
 				return
 			}
@@ -178,7 +177,7 @@ func main() {
 		}
 
 		if actorMain || actorMainPage {
-			if accept == activitystreams || accept == ldjson {
+			if acceptActivity(accept) {
 				GetActorInfo(w, db, actor.Id)
 				return 
 			}
@@ -266,7 +265,7 @@ func main() {
 
 		//catch all
 		if actorPost {
-			if accept == activitystreams || accept == ldjson {			
+			if acceptActivity(accept) {			
 				GetActorPost(w, db, path)
 				return 
 			}
