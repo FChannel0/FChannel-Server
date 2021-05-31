@@ -120,6 +120,8 @@ func CreateNewBoardDB(db *sql.DB, actor Actor) Actor{
 			SetActorFollowingDB(db, response)
 			MakeActivityRequest(db, nActivity)
 		}
+
+		CreatePem(db, actor)
 	}
 
 	return actor

@@ -38,9 +38,7 @@ var activitystreams = "application/ld+json; profile=\"https://www.w3.org/ns/acti
 
 func main() {
 
-	if _, err := os.Stat("./public"); os.IsNotExist(err) {
-    os.Mkdir("./public", 0755)
-	}
+	CreatedNeededDirectories()
 
 	InitCache()
 
@@ -49,6 +47,11 @@ func main() {
 	defer db.Close()
 
 	RunDatabaseSchema(db)
+
+	CreatePem(db, GetActorByNameFromDB(db, "main"))
+
+	f, _ := os.ReadFile("./pem/board/main-public.pem")
+	fmt.Println(strings.ReplaceAll(string(f), "\n", `\n`))	
 	
 	go MakeCaptchas(db, 100)
 
@@ -2105,4 +2108,14 @@ func RunDatabaseSchema(db *sql.DB) {
 	if _, err := db.Exec(string(query)); err != nil {
 		CheckError(err, "could not exec databaseschema.psql")		
 	}
+}
+
+func CreatedNeededDirectories() {
+	if _, err := os.Stat("./public"); os.IsNotExist(err) {
+    os.Mkdir("./public", 0755)
+	}
+
+	if _, err := os.Stat("./pem/board"); os.IsNotExist(err) {
+    os.MkdirAll("./pem/board", 0700)
+	}	
 }

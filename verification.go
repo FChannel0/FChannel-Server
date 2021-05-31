@@ -8,6 +8,10 @@ import "time"
 import "os/exec"
 import "os"
 import "math/rand"
+import "crypto/rsa"
+import "crypto/x509"
+import "encoding/pem"
+import crand "crypto/rand"
 
 type Verify struct {
 	Type string
@@ -471,4 +475,68 @@ func Captcha() string {
 	return newID
 }	
 
+func CreatePem(db *sql.DB, actor Actor) {
+	privatekey, err := rsa.GenerateKey(crand.Reader, 2048)
+	CheckError(err, "error creating private pem key")
 
+	privateKeyBytes := x509.MarshalPKCS1PrivateKey(privatekey)
+	
+	privateKeyBlock := &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: privateKeyBytes,
+	}
+	
+	privatePem, err := os.Create("./pem/board/" + actor.Name + "-private.pem")
+	CheckError(err, "error creating private pem file for " + actor.Name) 
+	
+	err = pem.Encode(privatePem, privateKeyBlock)
+	CheckError(err, "error encoding private pem")
+
+	publickey := &privatekey.PublicKey
+	publicKeyBytes, err := x509.MarshalPKIXPublicKey(publickey)
+	CheckError(err, "error Marshaling public key to X509")	
+	
+	publicKeyBlock := &pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: publicKeyBytes,
+	}
+	
+	publicPem, err := os.Create("./pem/board/" + actor.Name + "-public.pem")
+	CheckError(err, "error creating public pem file for " + actor.Name)
+	
+	err = pem.Encode(publicPem, publicKeyBlock)
+	CheckError(err, "error encoding public pem")
+
+	_, err = os.Stat("./pem/board/" + actor.Name + "-public.pem")
+	if os.IsNotExist(err) {
+		CheckError(err, "public pem file for actor does not exist")
+	} else {
+		StorePemToDB(db, actor)
+	}
+}
+
+func StorePemToDB(db *sql.DB, actor Actor) {
+	query := "select publicKeyPem from actor where id=$1"
+	rows, err := db.Query(query, actor.Id)
+	
+	CheckError(err, "error selecting publicKeyPem id from actor")	
+
+	var result string
+	defer rows.Close()
+	rows.Next()
+	rows.Scan(&result)
+
+	if(result != "") {
+		return
+	}
+
+	publicKeyPem := actor.Id + "#main-key"
+	query = "update actor set publicKeyPem=$1 where id=$2"
+	_, err = db.Exec(query, publicKeyPem, actor.Id)
+	CheckError(err, "error updating publicKeyPem id to actor")
+
+	file := "./pem/board/" + actor.Name + "-public.pem"
+	query = "insert into publicKeyPem (id, file) values($1, $2)"
+	_, err = db.Exec(query, publicKeyPem, file)
+	CheckError(err, "error creating publicKeyPem for actor ")
+}
