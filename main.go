@@ -2208,8 +2208,8 @@ func GetActorInstance(path string) (string, string) {
 
 	if(atFormat) {
 		match := re.FindStringSubmatch(path)
-		if(len(match) > 1) {
-			return match[1], match[2]
+		if(len(match) > 2) {
+			return match[2], match[3]
 		}
 	}	
 
