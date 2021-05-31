@@ -536,7 +536,7 @@ func StorePemToDB(db *sql.DB, actor Actor) {
 	CheckError(err, "error updating publicKeyPem id to actor")
 
 	file := "./pem/board/" + actor.Name + "-public.pem"
-	query = "insert into publicKeyPem (id, file) values($1, $2)"
-	_, err = db.Exec(query, publicKeyPem, file)
+	query = "insert into publicKeyPem (id, owner, file) values($1, $2, $3)"
+	_, err = db.Exec(query, publicKeyPem, actor.Id, file)
 	CheckError(err, "error creating publicKeyPem for actor ")
 }

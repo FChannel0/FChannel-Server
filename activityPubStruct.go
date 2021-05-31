@@ -74,9 +74,16 @@ type Actor struct {
 	Followers string `json:"followers,omitempty"`
 	Name string `json:"name,omitempty"`
 	PreferredUsername string `json:"preferredUsername,omitempty"`
+	PublicKey PublicKeyPem `json:"publicKey,omitempty"`
 	Summary string `json:"summary,omitempty"`
 	AuthRequirement []string `json:"authrequirement,omitempty"`
 	Restricted bool `json:"restricted"`	
+}
+
+type PublicKeyPem struct {
+	Id string `json:"id,omitempty"`
+	Owner string `json:"owner,omitempty"`
+	PublicKeyPem string `json:"publicKeyPem,omitempty"`	
 }
 
 type Activity struct {

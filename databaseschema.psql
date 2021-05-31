@@ -212,6 +212,7 @@ ALTER TABLE cacheactivitystream ADD COLUMN IF NOT EXISTS tripcode varchar(50) de
 
 CREATE TABLE IF NOT EXISTS publicKeyPem(
 id varchar(100) UNIQUE,
+owner varchar(100),
 file varchar(100)
 );
 

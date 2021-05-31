@@ -12,7 +12,7 @@ import "sort"
 func GetActorFromDB(db *sql.DB, id string) Actor {
 	var nActor Actor
 
-	query :=`select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary from actor where id=$1`
+	query :=`select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary, publickeypem from actor where id=$1`
 
 	rows, err := db.Query(query, id)
 
@@ -20,11 +20,14 @@ func GetActorFromDB(db *sql.DB, id string) Actor {
 		return nActor
 	}
 
-	defer rows.Close()	
+	var publicKeyPem string
+	defer rows.Close()
 	for rows.Next() {
-		err = rows.Scan(&nActor.Type, &nActor.Id, &nActor.Name, &nActor.PreferredUsername, &nActor.Inbox, &nActor.Outbox, &nActor.Following, &nActor.Followers, &nActor.Restricted, &nActor.Summary)
+		err = rows.Scan(&nActor.Type, &nActor.Id, &nActor.Name, &nActor.PreferredUsername, &nActor.Inbox, &nActor.Outbox, &nActor.Following, &nActor.Followers, &nActor.Restricted, &nActor.Summary, &publicKeyPem)
 		CheckError(err, "error with actor from db scan ")
 	}
+
+	nActor.PublicKey = GetActorPemFromDB(db, publicKeyPem)
 
 	return nActor	
 }
@@ -32,7 +35,7 @@ func GetActorFromDB(db *sql.DB, id string) Actor {
 func GetActorByNameFromDB(db *sql.DB, name string) Actor {
 	var nActor Actor
 
-	query :=`select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary from actor where name=$1`
+	query :=`select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary, publickeypem from actor where name=$1`
 
 	rows, err := db.Query(query, name)
 
@@ -40,11 +43,14 @@ func GetActorByNameFromDB(db *sql.DB, name string) Actor {
 		return nActor
 	}
 
+	var publicKeyPem string	
 	defer rows.Close()	
 	for rows.Next() {
-		err = rows.Scan(&nActor.Type, &nActor.Id, &nActor.Name, &nActor.PreferredUsername, &nActor.Inbox, &nActor.Outbox, &nActor.Following, &nActor.Followers, &nActor.Restricted, &nActor.Summary)
+		err = rows.Scan(&nActor.Type, &nActor.Id, &nActor.Name, &nActor.PreferredUsername, &nActor.Inbox, &nActor.Outbox, &nActor.Following, &nActor.Followers, &nActor.Restricted, &nActor.Summary, &publicKeyPem)
 		CheckError(err, "error with actor from db scan ")
 	}
+
+	nActor.PublicKey = GetActorPemFromDB(db, publicKeyPem)	
 
 	return nActor	
 }
@@ -1207,4 +1213,22 @@ func GetActorReportedDB(db *sql.DB, id string) []ObjectBase {
 	}
 
 	return nObj
+}
+
+func GetActorPemFromDB(db *sql.DB, pemID string) PublicKeyPem {
+	query := `select id, owner, file from publickeypem where id=$1`
+	rows, err := db.Query(query, pemID)
+
+	CheckError(err, "could not get public key pem from database")
+
+	var pem PublicKeyPem
+	
+	defer rows.Close()
+	rows.Next()
+	rows.Scan(&pem.Id, &pem.Owner, &pem.PublicKeyPem)
+	f, _ := os.ReadFile(pem.PublicKeyPem)
+
+	pem.PublicKeyPem = strings.ReplaceAll(string(f), "\r\n", `\n`)
+	
+	return pem
 }

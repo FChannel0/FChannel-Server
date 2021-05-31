@@ -48,11 +48,6 @@ func main() {
 
 	RunDatabaseSchema(db)
 
-	CreatePem(db, GetActorByNameFromDB(db, "main"))
-
-	f, _ := os.ReadFile("./pem/board/main-public.pem")
-	fmt.Println(strings.ReplaceAll(string(f), "\n", `\n`))	
-	
 	go MakeCaptchas(db, 100)
 
 	*Key = CreateClientKey()
