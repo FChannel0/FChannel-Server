@@ -187,6 +187,7 @@ func main() {
 
 			page, _ := strconv.Atoi(postNum)			
 			collection, valid := WantToServePage(db, actor.Name, page)
+
 			if valid {
 				OutboxGet(w, r, db, collection)
 			}			
@@ -710,6 +711,7 @@ func main() {
 
 	http.HandleFunc("/delete", func(w http.ResponseWriter, r *http.Request){
 		id := r.URL.Query().Get("id")
+		manage := r.URL.Query().Get("manage")
 		board := r.URL.Query().Get("board")
 		col := GetCollectionFromID(id)		
 		actor := col.OrderedItems[0].Actor
@@ -727,37 +729,43 @@ func main() {
 			return
 		}
 
+		var obj ObjectBase
+		obj.Id = id
+		obj.Actor = actor
+		
+		isOP := CheckIfObjectOP(db, obj.Id)		
+
 		var OP string
 		if len(col.OrderedItems[0].InReplyTo) > 0 {
 			OP = col.OrderedItems[0].InReplyTo[0].Id
 		}
 
 		if !IsIDLocal(db, id) {
-			CreateLocalDeleteDB(db, id, "post")
-			CloseLocalReportDB(db, id, actor.Id)
-			
-			if(board != "") {
-				http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)
-			} else if(OP != ""){
-				http.Redirect(w, r, OP, http.StatusSeeOther)
+			if(!isOP) {
+				CloseLocalReportDB(db, id, board)			
+				CreateLocalDeleteDB(db, id, "post")
 			} else {
-				http.Redirect(w, r, actor.Id, http.StatusSeeOther)
+
+			}
+			if(manage == "t") {
+				http.Redirect(w, r, "/" + *Key + "/" + board, http.StatusSeeOther)
+			} else if(OP != ""){
+				http.Redirect(w, r, "/" + board + "/" + remoteShort(OP), http.StatusSeeOther)
+			} else {
+				http.Redirect(w, r, "/" + board, http.StatusSeeOther)
 			}
 			
 			return
 		}
 
 
-		var obj ObjectBase
-		obj.Id = id
-		obj.Actor = actor
-		
-		isOP := CheckIfObjectOP(db, obj.Id)
+
 
 		if !isOP {
+			DeleteReportActivity(db, id)						
 			DeleteObjectRequest(db, id)	
 			DeleteObject(db, obj.Id)
-			if(board != ""){
+			if(manage == "t"){
 				http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)				
 			}else{
 				http.Redirect(w, r, OP, http.StatusSeeOther)
@@ -765,12 +773,13 @@ func main() {
 			return
 			
 		} else {
+			DeleteReportActivity(db, id)			
 			DeleteObjectAndRepliesRequest(db, id)					
 			DeleteObjectAndReplies(db, obj.Id)
-			if(board != ""){
+			if(manage == "t"){
 				http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)								
 			}else{
-				http.Redirect(w, r, actor.Id, http.StatusSeeOther)				
+				http.Redirect(w, r, "/" + board, http.StatusSeeOther)				
 			}
 			return
 		}
@@ -782,6 +791,8 @@ func main() {
 	http.HandleFunc("/deleteattach", func(w http.ResponseWriter, r *http.Request){
 		
 		id := r.URL.Query().Get("id")
+		manage := r.URL.Query().Get("manage")		
+		board := r.URL.Query().Get("board")		
 		col := GetCollectionFromID(id)		
 		actor := col.OrderedItems[0].Actor
 
@@ -804,17 +815,28 @@ func main() {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(""))
 			return
-		}		
+		}
+
+
 
 		if !IsIDLocal(db, id) {
 			CreateLocalDeleteDB(db, id, "attachment")
-			http.Redirect(w, r, OP, http.StatusSeeOther)									
+			if(manage == "t") {
+				http.Redirect(w, r, "/" + *Key + "/" + board, http.StatusSeeOther)
+			} else {
+				http.Redirect(w, r, "/" + board + "/" + remoteShort(OP), http.StatusSeeOther)
+			}
 			return
 		}
 
 		DeleteAttachmentFromFile(db, id)
 		DeletePreviewFromFile(db, id)
-		http.Redirect(w, r, OP, http.StatusSeeOther)									
+
+		if(manage == "t") {
+			http.Redirect(w, r, "/" + *Key + "/" + board, http.StatusSeeOther)
+		} else {		
+			http.Redirect(w, r, OP, http.StatusSeeOther)
+		}
 	})
 
 	http.HandleFunc("/report", func(w http.ResponseWriter, r *http.Request){

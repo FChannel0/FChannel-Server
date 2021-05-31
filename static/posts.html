@@ -9,11 +9,11 @@
 <div style="overflow: auto;">
   <div id="{{ .Id }}" style="overflow: visible; margin-bottom: 12px;">
     {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}
-    <a href="/delete?id={{ .Id }}">[Delete Post]</a>
+    <a href="/delete?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Post]</a>
     {{ end }}        
     {{ if .Attachment }}
     {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}    
-    <a href="/deleteattach?id={{ .Id }}">[Delete Attachment]</a>
+    <a href="/deleteattach?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Attachment]</a>
     {{ end }}                
     <span style="display: block;">File: <a id="{{ .Id }}-img" href="{{ (index .Attachment 0).Href}}">{{ (index .Attachment 0).Name  }}</a><span id="{{ .Id }}-size">({{ (index .Attachment 0).Size  }})</span></span>
     <div id="media-{{ .Id }}"></div>
@@ -75,11 +75,11 @@
         <div style="float: left; display: block; margin-right: 5px;">>></div>
         <div class="post" style="overflow: auto; padding: 5px; margin-bottom: 2px;">
           {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}          
-          <a href="/delete?id={{ .Id }}">[Delete Post]</a>
+          <a href="/delete?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Post]</a>
           {{ end }}              
           {{ if .Attachment }}
           {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}                    
-          <a href="/deleteattach?id={{ .Id }}">[Delete Attachment]</a>
+          <a href="/deleteattach?id={{ .Id }}&board={{ $board.Actor.Id }}">[Delete Attachment]</a>
           {{ end }}
           <span style="display: block;">File <a id="{{ .Id }}-img" href="{{ (index .Attachment 0).Href}}">{{ (index .Attachment 0).Name  }}</a> <span id="{{ .Id }}-size">({{ (index .Attachment 0).Size  }})</span></span>
           <div id="media-{{ .Id }}"></div>
