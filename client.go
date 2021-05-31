@@ -215,15 +215,17 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 		name := GetActorFollowNameFromPath(path)
 		followActors := GetActorsFollowFromName(actor, name)
 		followCollection := GetActorsFollowPostFromId(db, followActors, postId)
-		
-		returnData.Board.Post.Actor = followCollection.Actor
-		
+
 		DeleteRemovedPosts(db, &followCollection)
 		DeleteTombstoneReplies(&followCollection)
 
-		if len(followCollection.OrderedItems) > 0 {		
+		if len(followCollection.OrderedItems) > 0 {
 			returnData.Board.InReplyTo = followCollection.OrderedItems[0].Id
 			returnData.Posts = append(returnData.Posts, followCollection.OrderedItems[0])
+
+			var actor Actor
+			actor = FingerActor(returnData.Board.InReplyTo)
+			returnData.Board.Post.Actor = &actor
 		}
 	} else {
 		collection := GetObjectByIDFromDB(db, inReplyTo)

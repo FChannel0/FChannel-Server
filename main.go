@@ -2136,3 +2136,93 @@ func CreatedNeededDirectories() {
     os.MkdirAll("./pem/board", 0700)
 	}	
 }
+
+//looks for actor with pattern of board@instance
+func FingerActor(path string) Actor{
+
+	actor, instance := GetActorInstance(path)
+
+	r := FingerRequest(actor, instance)
+
+	var nActor Actor
+
+	if r.StatusCode == 200 {
+		defer r.Body.Close()
+		
+		body, _ := ioutil.ReadAll(r.Body)
+
+		err := json.Unmarshal(body, &nActor)
+
+		CheckError(err, "error getting fingerrequet resp from json body")
+	}	
+
+	return nActor
+}
+
+func FingerRequest(actor string, instance string) (*http.Response){
+	acct := "acct:" + actor + "@" + instance
+	req, err := http.NewRequest("GET", "http://" + instance + "/.well-known/webfinger?resource=" + acct, nil)
+
+	CheckError(err, "could not get finger request from id req")
+
+	req.Header.Set("Accept", activitystreams)				
+	
+	resp, err := http.DefaultClient.Do(req)
+
+	var finger Webfinger
+
+	if err != nil {
+		CheckError(err, "could not get actor from finger resp with id " + acct)
+	}
+
+	if resp.StatusCode == 200 {
+		defer resp.Body.Close()
+		
+		body, _ := ioutil.ReadAll(resp.Body)
+
+		err := json.Unmarshal(body, &finger)
+
+		CheckError(err, "error getting fingerrequet resp from json body")
+	}
+
+	if(len(finger.Links) > 0) {
+		for _, e := range finger.Links {
+			if(e.Type == "application/activity+json"){
+				req, err := http.NewRequest("GET", e.Href, nil)
+				
+				CheckError(err, "could not get finger request from id req")
+
+				req.Header.Set("Accept", activitystreams)				
+				
+				resp, err := http.DefaultClient.Do(req)
+				return resp
+			}
+		}
+	}
+
+	return resp
+}
+
+func GetActorInstance(path string) (string, string) {
+	re := regexp.MustCompile(`([@]?([\w\d.-_]+)[@](.+))`)
+	atFormat := re.MatchString(path)
+
+	if(atFormat) {
+		match := re.FindStringSubmatch(path)
+		if(len(match) > 1) {
+			return match[1], match[2]
+		}
+	}	
+
+	re = regexp.MustCompile(`(http:\\|https:\\)?(www)?([\w\d-_.:]+)\/([\w\d-_.]+)`)
+	httpFormat := re.MatchString(path)
+
+	if(httpFormat) {
+		match := re.FindStringSubmatch(path)
+		if(len(match) > 3) {
+			return match[4], match[3]
+		}
+	}
+
+	return "", ""
+}
