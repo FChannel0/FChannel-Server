@@ -703,8 +703,8 @@ func main() {
 				http.Redirect(w, r, "/", http.StatusSeeOther)				
 			}
 		} else {
-			t := template.Must(template.ParseFiles("./static/verify.html"))
-			t.Execute(w, "")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("404 no path"))			
 		}
 	})			
 
