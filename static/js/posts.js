@@ -212,7 +212,7 @@ function report(actorName, id)
     var inReplyTo = document.getElementById("report-inReplyTo-box");      
 
     var w = window.innerWidth / 2 - 200;
-    var h = document.getElementById(id + "-content").offsetTop - 448;
+    var h = document.getElementById(id + "-content").offsetTop - 348;
 
     box.setAttribute("style", "display: block; position: absolute; width: 400px; height: 480px; z-index: 9; top: " + h + "px; left: " + w + "px; padding: 5px;");
 

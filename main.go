@@ -740,12 +740,8 @@ func main() {
 		}
 
 		if !IsIDLocal(db, id) {
-			if(!isOP) {
 				CloseLocalReportDB(db, id, board)			
 				CreateLocalDeleteDB(db, id, "post")
-			} else {
-
-			}
 			if(manage == "t") {
 				http.Redirect(w, r, "/" + *Key + "/" + board, http.StatusSeeOther)
 			} else if(OP != ""){
@@ -756,9 +752,6 @@ func main() {
 			
 			return
 		}
-
-
-
 
 		if !isOP {
 			DeleteReportActivity(db, id)						
@@ -1145,7 +1138,7 @@ func CreateNewActor(board string, prefName string, summary string, authReq []str
 		actor.Name = board
 	}
 
-	actor.Type = "Service"
+	actor.Type = "Group"
 	actor.Id = fmt.Sprintf("%s", path)
 	actor.Following = fmt.Sprintf("%s/following", actor.Id)
 	actor.Followers = fmt.Sprintf("%s/followers", actor.Id)
@@ -2213,7 +2206,7 @@ func GetActorInstance(path string) (string, string) {
 		}
 	}	
 
-	re = regexp.MustCompile(`(http:\\|https:\\)?(www)?([\w\d-_.:]+)\/([\w\d-_.]+)`)
+	re = regexp.MustCompile(`(https?:\\)?(www)?([\w\d-_.:]+)\/([\w\d-_.]+)`)
 	httpFormat := re.MatchString(path)
 
 	if(httpFormat) {
