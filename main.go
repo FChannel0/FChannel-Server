@@ -740,9 +740,9 @@ func main() {
 		}
 
 		if !isOP {
-			SetObject(db, id, "Removed")
+			DeleteObject(db, id)
 		} else {
-			SetObjectAndReplies(db, id, "Removed")
+			DeleteObjectAndReplies(db, id)
 		}
 
 		if IsIDLocal(db, id){
@@ -798,6 +798,114 @@ func main() {
 			return
 		}
 
+		DeleteAttachmentFromFile(db, id)
+		DeletePreviewFromFile(db, id)
+		
+		if (manage == "t") {
+			http.Redirect(w, r, "/" + *Key + "/" + board, http.StatusSeeOther)
+			return
+		} else if !IsIDLocal(db, OP) {
+			http.Redirect(w, r, "/" + board + "/" + remoteShort(OP), http.StatusSeeOther)
+			return
+		} else {
+			http.Redirect(w, r, OP, http.StatusSeeOther)
+			return
+		}
+
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(""))				
+	})
+
+	http.HandleFunc("/remove", func(w http.ResponseWriter, r *http.Request){
+		id := r.URL.Query().Get("id")
+		manage := r.URL.Query().Get("manage")
+		board := r.URL.Query().Get("board")
+		col := GetCollectionFromID(id)		
+		actor := col.OrderedItems[0].Actor
+		_, auth := GetPasswordFromSession(r)
+
+		if id == "" || auth == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(""))
+			return
+		}
+
+		if !HasAuth(db, auth, actor.Id) {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(""))
+			return
+		}
+
+		var obj ObjectBase
+		obj.Id = id
+		obj.Actor = actor
+		
+		isOP := CheckIfObjectOP(db, obj.Id)		
+
+		var OP string
+		if len(col.OrderedItems[0].InReplyTo) > 0 {
+			OP = col.OrderedItems[0].InReplyTo[0].Id
+		}
+
+		if !isOP {
+			SetObject(db, id, "Removed")
+		} else {
+			SetObjectAndReplies(db, id, "Removed")
+		}
+
+		if IsIDLocal(db, id){
+			DeleteObjectRequest(db, id)
+		}
+
+		if(manage == "t"){
+			http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)
+			return
+		} else if !isOP {
+			if (!IsIDLocal(db, id)){
+				http.Redirect(w, r, "/" + board + "/" + remoteShort(OP), http.StatusSeeOther)
+				return
+			} else {
+				http.Redirect(w, r, OP, http.StatusSeeOther)
+				return
+			}
+		} else {
+			http.Redirect(w, r, "/" + board, http.StatusSeeOther)
+			return
+		}
+		
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(""))		
+	})
+
+	http.HandleFunc("/removeattach", func(w http.ResponseWriter, r *http.Request){
+		
+		id := r.URL.Query().Get("id")
+		manage := r.URL.Query().Get("manage")		
+		board := r.URL.Query().Get("board")		
+		col := GetCollectionFromID(id)		
+		actor := col.OrderedItems[0].Actor
+
+		var OP string
+		if (len(col.OrderedItems[0].InReplyTo) > 0 && col.OrderedItems[0].InReplyTo[0].Id != "") {
+			OP = col.OrderedItems[0].InReplyTo[0].Id
+		} else {
+			OP = id
+		}
+		
+		_, auth := GetPasswordFromSession(r)
+
+		if id == "" || auth == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(""))
+			return
+		}
+
+		if !HasAuth(db, auth, actor.Id) {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(""))
+			return
+		}
+
 		SetAttachmentFromDB(db, id, "Removed")
 		SetPreviewFromDB(db, id, "Removed")
 		
@@ -814,7 +922,7 @@ func main() {
 
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(""))				
-	})
+	})	
 
 	http.HandleFunc("/report", func(w http.ResponseWriter, r *http.Request){
 

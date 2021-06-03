@@ -818,7 +818,7 @@ func GetObjectAttachment(db *sql.DB, id string) []ObjectBase {
 
 	var attachments []ObjectBase	
 
-	query := `select x.id, x.type, x.name, x.href, x.mediatype, x.size, x.published from (select id, type, name, href, mediatype, size, published from activitystream where id=$1 union select id, type, name, href, mediatype, size, published from cacheactivitystream where id=$1) as x where type='Attachment'`
+	query := `select x.id, x.type, x.name, x.href, x.mediatype, x.size, x.published from (select id, type, name, href, mediatype, size, published from activitystream where id=$1 union select id, type, name, href, mediatype, size, published from cacheactivitystream where id=$1) as x`
 
 	rows, err := db.Query(query,  id)	
 
@@ -844,7 +844,7 @@ func GetObjectPreview(db *sql.DB, id string) *NestedObjectBase {
 
 	var preview NestedObjectBase
 
-	query := `select x.id, x.type, x.name, x.href, x.mediatype, x.size, x.published from (select id, type, name, href, mediatype, size, published from activitystream where id=$1 union select id, type, name, href, mediatype, size, published from cacheactivitystream where id=$1) as x where type='Preview'`
+	query := `select x.id, x.type, x.name, x.href, x.mediatype, x.size, x.published from (select id, type, name, href, mediatype, size, published from activitystream where id=$1 union select id, type, name, href, mediatype, size, published from cacheactivitystream where id=$1) as x`
 	
 	rows, err := db.Query(query, id)	
 
@@ -897,7 +897,7 @@ func GetObjectImgsTotalDB(db *sql.DB, actor Actor) int{
 
 func DeletePreviewFromFile(db *sql.DB, id string) {
 
-	var query = `select href, type from activitystream where id in (select preview from activitystream where id=$1)`
+	var query = `select href from activitystream where id in (select preview from activitystream where id=$1)`
 
 	rows, err := db.Query(query, id)	
 
@@ -906,18 +906,17 @@ func DeletePreviewFromFile(db *sql.DB, id string) {
 	defer rows.Close()
 	for rows.Next() {
 		var href string
-		var _type string
-		err := rows.Scan(&href, &_type)
+
+		err := rows.Scan(&href)
 		href = strings.Replace(href, Domain + "/", "", 1)
 		CheckError(err, "error scanning delete attachment")
-
-		if _type != "Tombstone" {
+		
+		if(href != "/static/notfound.png") {
 			_, err = os.Stat(href)
 			if err == nil {
 				os.Remove(href)
-			}	
+			}
 		}
-
 	}
 
 	DeletePreviewFromDB(db, id)
@@ -925,7 +924,7 @@ func DeletePreviewFromFile(db *sql.DB, id string) {
 
 func DeleteAttachmentFromFile(db *sql.DB, id string) {
 
-	var query = `select href, type from activitystream where id in (select attachment from activitystream where id=$1)`
+	var query = `select href from activitystream where id in (select attachment from activitystream where id=$1)`
 
 	rows, err := db.Query(query, id)	
 
@@ -934,18 +933,17 @@ func DeleteAttachmentFromFile(db *sql.DB, id string) {
 	defer rows.Close()
 	for rows.Next() {
 		var href string
-		var _type string
 
-		err := rows.Scan(&href, &_type)
+		err := rows.Scan(&href)
 		href = strings.Replace(href, Domain + "/", "", 1)
 
 		CheckError(err, "error scanning delete preview")
 
-		if _type != "Tombstone" {
+		if(href != "/static/notfound.png") {
 			_, err = os.Stat(href)
 			if err == nil {
 				os.Remove(href)
-			}	
+			}
 		}
 	}
 
@@ -993,21 +991,33 @@ func DeleteAttachmentRepliesFromDB(db *sql.DB, id string) {
 func DeleteAttachmentFromDB(db *sql.DB, id string) {
 	datetime := time.Now().Format(time.RFC3339)
 
-	var query = `update activitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', updated=$2, deleted=$3 where id in (select attachment from activitystream where id=$4)`
+	var query = `update activitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select attachment from activitystream where id=$3)`
 
-	_, err := db.Exec(query, Domain + "/public/removed.png", datetime, datetime, id)	
+	_, err := db.Exec(query, Domain + "/static/notfound.png", datetime, id)	
 
-	CheckError(err, "error with delete attachment")	
+	CheckError(err, "error with delete attachment")
+
+	query = `update cacheactivitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select attachment from cacheactivitystream where id=$3)`
+
+	_, err = db.Exec(query, Domain + "/static/notfound.png", datetime, id)	
+
+	CheckError(err, "error with delete cache attachment")		
 }
 
 func DeletePreviewFromDB(db *sql.DB, id string) {
 	datetime := time.Now().Format(time.RFC3339)
 
-	var query = `update activitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', updated=$2, deleted=$3 where id in (select preview from activitystream where id=$4)`
+	var query = `update activitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select preview from activitystream where id=$3)`
 
-	_, err := db.Exec(query, Domain + "/public/removed.png", datetime, datetime, id)	
+	_, err := db.Exec(query, Domain + "/static/notfound.png", datetime, id)	
 
-	CheckError(err, "error with delete preview")	
+	CheckError(err, "error with delete preview")
+
+	query = `update cacheactivitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select preview from cacheactivitystream where id=$3)`
+
+	_, err = db.Exec(query, Domain + "/static/notfound.png", datetime, id)	
+
+	CheckError(err, "error with delete cache preview")		
 }
 
 func DeleteObjectRepliedTo(db *sql.DB, id string){
@@ -1019,11 +1029,17 @@ func DeleteObjectRepliedTo(db *sql.DB, id string){
 
 func DeleteObjectFromDB(db *sql.DB, id string) {
 	datetime := time.Now().Format(time.RFC3339)
-	var query = `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', updated=$1, deleted=$2 where id=$3`
+	var query = `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', deleted=$1 where id=$2`
 
-	_, err := db.Exec(query, datetime, datetime, id)	
+	_, err := db.Exec(query, datetime, id)	
 
 	CheckError(err, "error with delete object")
+
+	query = `update cacheactivitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='',  deleted=$1 where id=$2`
+
+	_, err = db.Exec(query, datetime, id)	
+
+	CheckError(err, "error with delete cache object")	
 }
 
 func DeleteObjectsInReplyTo(db *sql.DB, id string) {
@@ -1037,10 +1053,15 @@ func DeleteObjectsInReplyTo(db *sql.DB, id string) {
 func DeleteObjectRepliesFromDB(db *sql.DB, id string) {
 	datetime := time.Now().Format(time.RFC3339)
 
-	var query = `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', updated=$1, deleted=$2 where id in (select id from replies where inreplyto=$3)`
+	var query = `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', deleted=$1 where id in (select id from replies where inreplyto=$2)`
 
-	_, err := db.Exec(query, datetime, datetime, id)	
+	_, err := db.Exec(query, datetime, id)	
 	CheckError(err, "error with delete object replies")
+
+	query = `update cacheactivitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', deleted=$1 where id in (select id from replies where inreplyto=$2)`
+
+	_, err = db.Exec(query, datetime, id)	
+	CheckError(err, "error with delete object cache replies")	
 
 }
 
@@ -1152,10 +1173,6 @@ func SetObjectAndReplies(db *sql.DB, id string, _type string) {
 }
 
 func DeleteObject(db *sql.DB, id string) {
-	if(!IsIDLocal(db, id)) {
-		return
-	}
-
 	DeleteReportActivity(db, id)	
 	DeleteAttachmentFromFile(db, id)
 	DeletePreviewFromFile(db, id)			
@@ -1164,11 +1181,6 @@ func DeleteObject(db *sql.DB, id string) {
 }
 
 func DeleteObjectAndReplies(db *sql.DB, id string) {
-	
-	if(!IsIDLocal(db, id)) {
-		return
-	}
-
 	DeleteReportActivity(db, id)	
 	DeleteAttachmentFromFile(db, id)
 	DeletePreviewFromFile(db, id)
