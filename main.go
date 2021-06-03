@@ -739,40 +739,29 @@ func main() {
 			OP = col.OrderedItems[0].InReplyTo[0].Id
 		}
 
-		if !IsIDLocal(db, id) {
-				CloseLocalReportDB(db, id, board)			
-				CreateLocalDeleteDB(db, id, "post")
-			if(manage == "t") {
-				http.Redirect(w, r, "/" + *Key + "/" + board, http.StatusSeeOther)
-			} else if(OP != ""){
-				http.Redirect(w, r, "/" + board + "/" + remoteShort(OP), http.StatusSeeOther)
-			} else {
-				http.Redirect(w, r, "/" + board, http.StatusSeeOther)
-			}
-			
-			return
+		if !isOP {
+			SetObject(db, id, "Removed")
+		} else {
+			SetObjectAndReplies(db, id, "Removed")
 		}
 
-		if !isOP {
-			DeleteReportActivity(db, id)						
-			DeleteObjectRequest(db, id)	
-			DeleteObject(db, obj.Id)
-			if(manage == "t"){
-				http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)				
-			}else{
-				http.Redirect(w, r, OP, http.StatusSeeOther)
-			}
+		if IsIDLocal(db, id){
+			DeleteObjectRequest(db, id)
+		}
+
+		if(manage == "t"){
+			http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)
 			return
-			
-		} else {
-			DeleteReportActivity(db, id)			
-			DeleteObjectAndRepliesRequest(db, id)					
-			DeleteObjectAndReplies(db, obj.Id)
-			if(manage == "t"){
-				http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)								
-			}else{
-				http.Redirect(w, r, "/" + board, http.StatusSeeOther)				
+		} else if !isOP {
+			if (!IsIDLocal(db, id)){
+				http.Redirect(w, r, "/" + board + "/" + remoteShort(OP), http.StatusSeeOther)
+				return
+			} else {
+				http.Redirect(w, r, OP, http.StatusSeeOther)
+				return
 			}
+		} else {
+			http.Redirect(w, r, "/" + board, http.StatusSeeOther)
 			return
 		}
 		
@@ -809,26 +798,22 @@ func main() {
 			return
 		}
 
-
-
-		if !IsIDLocal(db, id) {
-			CreateLocalDeleteDB(db, id, "attachment")
-			if(manage == "t") {
-				http.Redirect(w, r, "/" + *Key + "/" + board, http.StatusSeeOther)
-			} else {
-				http.Redirect(w, r, "/" + board + "/" + remoteShort(OP), http.StatusSeeOther)
-			}
+		SetAttachmentFromDB(db, id, "Removed")
+		SetPreviewFromDB(db, id, "Removed")
+		
+		if (manage == "t") {
+			http.Redirect(w, r, "/" + *Key + "/" + board, http.StatusSeeOther)
+			return
+		} else if !IsIDLocal(db, OP) {
+			http.Redirect(w, r, "/" + board + "/" + remoteShort(OP), http.StatusSeeOther)
+			return
+		} else {
+			http.Redirect(w, r, OP, http.StatusSeeOther)
 			return
 		}
 
-		DeleteAttachmentFromFile(db, id)
-		DeletePreviewFromFile(db, id)
-
-		if(manage == "t") {
-			http.Redirect(w, r, "/" + *Key + "/" + board, http.StatusSeeOther)
-		} else {		
-			http.Redirect(w, r, OP, http.StatusSeeOther)
-		}
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(""))				
 	})
 
 	http.HandleFunc("/report", func(w http.ResponseWriter, r *http.Request){

@@ -24,6 +24,7 @@
     {{ end }}        
     <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/">
       <div id="media-{{ .Id }}" style="width:180px;"></div>
+    </a>
       <script>
         media = document.getElementById("media-{{ .Id }}")
         if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "image"){
@@ -56,9 +57,12 @@
             video.style = "margin-right: 10px; margin-bottom: 10px; max-width: 180px; max-height: 180px;"
             video.innerText = 'Video is not supported.'
             media.appendChild(video)                                          
-        }                    
+        }
+        
+        document.getElementById("{{ .Id }}-anchor").href = "/{{ $board.Name }}/" + shortURL("{{$board.Actor.Id}}", "{{ .Id }}")        
       </script>                        
       {{ end }}
+      <a id="{{ .Id }}-link" href="/{{ $board.Name }}/">
       <div>
         {{ $replies := .Replies }}
         {{ if $replies }}
@@ -71,12 +75,11 @@
         {{ if .Content }}
         <span style="display: block">{{.Content}}</span>
         {{ end }}
-
       </div>
-    </a>        
+      </a>
   </div>
   <script>
-    document.getElementById("{{ .Id }}-anchor").href = "/{{ $board.Name }}/" + shortURL("{{$board.Actor.Id}}", "{{ .Id }}")
+    document.getElementById("{{ .Id }}-link").href = "/{{ $board.Name }}/" + shortURL("{{$board.Actor.Id}}", "{{ .Id }}")
   </script>
   {{ end }}
 </div>

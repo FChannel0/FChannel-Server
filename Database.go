@@ -818,7 +818,7 @@ func GetObjectAttachment(db *sql.DB, id string) []ObjectBase {
 
 	var attachments []ObjectBase	
 
-	query := `select x.id, x.type, x.name, x.href, x.mediatype, x.size, x.published from (select id, type, name, href, mediatype, size, published from activitystream where id=$1 union select id, type, name, href, mediatype, size, published from cacheactivitystream where id=$1) as x`
+	query := `select x.id, x.type, x.name, x.href, x.mediatype, x.size, x.published from (select id, type, name, href, mediatype, size, published from activitystream where id=$1 union select id, type, name, href, mediatype, size, published from cacheactivitystream where id=$1) as x where type='Attachment'`
 
 	rows, err := db.Query(query,  id)	
 
@@ -844,7 +844,7 @@ func GetObjectPreview(db *sql.DB, id string) *NestedObjectBase {
 
 	var preview NestedObjectBase
 
-	query := `select x.id, x.type, x.name, x.href, x.mediatype, x.size, x.published from (select id, type, name, href, mediatype, size, published from activitystream where id=$1 union select id, type, name, href, mediatype, size, published from cacheactivitystream where id=$1) as x`
+	query := `select x.id, x.type, x.name, x.href, x.mediatype, x.size, x.published from (select id, type, name, href, mediatype, size, published from activitystream where id=$1 union select id, type, name, href, mediatype, size, published from cacheactivitystream where id=$1) as x where type='Preview'`
 	
 	rows, err := db.Query(query, id)	
 
@@ -1044,8 +1044,114 @@ func DeleteObjectRepliesFromDB(db *sql.DB, id string) {
 
 }
 
-func DeleteObject(db *sql.DB, id string) {
+func SetAttachmentFromDB(db *sql.DB, id string, _type string) {
+	datetime := time.Now().Format(time.RFC3339)
+
+	var query = `update activitystream set type=$1, deleted=$2 where id in (select attachment from activitystream where id=$3)`
+
+	_, err := db.Exec(query, _type, datetime, id)	
+
+	CheckError(err, "error with set attachment")
+
+	query = `update cacheactivitystream set type=$1, deleted=$2 where id in (select attachment from cacheactivitystream  where id=$3)`
+
+	_, err = db.Exec(query, _type, datetime, id)	
+
+	CheckError(err, "error with set cache attachment")		
+}
+
+func SetAttachmentRepliesFromDB(db *sql.DB, id string, _type string) {
+	datetime := time.Now().Format(time.RFC3339)
+
+	var query = `update activitystream set type=$1, deleted=$2 where id in (select attachment from activitystream where id in (select id from replies where inreplyto=$3))`
+
+	_, err := db.Exec(query, _type, datetime, id)	
+
+	CheckError(err, "error with set attachment")
+
+	query = `update cacheactivitystream set type=$1, deleted=$2 where id in (select attachment from cacheactivitystream where id in (select id from replies where inreplyto=$3))`
+
+	_, err = db.Exec(query, _type, datetime, id)	
+
+	CheckError(err, "error with set cache attachment")		
+}
+
+func SetPreviewFromDB(db *sql.DB, id string, _type string) {
+	datetime := time.Now().Format(time.RFC3339)
+
+	var query = `update activitystream set type=$1, deleted=$2 where id in (select preview from activitystream where id=$3)`
+
+	_, err := db.Exec(query, _type, datetime, id)	
+
+	CheckError(err, "error with set preview")
+
+	query = `update cacheactivitystream set type=$1, deleted=$2 where id in (select preview from cacheactivitystream where id=$3)`
+
+	_, err = db.Exec(query, _type, datetime, id)	
+
+	CheckError(err, "error with set cache preview")		
+}
+
+func SetPreviewRepliesFromDB(db *sql.DB, id string, _type string) {
+	datetime := time.Now().Format(time.RFC3339)
+
+	var query = `update activitystream set type=$1, deleted=$2 where id in (select preview from activitystream where id in (select id from replies where inreplyto=$3))`
+
+	_, err := db.Exec(query, _type, datetime, id)	
+
+	CheckError(err, "error with set preview")
+
+	query = `update cacheactivitystream set type=$1, deleted=$2 where id in (select preview from cacheactivitystream where id in (select id from replies where inreplyto=$3))`	
+
+	_, err = db.Exec(query, _type, datetime, id)	
+
+	CheckError(err, "error with set cache preview")		
+}
+
+func SetObjectFromDB(db *sql.DB, id string, _type string) {
+	datetime := time.Now().Format(time.RFC3339)
 	
+	var query = `update activitystream set type=$1, deleted=$2 where id=$3`
+
+	_, err := db.Exec(query, _type, datetime, id)	
+
+	CheckError(err, "error with set object")
+
+	query = `update cacheactivitystream set type=$1, deleted=$2 where id=$3`
+
+	_, err = db.Exec(query, _type, datetime, id)	
+
+	CheckError(err, "error with set cache object")	
+}
+
+func SetObjectRepliesFromDB(db *sql.DB, id string, _type string) {
+	datetime := time.Now().Format(time.RFC3339)
+
+	var query = `update activitystream set type=$1, deleted=$2 where id in (select id from replies where inreplyto=$3)`
+	_, err := db.Exec(query, _type, datetime, id)	
+	CheckError(err, "error with set object replies")
+
+	query = `update cacheactivitystream set type=$1, deleted=$2 where id in (select id from replies where inreplyto=$3)`
+	_, err = db.Exec(query, _type, datetime, id)	
+	CheckError(err, "error with set cache object replies")	
+}
+
+func SetObject(db *sql.DB, id string, _type string) {
+	SetAttachmentFromDB(db, id, _type);
+	SetPreviewFromDB(db, id, _type);
+	SetObjectFromDB(db, id, _type);
+}
+
+func SetObjectAndReplies(db *sql.DB, id string, _type string) {
+	SetAttachmentFromDB(db, id, _type);
+	SetPreviewFromDB(db, id, _type);
+	SetObjectRepliesFromDB(db, id, _type);
+	SetAttachmentRepliesFromDB(db, id, _type);
+	SetPreviewRepliesFromDB(db, id, _type);
+	SetObjectFromDB(db, id, _type);	
+}
+
+func DeleteObject(db *sql.DB, id string) {
 	if(!IsIDLocal(db, id)) {
 		return
 	}

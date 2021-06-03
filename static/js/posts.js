@@ -26,6 +26,8 @@ function shortURL(actorName, url)
 {
     re = /.+\//g;
     temp = re.exec(url)
+
+    var output
     
     if(stripTransferProtocol(temp[0]) == stripTransferProtocol(actorName) + "/")
     {
@@ -39,11 +41,8 @@ function shortURL(actorName, url)
 
         re = /\w+$/g;              
 
-        u =  re.exec(short);
-
-        return u;            
+        output =  re.exec(short);
     }else{
-
         var short = url.replace("https://", "");
         short = short.replace("http://", "");
         short = short.replace("www.", "");
@@ -64,10 +63,10 @@ function shortURL(actorName, url)
         
         v = re.exec(str)
 
-        v = "f" + v[0] + "-" + u
-
-        return v;                        
+        output = "f" + v[0] + "-" + u
     }
+
+    return output
 }
 
 function shortImg(url)
@@ -113,7 +112,7 @@ function getBoardId(url)
 
 function convertContent(actorName, content, opid)
 {
-    var re = /(>>)(https:\/\/|http:\/\/)?(www\.)?.+\/\w+/gm;
+    var re = /(>>)(https?:\/\/)?(www\.)?.+\/\w+/gm;
     var match = content.match(re);
     var newContent = content;
     if(match)
