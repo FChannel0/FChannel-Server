@@ -197,7 +197,16 @@ func WriteObjectUpdatesToDB(db *sql.DB, obj ObjectBase) {
 	if e != nil{
 		fmt.Println("error inserting updating inreplyto")
 		panic(e)			
-	}		
+	}
+
+	query = `update cacheactivitystream set updated=$1 where id=$2`
+	
+	_, e = db.Exec(query, time.Now().Format(time.RFC3339), obj.Id)
+	
+	if e != nil{
+		fmt.Println("error inserting updating cache inreplyto")
+		panic(e)			
+	}			
 }
 
 func WriteObjectReplyToLocalDB(db *sql.DB, id string, replyto string) {
@@ -261,11 +270,7 @@ func WriteObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 		}
 		
 		if update {
-			if IsObjectLocal(db, e.Id) {
-				WriteObjectUpdatesToDB(db, e)
-			} else {
-				WriteObjectUpdatesToCache(db, e)
-			}
+			WriteObjectUpdatesToDB(db, e)
 		}			
 	}
 
@@ -910,8 +915,8 @@ func DeletePreviewFromFile(db *sql.DB, id string) {
 		err := rows.Scan(&href)
 		href = strings.Replace(href, Domain + "/", "", 1)
 		CheckError(err, "error scanning delete attachment")
-		
-		if(href != "/static/notfound.png") {
+
+		if(href != "static/notfound.png") {
 			_, err = os.Stat(href)
 			if err == nil {
 				os.Remove(href)
@@ -936,10 +941,9 @@ func DeleteAttachmentFromFile(db *sql.DB, id string) {
 
 		err := rows.Scan(&href)
 		href = strings.Replace(href, Domain + "/", "", 1)
-
 		CheckError(err, "error scanning delete preview")
 
-		if(href != "/static/notfound.png") {
+		if(href != "static/notfound.png") {
 			_, err = os.Stat(href)
 			if err == nil {
 				os.Remove(href)

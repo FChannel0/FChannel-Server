@@ -853,10 +853,6 @@ func main() {
 			SetObjectAndReplies(db, id, "Removed")
 		}
 
-		if IsIDLocal(db, id){
-			DeleteObjectRequest(db, id)
-		}
-
 		if(manage == "t"){
 			http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)
 			return
