@@ -17,6 +17,7 @@ import "encoding/base64"
 import crand "crypto/rand"
 import "io/ioutil"
 import "strings"
+import "net/http"
 
 type Verify struct {
 	Type string
@@ -578,9 +579,13 @@ func ActivitySign(db *sql.DB, actor Actor, signature string) string {
 	return ""
 }
 
-func ActivityVerify(db *sql.DB, actor Actor, signature string, verify string) error {
+func ActivityVerify(actor Actor, signature string, verify string) error {
 
 	sig, _ := base64.StdEncoding.DecodeString(signature)
+
+	if actor.PublicKey.PublicKeyPem == "" {
+		actor = FingerActor(actor.Id)
+	}
 
 	block, _ := pem.Decode([]byte(actor.PublicKey.PublicKeyPem))
 	pub, _ := x509.ParsePKIXPublicKey(block.Bytes)
@@ -589,4 +594,26 @@ func ActivityVerify(db *sql.DB, actor Actor, signature string, verify string) er
 	hashed.Write([]byte(verify))
 
 	return rsa.VerifyPKCS1v15(pub.(*rsa.PublicKey), crypto.SHA256, hashed.Sum(nil), sig)
+}
+
+func VerifyHeaderSignature(r *http.Request, actor Actor) bool {
+	method := strings.ToLower(r.Method)
+	path := r.URL.Path
+	host := r.Host
+	date := r.Header.Get("Date")
+	encSig := r.Header.Get("Signature")
+
+	sig := fmt.Sprintf("(request-target): %s %s\\nhost: %s\\ndate: %s", method, path, host, date)
+
+	t, _ := time.Parse(time.RFC1123, date)
+
+	if(time.Now().Sub(t).Seconds() > 30) {
+		return false
+	}
+	
+	if ActivityVerify(actor, sig, encSig) != nil {
+		return false
+	}
+	
+	return true
 }

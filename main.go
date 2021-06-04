@@ -22,7 +22,8 @@ import "github.com/gofrs/uuid"
 
 var Port = ":" + GetConfigValue("instanceport")
 var TP   = GetConfigValue("instancetp")
-var Domain = TP + "" + GetConfigValue("instance")
+var Instance = GetConfigValue("instance")
+var Domain = TP + "" + Instance
 
 var authReq = []string{"captcha","email","passphrase"}
 
@@ -357,12 +358,13 @@ func main() {
 		
 		we.Close()
 
-		req, err := http.NewRequest("POST", r.FormValue("sendTo"), &b)
+		sendTo := r.FormValue("sendTo")		
+		req, err := http.NewRequest("POST", sendTo, &b)
 
 		CheckError(err, "error with post form req")
-		
+
 		req.Header.Set("Content-Type", we.FormDataContentType())
-		req.Header.Set("Authorization", "Basic " + *Key)		
+		req.Header.Set("Authorization", "Basic " + *Key)
 
 		resp, err := http.DefaultClient.Do(req)
 
@@ -1302,11 +1304,12 @@ func AddFollowersToActivity(db *sql.DB, activity Activity) Activity{
 
 func CreateActivity(activityType string, obj ObjectBase) Activity {
 	var newActivity Activity
-
+	actor := FingerActor(obj.Actor.Id)
+	
 	newActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 	newActivity.Type = activityType
 	newActivity.Published = obj.Published
-	newActivity.Actor = obj.Actor
+	newActivity.Actor = &actor
 	newActivity.Object = &obj
 
 	for _, e := range obj.To {
@@ -1802,21 +1805,36 @@ func MakeActivityRequest(db *sql.DB, activity Activity) {
 	auth = CreateTripCode(auth)
 
 	for _, e := range activity.To {
-
-		actor := GetActor(e)
-
-		if actor.Inbox != "" {
-			req, err := http.NewRequest("POST", actor.Inbox, bytes.NewBuffer(j))
+		if e != activity.Actor.Id {
 			
-			req.Header.Set("Content-Type", activitystreams)
-			
-			req.Header.Set("Authorization", "Basic " + auth)
+			actor := FingerActor(e)
 
-			CheckError(err, "error with sending activity req to")
+			_, instance := GetActorInstance(actor.Id)
 
-			_, err = http.DefaultClient.Do(req)
+			if actor.Inbox != "" {
+				req, err := http.NewRequest("POST", actor.Inbox, bytes.NewBuffer(j))
+				
+				date := time.Now().UTC().Format(time.RFC1123)
+				path := strings.Replace(actor.Inbox, instance, "", 1)
+				
+				re := regexp.MustCompile("https?://(www.)?")
+				path = re.ReplaceAllString(path, "")
 
-			CheckError(err, "error with sending activity resp to")
+				sig := fmt.Sprintf("(request-target): %s %s\\nhost: %s\\ndate: %s", "post", path, Instance, date)
+				encSig := ActivitySign(db, *activity.Actor, sig)
+				
+				req.Header.Set("Content-Type", activitystreams)			
+				req.Header.Set("Date", date)
+				req.Header.Set("Signature", encSig)
+				req.Header.Set("Host", Instance)
+				req.Host = Instance
+
+				CheckError(err, "error with sending activity req to")
+
+				_, err = http.DefaultClient.Do(req)
+
+				CheckError(err, "error with sending activity resp to")
+			}
 		}
 	}	
 }
