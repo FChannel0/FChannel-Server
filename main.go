@@ -2293,7 +2293,7 @@ func GetActorInstance(path string) (string, string) {
 		if(len(match) > 2) {
 			return match[2], match[3]
 		}
-	}	
+	}
 
 	re = regexp.MustCompile(`(https?:\\)?(www)?([\w\d-_.:]+)\/([\w\d-_.]+)`)
 	httpFormat := re.MatchString(path)

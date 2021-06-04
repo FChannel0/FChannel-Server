@@ -8,10 +8,15 @@ import "time"
 import "os/exec"
 import "os"
 import "math/rand"
+import "crypto"
 import "crypto/rsa"
 import "crypto/x509"
+import "crypto/sha256"
 import "encoding/pem"
+import "encoding/base64"
 import crand "crypto/rand"
+import "io/ioutil"
+import "strings"
 
 type Verify struct {
 	Type string
@@ -539,4 +544,49 @@ func StorePemToDB(db *sql.DB, actor Actor) {
 	query = "insert into publicKeyPem (id, owner, file) values($1, $2, $3)"
 	_, err = db.Exec(query, publicKeyPem, actor.Id, file)
 	CheckError(err, "error creating publicKeyPem for actor ")
+}
+
+func ActivitySign(db *sql.DB, actor Actor, signature string) string {
+	query := `select file from publicKeyPem where id=$1 `
+
+	rows, err := db.Query(query, actor.PublicKey.Id)
+
+	CheckError(err, "there was error geting actors public key id")
+
+	var file string
+	defer rows.Close()
+	rows.Next()
+	rows.Scan(&file)
+
+	file = strings.ReplaceAll(file, "public.pem", "private.pem")	
+	_, err = os.Stat(file)
+	if err == nil {
+		publickey, err:= ioutil.ReadFile(file)
+		CheckError(err, "error reading file")
+
+		block, _ := pem.Decode(publickey)
+
+		pub, _ := x509.ParsePKCS1PrivateKey(block.Bytes)
+		rng :=crand.Reader
+		hashed := sha256.New()
+		hashed.Write([]byte(signature))		
+		cipher, _ := rsa.SignPKCS1v15(rng, pub, crypto.SHA256, hashed.Sum(nil))
+
+		return base64.StdEncoding.EncodeToString(cipher)
+	}
+
+	return ""
+}
+
+func ActivityVerify(db *sql.DB, actor Actor, signature string, verify string) error {
+
+	sig, _ := base64.StdEncoding.DecodeString(signature)
+
+	block, _ := pem.Decode([]byte(actor.PublicKey.PublicKeyPem))
+	pub, _ := x509.ParsePKIXPublicKey(block.Bytes)
+
+	hashed := sha256.New()
+	hashed.Write([]byte(verify))
+
+	return rsa.VerifyPKCS1v15(pub.(*rsa.PublicKey), crypto.SHA256, hashed.Sum(nil), sig)
 }
