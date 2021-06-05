@@ -27,7 +27,7 @@ var Domain = TP + "" + Instance
 
 var authReq = []string{"captcha","email","passphrase"}
 
-var supportedFiles = []string{"image/gif","image/jpeg","image/png","image/svg+xml","image/svg","image/webp","image/avif","image/apng","video/mp4","video/ogg","video/webm","audio/mpeg","audio/ogg","audio/wav", "audio/wave", "audio/x-wav"}
+var supportedFiles = []string{"image/gif","image/jpeg","image/png", "image/webp", "image/apng","video/mp4","video/ogg","video/webm","audio/mpeg","audio/ogg","audio/wav", "audio/wave", "audio/x-wav"}
 
 var SiteEmail = GetConfigValue("emailaddress")        //contact@fchan.xyz
 var SiteEmailPassword = GetConfigValue("emailpass")
@@ -1374,7 +1374,7 @@ func CreatePreviewObject(obj ObjectBase) *NestedObjectBase {
 
 	objFile := re.FindString(obj.Href)
 
-	cmd := exec.Command("convert", "." + objFile ,"-resize", "250x250>", "." + href)
+	cmd := exec.Command("convert", "." + objFile ,"-resize", "250x250>", "-strip","." + href)
 
 	err := cmd.Run()
 
@@ -1809,31 +1809,33 @@ func MakeActivityRequest(db *sql.DB, activity Activity) {
 			
 			actor := FingerActor(e)
 
-			_, instance := GetActorInstance(actor.Id)
+			if actor.Id != "" {
+				_, instance := GetActorInstance(actor.Id)
 
-			if actor.Inbox != "" {
-				req, err := http.NewRequest("POST", actor.Inbox, bytes.NewBuffer(j))
-				
-				date := time.Now().UTC().Format(time.RFC1123)
-				path := strings.Replace(actor.Inbox, instance, "", 1)
-				
-				re := regexp.MustCompile("https?://(www.)?")
-				path = re.ReplaceAllString(path, "")
+				if actor.Inbox != "" {
+					req, err := http.NewRequest("POST", actor.Inbox, bytes.NewBuffer(j))
+					
+					date := time.Now().UTC().Format(time.RFC1123)
+					path := strings.Replace(actor.Inbox, instance, "", 1)
+					
+					re := regexp.MustCompile("https?://(www.)?")
+					path = re.ReplaceAllString(path, "")
 
-				sig := fmt.Sprintf("(request-target): %s %s\\nhost: %s\\ndate: %s", "post", path, Instance, date)
-				encSig := ActivitySign(db, *activity.Actor, sig)
-				
-				req.Header.Set("Content-Type", activitystreams)			
-				req.Header.Set("Date", date)
-				req.Header.Set("Signature", encSig)
-				req.Header.Set("Host", Instance)
-				req.Host = Instance
+					sig := fmt.Sprintf("(request-target): %s %s\\nhost: %s\\ndate: %s", "post", path, Instance, date)
+					encSig := ActivitySign(db, *activity.Actor, sig)
+					
+					req.Header.Set("Content-Type", activitystreams)			
+					req.Header.Set("Date", date)
+					req.Header.Set("Signature", encSig)
+					req.Header.Set("Host", Instance)
+					req.Host = Instance
 
-				CheckError(err, "error with sending activity req to")
+					CheckError(err, "error with sending activity req to")
 
-				_, err = http.DefaultClient.Do(req)
+					_, err = http.DefaultClient.Do(req)
 
-				CheckError(err, "error with sending activity resp to")
+					CheckError(err, "error with sending activity resp to")
+				}				
 			}
 		}
 	}	
@@ -2056,7 +2058,7 @@ func ResizeAttachmentToPreview(db *sql.DB) {
 			objFile := re.FindString(href)
 			
 			if(id != "") {
-				cmd := exec.Command("convert", "." + objFile ,"-resize", "250x250>", "." + nHref)
+				cmd := exec.Command("convert", "." + objFile ,"-resize", "250x250>", "-strip",  "." + nHref)
 
 				err := cmd.Run()
 
@@ -2245,7 +2247,7 @@ func FingerActor(path string) Actor{
 
 	var nActor Actor
 
-	if r.StatusCode == 200 {
+	if r != nil && r.StatusCode == 200 {
 		defer r.Body.Close()
 		
 		body, _ := ioutil.ReadAll(r.Body)
@@ -2271,7 +2273,7 @@ func FingerRequest(actor string, instance string) (*http.Response){
 	var finger Webfinger
 
 	if err != nil {
-		CheckError(err, "could not get actor from finger resp with id " + acct)
+		return resp
 	}
 
 	if resp.StatusCode == 200 {

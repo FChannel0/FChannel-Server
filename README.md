@@ -20,13 +20,15 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
 
 ## Minimum Server Requirements
 
-- Go v1.11+
+- Go v1.16+
   
 - PostgreSQL
   
 - Redis
 
 - ImageMagick
+
+- exiv2
 
 ## Server Installation Instructions
 

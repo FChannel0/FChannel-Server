@@ -10,6 +10,7 @@ import "io/ioutil"
 import "os"
 import "regexp"
 import "strings"
+import "os/exec"
 
 func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	
@@ -31,7 +32,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				}
 				
 				contentType, _ := GetFileContentType(f)
-				
+
 				if(!SupportedMIMEType(contentType)) {
 					w.WriteHeader(http.StatusNotAcceptable)
 					w.Write([]byte("file type not supported"))
@@ -360,6 +361,18 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 		fileBytes, _ := ioutil.ReadAll(file)
 
 		tempFile.Write(fileBytes)
+
+		re := regexp.MustCompile(`image/(jpe?g|png|webp)`)
+		if re.MatchString(obj.Attachment[0].MediaType) {
+			fileLoc := strings.ReplaceAll(obj.Attachment[0].Href, Domain, "")
+
+			cmd := exec.Command("exiv2", "rm", "." + fileLoc)
+
+			err := cmd.Run()
+
+			CheckError(err, "error with removing exif data from image")
+
+		}
 
 		obj.Preview = CreatePreviewObject(obj.Attachment[0])
 	}
