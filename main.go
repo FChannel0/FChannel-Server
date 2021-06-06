@@ -435,11 +435,11 @@ func main() {
 			followActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 			followActivity.Type = "Follow"
 			
-			var nactor Actor
-			var obj ObjectBase 
+
+			var obj ObjectBase
+			nactor := FingerActor(r.FormValue("actor"))			
 			followActivity.Actor = &nactor
 			followActivity.Object = &obj
-			followActivity.Actor.Id = r.FormValue("actor")
 
 			var mactor Actor
 			followActivity.Object.Actor = &mactor
@@ -451,36 +451,14 @@ func main() {
 				return
 			}
 
-			enc, _ := json.Marshal(followActivity)
-
-			req, err := http.NewRequest("POST", actor.Outbox, bytes.NewBuffer(enc))
-
-			CheckError(err, "error with follow req")		
-
-			_, pass := GetPasswordFromSession(r)
-
-			pass = CreateTripCode(pass)
-			pass = CreateTripCode(pass)			
-
-			req.Header.Set("Authorization", "Basic " + pass)
-			
-			req.Header.Set("Content-Type", activitystreams)
-
-			resp, err := http.DefaultClient.Do(req)
-
-			if err != nil && resp.StatusCode != 200 {
-				fmt.Println("error with add board follow resp")
-			} else {
-				FollowingBoards = GetActorFollowingDB(db, Domain)
-				Boards = GetBoardCollection(db)
-			}
+			MakeActivityRequestOutbox(db, followActivity)
 
 			var redirect string
 			if(actor.Name != "main") {
 				redirect = "/" + actor.Name
 			}
 
-			http.Redirect(w, r, "/" + *Key + "/" + redirect, http.StatusSeeOther)
+			http.Redirect(w, r, "/" + *Key + "/" + redirect, http.StatusSeeOther)							
 			
 		} else if manage && actor.Name != "" {
 			t := template.Must(template.ParseFiles("./static/main.html", "./static/manage.html"))
@@ -592,67 +570,14 @@ func main() {
 
 		newActorActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 		newActorActivity.Type = "New"
-		var nactor Actor
+
 		var nobj ObjectBase
-		newActorActivity.Actor = &nactor
+		newActorActivity.Actor = &actor
 		newActorActivity.Object = &nobj		
-		newActorActivity.Actor.Id = actor.Id
 		newActorActivity.Object.Actor = &board
 
-		
-		enc, _ := json.Marshal(newActorActivity)
-
-		req, err := http.NewRequest("POST", actor.Outbox, bytes.NewBuffer(enc))
-
-		CheckError(err, "error with add board follow req")		
-
-		_, pass := GetPasswordFromSession(r)
-
-		pass = CreateTripCode(pass)
-		pass = CreateTripCode(pass)		
-		
-		req.Header.Set("Authorization", "Basic " + pass)
-		req.Header.Set("Content-Type", activitystreams)
-		
-		resp, err := http.DefaultClient.Do(req)		
-
-		CheckError(err, "error with add board follow resp")
-
-		defer resp.Body.Close()
-
-		body, _ := ioutil.ReadAll(resp.Body)
-
-		var respActor Actor
-		
-		err = json.Unmarshal(body, &respActor)
-
-		CheckError(err, "error getting actor from body in new board")		
-
-		//update board list with new instances following
-		if resp.StatusCode == 200 {
-			var board []ObjectBase
-			var item ObjectBase			
-			var removed bool = false
-
-			item.Id = respActor.Id
-			for _, e := range FollowingBoards {
-				if e.Id != item.Id {
-					board = append(board, e)
-				} else {
-					removed = true
-				}
-			}
-
-			if !removed {
-				board = append(board, item)
-			}
-				
-			FollowingBoards = board
-
-			Boards = GetBoardCollection(db)
-		}		
-
-    http.Redirect(w, r, "/" + *Key, http.StatusSeeOther)				
+		MakeActivityRequestOutbox(db, newActorActivity)
+		http.Redirect(w, r, "/" + *Key, http.StatusSeeOther)		
 	})
 
 	http.HandleFunc("/verify", func(w http.ResponseWriter, r *http.Request){
@@ -1820,20 +1745,44 @@ func GetActorReported(w http.ResponseWriter, r *http.Request, db *sql.DB, id str
 	w.Write(enc)
 }
 
+func MakeActivityRequestOutbox(db *sql.DB, activity Activity) {
+	j, _ := json.Marshal(activity)
+
+	req, err := http.NewRequest("POST", activity.Actor.Outbox, bytes.NewBuffer(j))
+
+	CheckError(err, "error with sending activity req to outbox")		
+
+	re := regexp.MustCompile("https?://(www.)?")
+	
+	var instance string
+	if activity.Actor.Id == Domain {
+		instance = re.ReplaceAllString(Domain, "")
+	} else {
+		_, instance = GetActorInstance(activity.Actor.Id)
+	}
+
+	date := time.Now().UTC().Format(time.RFC1123)
+	path := strings.Replace(activity.Actor.Outbox, instance, "", 1)
+
+
+	path = re.ReplaceAllString(path, "")
+
+	sig := fmt.Sprintf("(request-target): %s %s\\nhost: %s\\ndate: %s", "post", path, instance, date)
+	encSig := ActivitySign(db, *activity.Actor, sig)
+	
+	req.Header.Set("Content-Type", activitystreams)			
+	req.Header.Set("Date", date)
+	req.Header.Set("Signature", encSig)
+	req.Host = instance
+
+	_, err = http.DefaultClient.Do(req)
+
+	CheckError(err, "error with sending activity resp to")	
+}
+
 func MakeActivityRequest(db *sql.DB, activity Activity) {
 
 	j, _ := json.MarshalIndent(activity, "", "\t")
-
-	var verify Verify
-
-	verify.Board = activity.Actor.Id
-	verify.Identifier = "post"
-
-	verify = GetVerificationCode(db, verify)
-
-	auth := CreateTripCode(verify.Code)
-
-	auth = CreateTripCode(auth)
 
 	for _, e := range activity.To {
 		if e != activity.Actor.Id {
@@ -1852,14 +1801,13 @@ func MakeActivityRequest(db *sql.DB, activity Activity) {
 					re := regexp.MustCompile("https?://(www.)?")
 					path = re.ReplaceAllString(path, "")
 
-					sig := fmt.Sprintf("(request-target): %s %s\\nhost: %s\\ndate: %s", "post", path, Instance, date)
+					sig := fmt.Sprintf("(request-target): %s %s\\nhost: %s\\ndate: %s", "post", path, instance, date)
 					encSig := ActivitySign(db, *activity.Actor, sig)
 					
 					req.Header.Set("Content-Type", activitystreams)			
 					req.Header.Set("Date", date)
 					req.Header.Set("Signature", encSig)
-					req.Header.Set("Host", Instance)
-					req.Host = Instance
+					req.Host = instance
 
 					CheckError(err, "error with sending activity req to")
 

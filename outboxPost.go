@@ -71,113 +71,83 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		w.Write([]byte("captcha could not auth"))
 	} else {
 		activity = GetActivityFromJson(r, db)
-
 		if IsActivityLocal(db, activity) {
+			if !VerifyHeaderSignature(r, *activity.Actor) {
+				w.WriteHeader(http.StatusBadRequest)										
+				w.Write([]byte(""))					
+				return
+			}
+			
 			switch activity.Type {
 			case "Create":
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte(""))
 				break
+				
 			case "Follow":
-
 				var validActor bool
 				var validLocalActor bool
 
-				header := r.Header.Get("Authorization")
-
-				auth := strings.Split(header, " ")
-
-				if len(auth) < 2 {
-					w.WriteHeader(http.StatusBadRequest)										
-					w.Write([]byte(""))					
-					return
-				}
-
-				validActor = (FingerActor(activity.Object.Actor.Id).Id != "")
+				validActor = (activity.Object.Actor.Id != "")
 				validLocalActor = (activity.Actor.Id == actor.Id)
 				
-				var verify Verify
-				verify.Identifier = "admin"
-				verify.Board = activity.Actor.Id
-
-				verify = GetVerificationCode(db, verify)
-
-				code := verify.Code
-				code = CreateTripCode(code)
-				code = CreateTripCode(code)
-
-				if code != auth[1] {
-					verify.Identifier = "admin"
-					verify.Board = Domain
-
-					verify = GetVerificationCode(db, verify)
-					code = verify.Code
-					code = CreateTripCode(code)
-					code = CreateTripCode(code)					
-				}
-
 				var rActivity Activity
-				if validActor && validLocalActor && code == auth[1] {
+				if validActor && validLocalActor {
 					rActivity = AcceptFollow(activity)
 					SetActorFollowingDB(db, rActivity)
 					MakeActivityRequest(db, activity)
 				}
-				
+
+				FollowingBoards = GetActorFollowingDB(db, Domain)
+				Boards = GetBoardCollection(db)
 				break
+				
 			case "Delete":
 				fmt.Println("This is a delete")
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte("could not process activity"))										
 				break
+				
 			case "Note":
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte("could not process activity"))
 				break
 
 			case "New":
-
-				header := r.Header.Get("Authorization")
-
-				auth := strings.Split(header, " ")
-
-				if len(auth) < 2 {
-					w.WriteHeader(http.StatusBadRequest)					
-					w.Write([]byte(""))					
-					return
-				}
-
-				var verify Verify
-				verify.Identifier = "admin"
-				verify.Board = Domain
-				
-				verify = GetVerificationCode(db, verify)
-				
-				code := verify.Code
-				code = CreateTripCode(code)
-				code = CreateTripCode(code)								
-
-				if code != auth[1] {
-					w.WriteHeader(http.StatusBadRequest)					
-					w.Write([]byte(""))					
-					return
-				}
-
 				name := activity.Object.Actor.Name
 				prefname := activity.Object.Actor.PreferredUsername
 				summary := activity.Object.Actor.Summary
 				restricted := activity.Object.Actor.Restricted
 
 				actor := CreateNewBoardDB(db, *CreateNewActor(name, prefname, summary, authReq, restricted))
-
+				
 				if actor.Id != "" {
-					j, _ := json.Marshal(&actor)
-					w.Write([]byte(j))
+					var board []ObjectBase
+					var item ObjectBase			
+					var removed bool = false
+
+					item.Id = actor.Id
+					for _, e := range FollowingBoards {
+						if e.Id != item.Id {
+							board = append(board, e)
+						} else {
+							removed = true
+						}
+					}
+
+					if !removed {
+						board = append(board, item)
+					}
+
+					FollowingBoards = board
+					Boards = GetBoardCollection(db)
 					return
 				}
 				
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte(""))
 				break
+				
 			default:
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte("could not process activity"))			
@@ -545,7 +515,6 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	activity := GetActivityFromJson(r, db)
 
 	if !VerifyHeaderSignature(r, *activity.Actor) {
-		fmt.Println(*activity.Actor)
 		response := RejectActivity(activity)
 		MakeActivityRequest(db, response)				
 		return

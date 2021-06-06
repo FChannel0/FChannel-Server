@@ -105,21 +105,22 @@ func CreateNewBoardDB(db *sql.DB, actor Actor) Actor{
 		nverify.Board = actor.Id
 		nverify.Identifier = "post"
 		nverify.Type = "post"
-		CreateBoardMod(db, nverify)					
+		CreateBoardMod(db, nverify)
 
+		CreatePem(db, actor)
+		
 		if actor.Name != "main" {
-			var nActor Actor
 			var nObject ObjectBase
 			var nActivity Activity
 
+			nActor := GetActorFromDB(db, Domain)
 			nActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 			nActivity.Type = "Follow"
 			nActivity.Actor = &nActor
 			nActivity.Object = &nObject
-			nActivity.Actor.Id = Domain
-			var mActor Actor
+
+			mActor := GetActorFromDB(db, actor.Id)
 			nActivity.Object.Actor = &mActor
-			nActivity.Object.Actor.Id = actor.Id			
 			nActivity.To = append(nActivity.To, actor.Id)
 
 			response := AcceptFollow(nActivity)
@@ -127,7 +128,6 @@ func CreateNewBoardDB(db *sql.DB, actor Actor) Actor{
 			MakeActivityRequest(db, nActivity)
 		}
 
-		CreatePem(db, actor)
 	}
 
 	return actor
