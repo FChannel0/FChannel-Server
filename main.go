@@ -713,10 +713,8 @@ func main() {
 
 	http.HandleFunc("/delete", func(w http.ResponseWriter, r *http.Request){
 		id := r.URL.Query().Get("id")
-		manage := r.URL.Query().Get("manage")
 		board := r.URL.Query().Get("board")
-		col := GetCollectionFromID(id)		
-		actor := col.OrderedItems[0].Actor
+		
 		_, auth := GetPasswordFromSession(r)
 
 		if id == "" || auth == "" {
@@ -724,6 +722,33 @@ func main() {
 			w.Write([]byte(""))
 			return
 		}
+
+		manage := r.URL.Query().Get("manage")
+		col := GetCollectionFromID(id)
+
+		if len(col.OrderedItems) < 1 {
+			if !HasAuth(db, auth, GetActorByNameFromDB(db, board).Id) {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(""))
+				return
+			}
+			
+			if !CheckIfObjectOP(db, id) {
+				TombstoneObject(db, id)
+			} else {
+				TombstoneObjectAndReplies(db, id)
+			}
+
+			if(manage == "t"){
+				http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)
+				return
+			} else {
+				http.Redirect(w, r, "/" + board, http.StatusSeeOther)
+				return
+			}
+		}
+		
+		actor := col.OrderedItems[0].Actor
 
 		if !HasAuth(db, auth, actor.Id) {
 			w.WriteHeader(http.StatusBadRequest)
@@ -775,9 +800,41 @@ func main() {
 	http.HandleFunc("/deleteattach", func(w http.ResponseWriter, r *http.Request){
 		
 		id := r.URL.Query().Get("id")
-		manage := r.URL.Query().Get("manage")		
 		board := r.URL.Query().Get("board")		
-		col := GetCollectionFromID(id)		
+
+		_, auth := GetPasswordFromSession(r)
+
+		if id == "" || auth == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(""))
+			return
+		}
+		
+		manage := r.URL.Query().Get("manage")		
+		col := GetCollectionFromID(id)
+
+		if len(col.OrderedItems) < 1 {
+			if !HasAuth(db, auth, GetActorByNameFromDB(db, board).Id) {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(""))
+				return
+			}
+			
+			DeleteAttachmentFromFile(db, id)
+			TombstoneAttachmentFromDB(db, id)
+			
+			DeletePreviewFromFile(db, id)
+			TombstonePreviewFromDB(db, id)			
+
+			if(manage == "t"){
+				http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)
+				return
+			} else {
+				http.Redirect(w, r, "/" + board, http.StatusSeeOther)
+				return
+			}
+		}
+		
 		actor := col.OrderedItems[0].Actor
 
 		var OP string
@@ -787,14 +844,6 @@ func main() {
 			OP = id
 		}
 		
-		_, auth := GetPasswordFromSession(r)
-
-		if id == "" || auth == "" {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(""))
-			return
-		}
-
 		if !HasAuth(db, auth, actor.Id) {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(""))
@@ -802,7 +851,10 @@ func main() {
 		}
 
 		DeleteAttachmentFromFile(db, id)
+		TombstoneAttachmentFromDB(db, id)
+		
 		DeletePreviewFromFile(db, id)
+		TombstonePreviewFromDB(db, id)
 		
 		if (manage == "t") {
 			http.Redirect(w, r, "/" + *Key + "/" + board, http.StatusSeeOther)
@@ -1832,19 +1884,19 @@ func GetCollectionFromID(id string) Collection {
 	resp, err := http.DefaultClient.Do(req)
 
 	if err != nil {
-		CheckError(err, "could not get collection from " + id)
 		return nColl
 	}
 
 	if resp.StatusCode == 200 {
 		defer resp.Body.Close()
-		
+
 		body, _ := ioutil.ReadAll(resp.Body)
 
-		err = json.Unmarshal(body, &nColl)
+		if len(body) > 0 {
+			err = json.Unmarshal(body, &nColl)
 
-		CheckError(err, "error getting collection resp from json body")
-
+			CheckError(err, "error getting collection resp from json body")
+		}
 	}
 
 	return nColl
