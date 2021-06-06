@@ -92,8 +92,8 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 					w.Write([]byte(""))					
 					return
 				}
-				
-				_, validActor = IsValidActor(activity.Object.Actor.Id)
+
+				validActor = (FingerActor(activity.Object.Actor.Id).Id != "")
 				validLocalActor = (activity.Actor.Id == actor.Id)
 				
 				var verify Verify
@@ -117,7 +117,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				}
 
 				var rActivity Activity
-				if validActor && validLocalActor && code == auth[1] || verify.Board == Domain {
+				if validActor && validLocalActor && code == auth[1] {
 					rActivity = AcceptFollow(activity)
 					SetActorFollowingDB(db, rActivity)
 					MakeActivityRequest(db, activity)

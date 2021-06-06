@@ -452,7 +452,7 @@ func main() {
 			}
 
 			enc, _ := json.Marshal(followActivity)
-			
+
 			req, err := http.NewRequest("POST", actor.Outbox, bytes.NewBuffer(enc))
 
 			CheckError(err, "error with follow req")		
@@ -466,13 +466,14 @@ func main() {
 			
 			req.Header.Set("Content-Type", activitystreams)
 
-			_, err = http.DefaultClient.Do(req)
+			resp, err := http.DefaultClient.Do(req)
 
-			CheckError(err, "error with add board follow resp")
-
-			FollowingBoards = GetActorFollowingDB(db, Domain)
-
-			Boards = GetBoardCollection(db)
+			if err != nil && resp.StatusCode != 200 {
+				fmt.Println("error with add board follow resp")
+			} else {
+				FollowingBoards = GetActorFollowingDB(db, Domain)
+				Boards = GetBoardCollection(db)
+			}
 
 			var redirect string
 			if(actor.Name != "main") {
@@ -1550,36 +1551,14 @@ func GetActorCollection(collection string) Collection {
 }
 
 func IsValidActor(id string) (Actor, bool) {
-	var respCollection Actor	
-	req, err := http.NewRequest("GET", id, nil)
 
-	CheckError(err, "error with valid actor request")
+	actor := FingerActor(id)
 
-	req.Header.Set("Accept", activitystreams)	
-
-	resp, err := http.DefaultClient.Do(req)
-
-	CheckError(err, "error with valid actor response")
-
-	defer resp.Body.Close()	
-
-	if resp.StatusCode == 403 {
-		return respCollection, false;	
-	}
-	
-	body, _ := ioutil.ReadAll(resp.Body)
-
-	err = json.Unmarshal(body, &respCollection)
-
-	if err != nil {
-		panic(err)
+	if actor.Id != "" {
+		return actor, true;
 	}
 
-	if respCollection.Id != "" && respCollection.Inbox != "" && respCollection.Outbox != "" {
-		return respCollection, true;
-	}
-
-	return respCollection, false;	
+	return actor, false;	
 }
 
 func IsActivityLocal(db *sql.DB, activity Activity) bool {
