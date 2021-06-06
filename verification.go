@@ -611,7 +611,7 @@ func VerifyHeaderSignature(r *http.Request, actor Actor) bool {
 		return false
 	}
 	
-	if ActivityVerify(actor, sig, encSig) != nil {
+	if ActivityVerify(actor, encSig, sig) != nil {
 		return false
 	}
 	
