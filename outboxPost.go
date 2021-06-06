@@ -567,10 +567,10 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			if actor.Id != "" {
 				if activity.Object.Replies != nil {
 					for _, k := range activity.Object.Replies.OrderedItems {
-						DeleteObject(db, k.Id)					
+						TombstoneObject(db, k.Id)					
 					}
 				}
-				DeleteObject(db, activity.Object.Id)
+				TombstoneObject(db, activity.Object.Id)
 				break
 			}
 		}

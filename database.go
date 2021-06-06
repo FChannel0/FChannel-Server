@@ -971,6 +971,32 @@ func DeletePreviewFromFile(db *sql.DB, id string) {
 		}
 	}
 
+}
+
+func RemovePreviewFromFile(db *sql.DB, id string) {
+
+	var query = `select href from activitystream where id in (select preview from activitystream where id=$1)`
+
+	rows, err := db.Query(query, id)	
+
+	CheckError(err, "error query delete attachment")				
+
+	defer rows.Close()
+	for rows.Next() {
+		var href string
+
+		err := rows.Scan(&href)
+		href = strings.Replace(href, Domain + "/", "", 1)
+		CheckError(err, "error scanning delete attachment")
+
+		if(href != "static/notfound.png") {
+			_, err = os.Stat(href)
+			if err == nil {
+				os.Remove(href)
+			}
+		}
+	}
+
 	DeletePreviewFromDB(db, id)
 }
 
@@ -998,15 +1024,14 @@ func DeleteAttachmentFromFile(db *sql.DB, id string) {
 		}
 	}
 
-	DeleteAttachmentFromDB(db, id)
 }
 
-func DeletePreviewRepliesFromDB(db *sql.DB, id string) {
+func TombstonePreviewRepliesFromDB(db *sql.DB, id string) {
 	var query = `select id from activitystream where id in (select id from replies where inreplyto=$1)`
 	
 	rows, err := db.Query(query, id)
 
-	CheckError(err, "error query delete preview replies")
+	CheckError(err, "error query tombstone preview replies")
 
 	defer rows.Close()	
 	for rows.Next() {
@@ -1014,18 +1039,19 @@ func DeletePreviewRepliesFromDB(db *sql.DB, id string) {
 
 		err := rows.Scan(&attachment)
 
-		CheckError(err, "error scanning delete preview")
+		CheckError(err, "error scanning tombstone preview")
 		
 		DeletePreviewFromFile(db, attachment)
+		TombstonePreviewFromDB(db, attachment)
 	}	
 }
 
-func DeleteAttachmentRepliesFromDB(db *sql.DB, id string) {
+func TombstoneAttachmentRepliesFromDB(db *sql.DB, id string) {
 	var query = `select id from activitystream where id in (select id from replies where inreplyto=$1)`
 	
 	rows, err := db.Query(query, id)	
 
-	CheckError(err, "error query delete attachment replies")
+	CheckError(err, "error query tombstone attachment replies")
 
 	defer rows.Close()	
 	for rows.Next() {
@@ -1036,37 +1062,66 @@ func DeleteAttachmentRepliesFromDB(db *sql.DB, id string) {
 		CheckError(err, "error scanning delete attachment")
 		
 		DeleteAttachmentFromFile(db, attachment)
+		TombstoneAttachmentFromDB(db, attachment)
 	}	
 }
 
-func DeleteAttachmentFromDB(db *sql.DB, id string) {
+func TombstoneAttachmentFromDB(db *sql.DB, id string) {
 	datetime := time.Now().Format(time.RFC3339)
 
 	var query = `update activitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select attachment from activitystream where id=$3)`
 
 	_, err := db.Exec(query, Domain + "/static/notfound.png", datetime, id)	
 
-	CheckError(err, "error with delete attachment")
+	CheckError(err, "error with tombstone attachment")
 
 	query = `update cacheactivitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select attachment from cacheactivitystream where id=$3)`
 
 	_, err = db.Exec(query, Domain + "/static/notfound.png", datetime, id)	
 
+	CheckError(err, "error with tombstone cache attachment")		
+}
+
+func DeleteAttachmentFromDB(db *sql.DB, id string) {
+	var query = `delete activitystream where id in (select attachment from activitystream where id=$1)`
+
+	_, err := db.Exec(query, id)	
+
+	CheckError(err, "error with delete attachment")
+
+	query = `delete cacheactivitystream where id in (select attachment from cacheactivitystream where id=$1)`
+
+	_, err = db.Exec(query, id)	
+
 	CheckError(err, "error with delete cache attachment")		
 }
 
-func DeletePreviewFromDB(db *sql.DB, id string) {
+func TombstonePreviewFromDB(db *sql.DB, id string) {
 	datetime := time.Now().Format(time.RFC3339)
 
 	var query = `update activitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select preview from activitystream where id=$3)`
 
 	_, err := db.Exec(query, Domain + "/static/notfound.png", datetime, id)	
 
-	CheckError(err, "error with delete preview")
+	CheckError(err, "error with tombstone preview")
 
 	query = `update cacheactivitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select preview from cacheactivitystream where id=$3)`
 
 	_, err = db.Exec(query, Domain + "/static/notfound.png", datetime, id)	
+
+	CheckError(err, "error with tombstone cache preview")		
+}
+
+func DeletePreviewFromDB(db *sql.DB, id string) {
+	var query = `delete activitystream  where id=$1)`
+
+	_, err := db.Exec(query, id)	
+
+	CheckError(err, "error with delete preview")
+
+	query = `delete cacheactivitystream where id in (select preview from cacheactivitystream where id=$1)`
+
+	_, err = db.Exec(query, id)	
 
 	CheckError(err, "error with delete cache preview")		
 }
@@ -1078,17 +1133,31 @@ func DeleteObjectRepliedTo(db *sql.DB, id string){
 	CheckError(err, "error with delete object replies")	
 }
 
-func DeleteObjectFromDB(db *sql.DB, id string) {
+func TombstoneObjectFromDB(db *sql.DB, id string) {
 	datetime := time.Now().Format(time.RFC3339)
 	var query = `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', deleted=$1 where id=$2`
 
 	_, err := db.Exec(query, datetime, id)	
 
-	CheckError(err, "error with delete object")
+	CheckError(err, "error with tombstone object")
 
 	query = `update cacheactivitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='',  deleted=$1 where id=$2`
 
 	_, err = db.Exec(query, datetime, id)	
+
+	CheckError(err, "error with tombstone cache object")	
+}
+
+func DeleteObjectFromDB(db *sql.DB, id string) {
+ var query = `delete activitystream where id=$1`
+
+	_, err := db.Exec(query, id)	
+
+	CheckError(err, "error with delete object")
+
+	query = `delete cacheactivitystream where id=$1`
+
+	_, err = db.Exec(query, id)	
 
 	CheckError(err, "error with delete cache object")	
 }
@@ -1101,18 +1170,18 @@ func DeleteObjectsInReplyTo(db *sql.DB, id string) {
 	CheckError(err, "error with delete object replies to")		
 }
 
-func DeleteObjectRepliesFromDB(db *sql.DB, id string) {
+func TombstoneObjectRepliesFromDB(db *sql.DB, id string) {
 	datetime := time.Now().Format(time.RFC3339)
 
 	var query = `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', deleted=$1 where id in (select id from replies where inreplyto=$2)`
 
 	_, err := db.Exec(query, datetime, id)	
-	CheckError(err, "error with delete object replies")
+	CheckError(err, "error with tombstone object replies")
 
 	query = `update cacheactivitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', deleted=$1 where id in (select id from replies where inreplyto=$2)`
 
 	_, err = db.Exec(query, datetime, id)	
-	CheckError(err, "error with delete object cache replies")	
+	CheckError(err, "error with tombstone object cache replies")	
 
 }
 
@@ -1224,23 +1293,34 @@ func SetObjectAndReplies(db *sql.DB, id string, _type string) {
 }
 
 func DeleteObject(db *sql.DB, id string) {
-	DeleteReportActivity(db, id)	
+	DeleteReportActivity(db, id)
 	DeleteAttachmentFromFile(db, id)
-	DeletePreviewFromFile(db, id)			
+	DeleteAttachmentFromDB(db, id)
+	DeletePreviewFromFile(db, id)
+	DeletePreviewFromDB(db, id)	
 	DeleteObjectFromDB(db, id)
 	DeleteObjectRepliedTo(db, id)
 }
 
-func DeleteObjectAndReplies(db *sql.DB, id string) {
+func TombstoneObject(db *sql.DB, id string) {
+	DeleteReportActivity(db, id)
+	DeleteAttachmentFromFile(db, id)
+	TombstoneAttachmentFromDB(db, id)
+	DeletePreviewFromFile(db, id)
+	TombstonePreviewFromDB(db, id)	
+	TombstoneObjectFromDB(db, id)
+}
+
+func TombstoneObjectAndReplies(db *sql.DB, id string) {
 	DeleteReportActivity(db, id)	
 	DeleteAttachmentFromFile(db, id)
+	TombstoneAttachmentFromDB(db, id)	
 	DeletePreviewFromFile(db, id)
-	DeleteObjectRepliedTo(db, id)
-	DeleteObjectsInReplyTo(db, id)	
-	DeleteObjectRepliesFromDB(db, id)
-	DeleteAttachmentRepliesFromDB(db, id)
-	DeletePreviewRepliesFromDB(db, id)
-	DeleteObjectFromDB(db, id)
+	TombstonePreviewFromDB(db, id)		
+	TombstoneObjectRepliesFromDB(db, id)
+	TombstoneAttachmentRepliesFromDB(db, id)
+	TombstonePreviewRepliesFromDB(db, id)
+	TombstoneObjectFromDB(db, id)
 }
 
 func GetRandomCaptcha(db *sql.DB) string{

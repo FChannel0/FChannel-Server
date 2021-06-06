@@ -742,9 +742,9 @@ func main() {
 		}
 
 		if !isOP {
-			DeleteObject(db, id)
+			TombstoneObject(db, id)
 		} else {
-			DeleteObjectAndReplies(db, id)
+			TombstoneObjectAndReplies(db, id)
 		}
 
 		if IsIDLocal(db, id){
