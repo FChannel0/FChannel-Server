@@ -1083,13 +1083,13 @@ func TombstoneAttachmentFromDB(db *sql.DB, id string) {
 }
 
 func DeleteAttachmentFromDB(db *sql.DB, id string) {
-	var query = `delete activitystream where id in (select attachment from activitystream where id=$1)`
+	var query = `delete from activitystream where id in (select attachment from activitystream where id=$1)`
 
 	_, err := db.Exec(query, id)	
 
 	CheckError(err, "error with delete attachment")
 
-	query = `delete cacheactivitystream where id in (select attachment from cacheactivitystream where id=$1)`
+	query = `delete from cacheactivitystream where id in (select attachment from cacheactivitystream where id=$1)`
 
 	_, err = db.Exec(query, id)	
 
@@ -1113,13 +1113,13 @@ func TombstonePreviewFromDB(db *sql.DB, id string) {
 }
 
 func DeletePreviewFromDB(db *sql.DB, id string) {
-	var query = `delete activitystream  where id=$1)`
+	var query = `delete from activitystream  where id=$1`
 
 	_, err := db.Exec(query, id)	
 
 	CheckError(err, "error with delete preview")
 
-	query = `delete cacheactivitystream where id in (select preview from cacheactivitystream where id=$1)`
+	query = `delete from cacheactivitystream where id in (select preview from cacheactivitystream where id=$1)`
 
 	_, err = db.Exec(query, id)	
 
@@ -1149,13 +1149,13 @@ func TombstoneObjectFromDB(db *sql.DB, id string) {
 }
 
 func DeleteObjectFromDB(db *sql.DB, id string) {
- var query = `delete activitystream where id=$1`
+ var query = `delete from activitystream where id=$1`
 
 	_, err := db.Exec(query, id)	
 
 	CheckError(err, "error with delete object")
 
-	query = `delete cacheactivitystream where id=$1`
+	query = `delete from cacheactivitystream where id=$1`
 
 	_, err = db.Exec(query, id)	
 
