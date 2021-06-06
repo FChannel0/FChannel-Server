@@ -544,11 +544,11 @@ func CheckCaptcha(db *sql.DB, captcha string) bool {
 func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	activity := GetActivityFromJson(r, db)
 
-	if !VerifyHeaderSignature(r, *activity.Actor) {
-		response := RejectActivity(activity)
-		MakeActivityRequest(db, response)				
-		return
-	}
+	// if !VerifyHeaderSignature(r, *activity.Actor) {
+	// 	response := RejectActivity(activity)
+	// 	MakeActivityRequest(db, response)				
+	// 	return
+	// }
 
 	switch(activity.Type) {
 	case "Create":

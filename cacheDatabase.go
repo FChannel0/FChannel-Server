@@ -30,6 +30,32 @@ func WriteObjectToCache(db *sql.DB, obj ObjectBase) ObjectBase {
 	return obj
 }
 
+func WriteActorObjectToCache(db *sql.DB, obj ObjectBase) ObjectBase {
+	if len(obj.Attachment) > 0 {
+		if obj.Preview.Href != "" {
+			WritePreviewToCache(db, *obj.Preview)
+		}
+		
+		for i, _ := range obj.Attachment {
+			WriteAttachmentToCache(db, obj.Attachment[i])
+			WriteActivitytoCacheWithAttachment(db, obj, obj.Attachment[i], *obj.Preview)
+		}
+
+	} else {
+		WriteActivitytoCache(db, obj)
+	}
+
+	WriteActorObjectReplyToDB(db, obj)
+
+	if obj.Replies != nil {
+		for _, e := range obj.Replies.OrderedItems {
+			WriteActorObjectToCache(db, e)
+		}
+	}
+
+	return obj
+}
+
 func WriteActivitytoCache(db *sql.DB, obj ObjectBase) {
 
 	obj.Name = EscapeString(obj.Name)
@@ -232,7 +258,7 @@ func WriteActorToCache(db *sql.DB, actorID string) {
 	collection := GetActorCollection(actor.Outbox)
 
 	for _, e := range collection.OrderedItems {
-		WriteObjectToCache(db, e)
+		WriteActorObjectToCache(db, e)
 	}
 }
 

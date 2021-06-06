@@ -297,6 +297,53 @@ func WriteObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 	}
 }
 
+func WriteActorObjectReplyToDB(db *sql.DB, obj ObjectBase) {
+	for _, e := range obj.InReplyTo {
+		query := `select id from replies where id=$1 and inreplyto=$2`
+
+		rows, err := db.Query(query, obj.Id, e.Id)
+
+		CheckError(err, "error selecting replies db")
+
+		defer rows.Close()
+
+		var id string
+		rows.Next()
+		rows.Scan(&id)
+
+		if id == "" {		
+			query := `insert into replies (id, inreplyto) values ($1, $2)`
+
+			_, err := db.Exec(query, obj.Id, e.Id)			
+
+
+			CheckError(err, "error inserting replies db")			
+		}
+	}
+
+	if len(obj.InReplyTo) < 1 {
+		query := `select id from replies where id=$1 and inreplyto=$2`
+
+		rows, err := db.Query(query, obj.Id, "")
+
+		CheckError(err, "error selecting replies db")
+
+		defer rows.Close()
+
+		var id string
+		rows.Next()
+		rows.Scan(&id)
+
+		if id == "" {
+			query := `insert into replies (id, inreplyto) values ($1, $2)`
+
+			_, err := db.Exec(query, obj.Id, "")			
+
+			CheckError(err, "error inserting replies db")
+		}
+	}
+}
+
 func WriteWalletToDB(db *sql.DB, obj ObjectBase) {
 	for _, e := range obj.Option { 	
 		if e == "wallet" {
@@ -459,7 +506,7 @@ func GetObjectFromDB(db *sql.DB, id string) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
-	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' order by updated asc`
+	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' order by updated desc`
 
 	rows, err := db.Query(query, id)	
 
