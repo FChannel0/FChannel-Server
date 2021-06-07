@@ -437,7 +437,13 @@ func main() {
 			
 
 			var obj ObjectBase
-			nactor := FingerActor(r.FormValue("actor"))			
+			var nactor Actor
+			if r.FormValue("actor") == Domain {
+				nactor = GetActorFromDB(db, r.FormValue("actor"))
+			} else {
+				nactor = FingerActor(r.FormValue("actor"))			
+			}
+			
 			followActivity.Actor = &nactor
 			followActivity.Object = &obj
 
@@ -1747,6 +1753,10 @@ func GetActorReported(w http.ResponseWriter, r *http.Request, db *sql.DB, id str
 
 func MakeActivityRequestOutbox(db *sql.DB, activity Activity) {
 	j, _ := json.Marshal(activity)
+
+	if activity.Actor.Outbox == "" {
+		return
+	}
 
 	req, err := http.NewRequest("POST", activity.Actor.Outbox, bytes.NewBuffer(j))
 
