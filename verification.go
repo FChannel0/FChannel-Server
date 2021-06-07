@@ -18,6 +18,7 @@ import crand "crypto/rand"
 import "io/ioutil"
 import "strings"
 import "net/http"
+import "regexp"
 
 type Verify struct {
 	Type string
@@ -31,6 +32,12 @@ type VerifyCooldown struct {
 	Identifier string
 	Code string
 	Time int
+}
+
+type Signature struct {
+	KeyId string
+	Headers []string
+	Signature string
 }
 
 func DeleteBoardMod(db *sql.DB, verify Verify) {
@@ -597,13 +604,38 @@ func ActivityVerify(actor Actor, signature string, verify string) error {
 }
 
 func VerifyHeaderSignature(r *http.Request, actor Actor) bool {
-	method := strings.ToLower(r.Method)
-	path := r.URL.Path
-	host := r.Host
-	date := r.Header.Get("Date")
-	encSig := r.Header.Get("Signature")
+	s := ParseHeaderSignature(r.Header.Get("Signature"))
 
-	sig := fmt.Sprintf("(request-target): %s %s\\nhost: %s\\ndate: %s", method, path, host, date)
+	var method string
+	var path string
+	var host string
+	var date string
+
+	var sig string
+	for _, e := range s.Headers {
+		if e == "(request-target)" {
+			method = strings.ToLower(r.Method)
+			path = r.URL.Path
+			sig += "(request-target): " + method + " " + path + "\\n"			
+			continue
+		}
+
+		if e == "host" {
+			host = r.Host
+			sig += "host: " + host + "\\n"
+			continue
+		}
+
+		if e == "date" {
+			date = r.Header.Get("date")
+			sig += "date: " + date
+			continue
+		}		
+	}
+
+	if s.KeyId != actor.PublicKey.Id {
+		return false
+	}
 
 	t, _ := time.Parse(time.RFC1123, date)
 
@@ -611,9 +643,40 @@ func VerifyHeaderSignature(r *http.Request, actor Actor) bool {
 		return false
 	}
 	
-	if ActivityVerify(actor, encSig, sig) != nil {
+	if ActivityVerify(actor, s.Signature, sig) != nil {
 		return false
 	}
 	
 	return true
+}
+
+func ParseHeaderSignature(signature string) Signature {
+	var nsig Signature
+
+	keyId := regexp.MustCompile(`keyId=`)
+	headers := regexp.MustCompile(`headers=`)
+	sig := regexp.MustCompile(`signature=`)
+
+	signature = strings.ReplaceAll(signature, "\"", "")
+	parts := strings.Split(signature, ",")
+
+	for _, e := range parts {
+		if keyId.MatchString(e) {
+			nsig.KeyId = keyId.ReplaceAllString(e, "")
+			continue
+		}
+		
+		if headers.MatchString(e) {
+			header := headers.ReplaceAllString(e, "")
+			nsig.Headers = strings.Split(header, " ")
+			continue
+		}
+
+		if sig.MatchString(e) {
+			nsig.Signature = sig.ReplaceAllString(e, "")
+			continue
+		}
+	}
+
+	return nsig
 }
