@@ -1804,8 +1804,11 @@ func MakeActivityRequest(db *sql.DB, activity Activity) {
 				_, instance := GetActorInstance(actor.Id)
 
 				if actor.Inbox != "" {
+
 					req, err := http.NewRequest("POST", actor.Inbox, bytes.NewBuffer(j))
-					
+
+					CheckError(err, "error with sending activity req to")
+
 					date := time.Now().UTC().Format(time.RFC1123)
 					path := strings.Replace(actor.Inbox, instance, "", 1)
 					
@@ -1820,8 +1823,6 @@ func MakeActivityRequest(db *sql.DB, activity Activity) {
 					req.Header.Set("Date", date)
 					req.Header.Set("Signature", signature)
 					req.Host = instance
-
-					CheckError(err, "error with sending activity req to")
 
 					_, err = http.DefaultClient.Do(req)
 
@@ -1956,8 +1957,9 @@ func DeleteObjectRequest(db *sql.DB, id string) {
 
 	obj := GetObjectFromPath(db, id)
 
-	activity.Actor.Id = obj.Actor.Id
-	
+	actor := FingerActor(obj.Actor.Id)
+	activity.Actor = &actor
+
 	followers := GetActorFollowDB(db, obj.Actor.Id)
 	for _, e := range followers {
 		activity.To = append(activity.To, e.Id)
