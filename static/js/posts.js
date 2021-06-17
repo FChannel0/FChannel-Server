@@ -129,6 +129,7 @@ function convertContent(actorName, content, opid)
             
             if(document.getElementById(link + "-content") != null) {
                 q = document.getElementById(link + "-content").innerText;
+                q = q.replaceAll('>', '/\>')
             }
             
             newContent = newContent.replace(quote, '<a class="reply" title="' + q +  '" href="'+ (actorName) + "/" + shortURL(actorName, opid)  +  '#' + shortURL(actorName, link) + '";">>>' + shortURL(actorName, link)  + isOP + '</a>');
@@ -143,10 +144,11 @@ function convertContent(actorName, content, opid)
     {
         match.forEach(function(quote, i) {
             newContent = newContent.replace(quote, '<span class="quote">' + quote + '</span>');
+            newContent = newContent.replace(quote, '<span class="quote">' + quote + '</span>');            
         })
     }
     
-    return newContent
+    return newContent.replaceAll('/\>', '>')
 }
 
 function convertContentNoLink(actorName, content, opid)
