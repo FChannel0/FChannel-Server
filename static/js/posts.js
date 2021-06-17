@@ -130,8 +130,9 @@ function convertContent(actorName, content, opid)
             if(document.getElementById(link + "-content") != null) {
                 q = document.getElementById(link + "-content").innerText;
                 q = q.replaceAll('>', '/\>')
+                q = q.replaceAll('"', '')
+                q = q.replaceAll("'", "")                                
             }
-            
             newContent = newContent.replace(quote, '<a class="reply" title="' + q +  '" href="'+ (actorName) + "/" + shortURL(actorName, opid)  +  '#' + shortURL(actorName, link) + '";">>>' + shortURL(actorName, link)  + isOP + '</a>');
 
         })            
@@ -143,8 +144,8 @@ function convertContent(actorName, content, opid)
     if(match)
     {
         match.forEach(function(quote, i) {
+    
             newContent = newContent.replace(quote, '<span class="quote">' + quote + '</span>');
-            newContent = newContent.replace(quote, '<span class="quote">' + quote + '</span>');            
         })
     }
     
@@ -172,12 +173,11 @@ function convertContentNoLink(actorName, content, opid)
                 q = document.getElementById(link + "-content").innerText;
             }
             
-            newContent = newContent.replace(quote, '>>>' + shortURL(actorName, link)  + isOP);
-
+            newContent = newContent.replace(quote, '>>' + shortURL(actorName, link)  + isOP);
         })            
     }
-    
-    return newContent
+    newContent = newContent.replaceAll("'", "")
+    return newContent.replaceAll('"', '')
 }
 
 function closeReply()
