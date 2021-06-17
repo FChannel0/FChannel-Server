@@ -1,4 +1,19 @@
 {{ define "header" }}
+<title>{{ .Title }}</title>
+<meta name="description" content="{{ .Message }}">    
+
+<meta property="og:locale" content="en_US" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="{{ .Board.Domain }}">
+<meta property="og:site_name" content="{{ .Board.Actor.PreferredUsername }}" />
+
+<meta property="og:title" content="{{ .Title }}">
+<meta property="og:description" content="{{ .Message }}">
+
+<meta name="twitter:title" content="{{ .Title }}">
+<meta name="twitter:description" content="{{ .Message }}">
+<meta name="twitter:card" content="summary_large_image">
+
 {{ end }}
 
 {{ define "top" }}{{ end }}

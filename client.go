@@ -47,6 +47,8 @@ type PageData struct {
 	Boards []Board
 	Posts []ObjectBase
 	Key string
+	PostId string
+	Instance Actor
 }
 
 type AdminPage struct {
@@ -158,8 +160,10 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	returnData.Board.Restricted = actor.Restricted
 	returnData.Key = *Key
 
-	returnData.Board.Post.Actor = actor	
+	returnData.Board.Post.Actor = actor
 
+	returnData.Instance = GetActorFromDB(db, Domain)
+	
 	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
 	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)	
 
@@ -196,6 +200,8 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
 	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)
 
+	returnData.Instance = GetActorFromDB(db, Domain)
+
 	returnData.Title = "/" + returnData.Board.Name + "/ - " + returnData.Board.PrefName
 
 	returnData.Key = *Key	
@@ -212,7 +218,6 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 		if len(followCollection.OrderedItems) > 0 {
 			returnData.Board.InReplyTo = followCollection.OrderedItems[0].Id
 			returnData.Posts = append(returnData.Posts, followCollection.OrderedItems[0])
-
 			var actor Actor
 			actor = FingerActor(returnData.Board.InReplyTo)
 			returnData.Board.Post.Actor = &actor
@@ -226,6 +231,10 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 		if len(collection.OrderedItems) > 0 {
 			returnData.Posts = append(returnData.Posts, collection.OrderedItems[0])
 		}
+	}
+
+	if len(returnData.Posts) > 0 {
+		returnData.PostId = shortURL(returnData.Board.To, returnData.Posts[0].Id)
 	}
 
 	t.ExecuteTemplate(w, "layout",  returnData)			

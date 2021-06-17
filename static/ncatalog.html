@@ -1,4 +1,16 @@
 {{ define "header" }}
+<title>/{{ .Board.Name }}/ - catalog</title>
+<meta name="description" content="{{ .Board.Summary }}">
+<meta property="og:url" content="{{ .Board.Actor.Id }}">
+<meta property="og:site_name" content="{{ .Instance.PreferredUsername }}" />
+
+<meta property="og:title" content="{{ .Title }}">
+<meta property="og:description" content="{{ .Board.Summary }}">
+
+<meta name="twitter:title" content="{{ .Title }}">
+<meta name="twitter:description" content="{{ .Board.Summary }}">
+<meta name="twitter:card" content="summary_large_image">
+
 <script src="/static/js/posts.js"></script>
 {{ end }}
 

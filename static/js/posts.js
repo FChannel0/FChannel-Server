@@ -124,8 +124,14 @@ function convertContent(actorName, content, opid)
             {
                 isOP = " (OP)";
             }
-
-            newContent = newContent.replace(quote, '<a class="reply" title="' + link +  '" href="'+ (actorName) + "/" + shortURL(actorName, opid)  +  '#' + shortURL(actorName, link) + '";">>>' + shortURL(actorName, link)  + isOP + '</a>');
+            
+            var q = link
+            
+            if(document.getElementById(link + "-content") != null) {
+                q = document.getElementById(link + "-content").innerText;
+            }
+            
+            newContent = newContent.replace(quote, '<a class="reply" title="' + q +  '" href="'+ (actorName) + "/" + shortURL(actorName, opid)  +  '#' + shortURL(actorName, link) + '";">>>' + shortURL(actorName, link)  + isOP + '</a>');
 
         })            
     }
@@ -138,6 +144,35 @@ function convertContent(actorName, content, opid)
         match.forEach(function(quote, i) {
             newContent = newContent.replace(quote, '<span class="quote">' + quote + '</span>');
         })
+    }
+    
+    return newContent
+}
+
+function convertContentNoLink(actorName, content, opid)
+{
+    var re = /(>>)(https?:\/\/)?(www\.)?.+\/\w+/gm;
+    var match = content.match(re);
+    var newContent = content;
+    if(match)
+    {
+        match.forEach(function(quote, i){
+            var link = quote.replace('>>', '')
+            var isOP = ""
+            if(link == opid)
+            {
+                isOP = " (OP)";
+            }
+            
+            var q = link
+            
+            if(document.getElementById(link + "-content") != null) {
+                q = document.getElementById(link + "-content").innerText;
+            }
+            
+            newContent = newContent.replace(quote, '>>>' + shortURL(actorName, link)  + isOP);
+
+        })            
     }
     
     return newContent
