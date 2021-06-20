@@ -1476,3 +1476,15 @@ func GetActorPemFromDB(db *sql.DB, pemID string) PublicKeyPem {
 	
 	return pem
 }
+
+func MarkObjectSensitive(db *sql.DB, id string, sensitive bool) {
+	var query = `update activitystream set sensitive=$1 where id=$2`
+	_, err := db.Exec(query, sensitive, id)
+
+	CheckError(err, "error updating sensitive object in activitystream")
+
+	query = `update cacheactivitystream set sensitive=$1 where id=$2`
+	_, err = db.Exec(query, sensitive, id)
+
+	CheckError(err, "error updating sensitive object in cacheactivitystream")	
+}

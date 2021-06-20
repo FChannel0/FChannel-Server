@@ -224,7 +224,7 @@ function quote(actorName, opid, id)
     }
 
 
-    box.setAttribute("style", "display: block; position: absolute; width: 400px; height: 550px; z-index: 9; top: " + h + "px; left: " + w + "px; padding: 5px;");
+    box.setAttribute("style", "display: block; position: absolute; width: 400px; height: 600px; z-index: 9; top: " + h + "px; left: " + w + "px; padding: 5px;");
 
 
     if (inReplyTo.value != opid)

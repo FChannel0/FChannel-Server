@@ -801,6 +801,63 @@ func main() {
 		w.Write([]byte(""))				
 	})
 
+	http.HandleFunc("/marksensitive", func(w http.ResponseWriter, r *http.Request){
+		
+		id := r.URL.Query().Get("id")
+		board := r.URL.Query().Get("board")		
+
+		_, auth := GetPasswordFromSession(r)
+
+		if id == "" || auth == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(""))
+			return
+		}
+		
+		col := GetCollectionFromID(id)
+
+		if len(col.OrderedItems) < 1 {
+			if !HasAuth(db, auth, GetActorByNameFromDB(db, board).Id) {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(""))
+				return
+			}
+
+			MarkObjectSensitive(db, id, true)
+			
+			http.Redirect(w, r, "/" + board, http.StatusSeeOther)
+			return
+		}
+		
+		actor := col.OrderedItems[0].Actor
+
+		var OP string
+		if (len(col.OrderedItems[0].InReplyTo) > 0 && col.OrderedItems[0].InReplyTo[0].Id != "") {
+			OP = col.OrderedItems[0].InReplyTo[0].Id
+		} else {
+			OP = id
+		}
+		
+		if !HasAuth(db, auth, actor.Id) {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(""))
+			return
+		}
+
+		MarkObjectSensitive(db, id, true)
+
+		if !IsIDLocal(db, OP) {
+			http.Redirect(w, r, "/" + board + "/" + remoteShort(OP), http.StatusSeeOther)
+			return
+		} else {
+			http.Redirect(w, r, OP, http.StatusSeeOther)
+			return
+		}
+
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(""))				
+	})	
+
 	http.HandleFunc("/remove", func(w http.ResponseWriter, r *http.Request){
 		id := r.URL.Query().Get("id")
 		manage := r.URL.Query().Get("manage")
