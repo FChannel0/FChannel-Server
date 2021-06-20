@@ -3,6 +3,10 @@ var imgArray = [].slice.call(imgs);
 
 imgArray.forEach(function(img, i){
     img.addEventListener("click", function(e){
+        var id = img.getAttribute("id")
+        var media = document.getElementById("media-" + id)
+        var sensitive = document.getElementById("sensitive-" + id)        
+        
         if(img.getAttribute("enlarge") == "0")
         {
             var attachment = img.getAttribute("attachment")

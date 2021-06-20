@@ -6,11 +6,12 @@
     <input id="reply-options" name="options" size="43" type="text" placeholder="Options" maxlength="100">
     <textarea id="reply-comment" name="comment" rows="12" cols="54" style="width: 396px;" maxlength="2000"></textarea>
     <input id="reply-file" name="file" type="file">
-    <input id="reply-submit" type="submit" value="Reply" style="float: right;">
+    <input id="reply-submit" type="submit" value="Reply" style="float: right;"><br><br>
     <input type="hidden" id="inReplyTo-box" name="inReplyTo" value="{{ .Board.InReplyTo }}">
     <input type="hidden" id="sendTo" name="sendTo" value="{{ .Board.To }}">
     <input type="hidden" id="boardName" name="boardName" value="{{ .Board.Name }}">
     <input type="hidden" id="captchaCode" name="captchaCode" value="{{ .Board.CaptchaCode }}">
+    <input type="checkbox" name="sensitive"><span>Mark attachment as sensitive</span><br><br>    
     <div style="width: 202px; margin: 0 auto; padding-top: 12px;">
       <label for="captcha">Captcha:</label><br>      
       <input style="display: inline-block;"  type="text" id="captcha" name="captcha" autocomplete="off"><br>

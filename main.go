@@ -364,7 +364,6 @@ func main() {
 		CheckError(err, "error with post form req")
 
 		req.Header.Set("Content-Type", we.FormDataContentType())
-		req.Header.Set("Authorization", "Basic " + *Key)
 
 		resp, err := http.DefaultClient.Do(req)
 

@@ -351,6 +351,7 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 	obj.TripCode = EscapeString(r.FormValue("tripcode"))
 	obj.Name = EscapeString(r.FormValue("subject"))
 	obj.Content = EscapeString(r.FormValue("comment"))
+	obj.Sensitive = (r.FormValue("sensitive") != "")
 
 	obj = ParseOptions(r, obj)
 

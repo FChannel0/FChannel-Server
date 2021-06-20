@@ -77,9 +77,9 @@ func WriteActivitytoCache(db *sql.DB, obj ObjectBase) {
 		return
 	}		
 
-	query = `insert into cacheactivitystream (id, type, name, content, published, updated, attributedto, actor, tripcode) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	query = `insert into cacheactivitystream (id, type, name, content, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, obj.Published, obj.Published, obj.AttributedTo, obj.Actor.Id, obj.TripCode)	
+	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, obj.Published, obj.Published, obj.AttributedTo, obj.Actor.Id, obj.TripCode, obj.Sensitive)	
 	
 	if e != nil{
 		fmt.Println("error inserting new activity cache")
@@ -108,9 +108,9 @@ func WriteActivitytoCacheWithAttachment(db *sql.DB, obj ObjectBase, attachment O
 		return
 	}		
 
-	query = `insert into cacheactivitystream (id, type, name, content, attachment, preview, published, updated, attributedto, actor, tripcode) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
+	query = `insert into cacheactivitystream (id, type, name, content, attachment, preview, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, attachment.Id, preview.Id, obj.Published, obj.Published, obj.AttributedTo, obj.Actor.Id, obj.TripCode)	
+	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, attachment.Id, preview.Id, obj.Published, obj.Published, obj.AttributedTo, obj.Actor.Id, obj.TripCode, obj.Sensitive)	
 	
 	if e != nil{
 		fmt.Println("error inserting new activity with attachment cache")

@@ -137,7 +137,8 @@ type ObjectBase struct {
 	Bcc string `json:"Bcc,omitempty"`
 	MediaType string `json:"mediatype,omitempty"`
 	Duration string `json:"duration,omitempty"`
-	Size int64 `json:"size,omitempty"`																							
+	Size int64 `json:"size,omitempty"`
+	Sensitive bool `json:"sensitive"` 
 }
 
 type CryptoCur struct {
