@@ -615,35 +615,42 @@ func VerifyHeaderSignature(r *http.Request, actor Actor) bool {
 	var contentLength string	
 
 	var sig string
-	for _, e := range s.Headers {
+	for i, e := range s.Headers {
+
+		var nl string
+		if i < len(s.Headers) - 1 {
+			nl = "\n"
+		}
+		
+		
 		if e == "(request-target)" {
 			method = strings.ToLower(r.Method)
 			path = r.URL.Path
-			sig += "(request-target): " + method + " " + path + "\\n"			
+			sig += "(request-target): " + method + " " + path + "" + nl
 			continue
 		}
 
 		if e == "host" {
 			host = r.Host
-			sig += "host: " + host + "\\n"
+			sig += "host: " + host + "" + nl
 			continue
 		}
 
 		if e == "date" {
 			date = r.Header.Get("date")
-			sig += "date: " + date
+			sig += "date: " + date + "" + nl
 			continue
 		}
 
 		if e == "digest" {
 			digest = r.Header.Get("digest")
-			sig += "digest: " + digest
+			sig += "digest: " + digest + "" + nl
 			continue
 		}
 
 		if e == "content-length" {
 			contentLength = r.Header.Get("content-length")
-			sig += "content-length: " + contentLength
+			sig += "content-length: " + contentLength + "" + nl 
 			continue
 		}						
 	}

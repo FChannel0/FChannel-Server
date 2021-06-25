@@ -2293,8 +2293,6 @@ func FingerRequest(actor string, instance string) (*http.Response){
 
 	CheckError(err, "could not get finger request from id req")
 
-	req.Header.Set("Accept", activitystreams)				
-	
 	resp, err := http.DefaultClient.Do(req)
 
 	var finger Webfinger
@@ -2342,12 +2340,16 @@ func GetActorInstance(path string) (string, string) {
 		}
 	}
 
-	re = regexp.MustCompile(`(https?:\\)?(www)?([\w\d-_.:]+)\/([\w\d-_.]+)`)
+	re = regexp.MustCompile(`(https?:\\)?(www)?([\w\d-_.:]+)\/([\w\d-_.]+)(\/([\w\d-_.]+))?`)
 	httpFormat := re.MatchString(path)
 
 	if(httpFormat) {
 		match := re.FindStringSubmatch(path)
 		if(len(match) > 3) {
+			if match[4] == "users" {
+				return match[6], match[3]
+			}
+			
 			return match[4], match[3]
 		}
 	}

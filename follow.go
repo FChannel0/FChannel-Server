@@ -139,6 +139,8 @@ func RejectActivity(activity Activity) Activity {
 	accept.Type = "Reject"
 	var nObj ObjectBase
 	accept.Object = &nObj
+	var nActor Actor
+	accept.Actor = &nActor
 	accept.Actor.Id = activity.Object.Actor
 	accept.Object.Actor = activity.Actor.Id
 	var nNested NestedObjectBase

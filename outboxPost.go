@@ -512,6 +512,12 @@ func CheckCaptcha(db *sql.DB, captcha string) bool {
 
 func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	activity := GetActivityFromJson(r, db)
+
+	if activity.Actor.PublicKey.Id == "" {
+		nActor := FingerActor(activity.Actor.Id)
+		activity.Actor = &nActor
+	}
+	
 	if !VerifyHeaderSignature(r, *activity.Actor) {
 		response := RejectActivity(activity)
 		MakeActivityRequest(db, response)				

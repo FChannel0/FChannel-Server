@@ -16,7 +16,7 @@ func GetActorOutbox(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	collection.TotalItems = GetObjectPostsTotalDB(db, actor)
 	collection.TotalImgs = GetObjectImgsTotalDB(db, actor)
 
-	enc, _ := json.MarshalIndent(collection, "", "\t")
+	enc, _ := json.Marshal(collection)
 
 	w.Header().Set("Content-Type", activitystreams)
 	w.Write(enc)
