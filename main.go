@@ -1835,7 +1835,7 @@ func MakeActivityRequestOutbox(db *sql.DB, activity Activity) {
 
 	path = re.ReplaceAllString(path, "")
 
-	sig := fmt.Sprintf("(request-target): %s %s\\nhost: %s\\ndate: %s", "post", path, instance, date)
+	sig := fmt.Sprintf("(request-target): %s %s\nhost: %s\ndate: %s", "post", path, instance, date)
 	encSig := ActivitySign(db, *activity.Actor, sig)
 	signature := fmt.Sprintf("keyId=\"%s\",headers=\"(request-target) host date\",signature=\"%s\"", activity.Actor.PublicKey.Id, encSig)	
 	
@@ -1873,7 +1873,7 @@ func MakeActivityRequest(db *sql.DB, activity Activity) {
 					re := regexp.MustCompile("https?://(www.)?")
 					path = re.ReplaceAllString(path, "")
 
-					sig := fmt.Sprintf("(request-target): %s %s\\nhost: %s\\ndate: %s", "post", path, instance, date)
+					sig := fmt.Sprintf("(request-target): %s %s\nhost: %s\ndate: %s", "post", path, instance, date)
 					encSig := ActivitySign(db, *activity.Actor, sig)
 					signature := fmt.Sprintf("keyId=\"%s\",headers=\"(request-target) host date\",signature=\"%s\"", activity.Actor.PublicKey.Id, encSig)
 
