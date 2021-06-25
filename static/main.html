@@ -22,7 +22,7 @@
       }
 
       body {
-          {{ if .Board.Post.Actor.Restricted }}
+          {{ if .Board.Restricted }}
           background-color: #eef2fe;
           color: black;
           {{ else }}
@@ -32,7 +32,7 @@
       }
       
       .popup-box {
-          {{ if .Board.Post.Actor.Restricted }}
+          {{ if .Board.Restricted }}
           border: 4px solid #d3caf0;
           background-color: #eff5ff;
           {{ else }}
@@ -46,7 +46,7 @@
       }
 
       .reply {
-          {{ if .Board.Post.Actor.Restricted }}
+          {{ if .Board.Restricted }}
           color:#af0a0f;
           {{ else }}
           color:#000080;
@@ -54,7 +54,7 @@
       }
 
       .post {
-          {{ if .Board.Post.Actor.Restricted }}
+          {{ if .Board.Restricted }}
           background-color: #d5daf0;
           {{ else }}
           background-color: #f0e0d6;
@@ -62,7 +62,7 @@
       }
       
       :target > div > .post {
-          {{ if .Board.Post.Actor.Restricted }}
+          {{ if .Board.Restricted }}
           background-color: #d6bad0;
           {{ else }}
           background-color: #f0c0b0;

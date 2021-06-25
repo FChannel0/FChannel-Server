@@ -89,7 +89,8 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	data.Board.Domain = Domain
 	data.Board.ModCred, _ = GetPasswordFromSession(r)
 	data.Board.Actor = actor
-	data.Board.Post.Actor = &actor	
+	data.Board.Post.Actor = actor.Id
+	data.Board.Restricted = actor.Restricted
 
 	t.ExecuteTemplate(w, "layout",  data)	
 }
@@ -117,7 +118,7 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	returnData.Board.Restricted = actor.Restricted
 	returnData.CurrentPage = page
 
-	returnData.Board.Post.Actor = actor
+	returnData.Board.Post.Actor = actor.Id
 
 	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
 	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)
@@ -160,7 +161,7 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	returnData.Board.Restricted = actor.Restricted
 	returnData.Key = *Key
 
-	returnData.Board.Post.Actor = actor
+	returnData.Board.Post.Actor = actor.Id
 
 	returnData.Instance = GetActorFromDB(db, Domain)
 	
@@ -220,12 +221,12 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 			returnData.Posts = append(returnData.Posts, followCollection.OrderedItems[0])
 			var actor Actor
 			actor = FingerActor(returnData.Board.InReplyTo)
-			returnData.Board.Post.Actor = &actor
+			returnData.Board.Post.Actor = actor.Id
 		}
 	} else {
 		collection := GetObjectByIDFromDB(db, inReplyTo)
 
-		returnData.Board.Post.Actor = collection.Actor
+		returnData.Board.Post.Actor = collection.Actor.Id
 		returnData.Board.InReplyTo = inReplyTo							
 
 		if len(collection.OrderedItems) > 0 {

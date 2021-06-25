@@ -43,9 +43,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			var nObj = CreateObject("Note")
 			nObj = ObjectFromForm(r, db, nObj)
 			
-			var act Actor
-			nObj.Actor = &act
-			nObj.Actor.Id = Domain + "/" + actor.Name
+			nObj.Actor = Domain + "/" + actor.Name
 
 			nObj = WriteObjectToDB(db, nObj)
 			activity := CreateActivity("Create", nObj)
@@ -88,9 +86,9 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				var validActor bool
 				var validLocalActor bool
 
-				validActor = (activity.Object.Actor.Id != "")
+				validActor = (activity.Object.Actor != "")
 				validLocalActor = (activity.Actor.Id == actor.Id)
-				
+
 				var rActivity Activity
 				if validActor && validLocalActor {
 					rActivity = AcceptFollow(activity)
@@ -114,10 +112,10 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				break
 
 			case "New":
-				name := activity.Object.Actor.Name
-				prefname := activity.Object.Actor.PreferredUsername
-				summary := activity.Object.Actor.Summary
-				restricted := activity.Object.Actor.Restricted
+				name := activity.Object.Alias
+				prefname := activity.Object.Name
+				summary := activity.Object.Summary
+				restricted := activity.Object.Sensitive
 
 				actor := CreateNewBoardDB(db, *CreateNewActor(name, prefname, summary, authReq, restricted))
 				
@@ -368,7 +366,7 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 
 	if originalPost.Id != "" {
 		if !IsActivityLocal(db, activity) {
-			id := GetActorFromID(originalPost.Id).Id
+			id := FingerActor(originalPost.Id).Id
 			actor := GetActor(id)
 			if !IsInStringArray(obj.To, actor.Id) {
 				obj.To = append(obj.To, actor.Id)
@@ -397,7 +395,7 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 			activity.To = append(activity.To, e.Id)
 			
 			if !IsActivityLocal(db, activity) {
-				id := GetActorFromID(e.Id).Id
+				id := FingerActor(e.Id).Id
 				actor := GetActor(id)
 				if !IsInStringArray(obj.To, actor.Id) {
 					obj.To = append(obj.To, actor.Id)

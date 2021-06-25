@@ -109,7 +109,7 @@ type ObjectBase struct {
 	Alias string `json:"alias,omitempty"`	
 	AttributedTo string `json:"attributedTo,omitempty"`
 	TripCode string `json:"tripcode,omitempty"`	
-	Actor *Actor `json:"actor,omitempty"`
+	Actor string `json:"actor,omitempty"`
 	Audience string `json:"audience,omitempty"`
 	Content string `json:"content,omitempty"`
 	EndTime string `json:"endTime,omitempty"`
@@ -154,7 +154,7 @@ type NestedObjectBase struct {
 	Alias string `json:"alias,omitempty"`	
 	AttributedTo string `json:"attributedTo,omitempty"`
 	TripCode string `json:"tripcode,omitempty"`		
-	Actor *Actor `json:"actor,omitempty"`	
+	Actor string `json:"actor,omitempty"`	
 	Audience string `json:"audience,omitempty"`
 	Content string `json:"content,omitempty"`
 	EndTime string `json:"endTime,omitempty"`

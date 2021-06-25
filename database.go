@@ -119,7 +119,7 @@ func CreateNewBoardDB(db *sql.DB, actor Actor) Actor{
 			nActivity.Object = &nObject
 
 			mActor := GetActorFromDB(db, actor.Id)
-			nActivity.Object.Actor = &mActor
+			nActivity.Object.Actor = mActor.Id
 			nActivity.To = append(nActivity.To, actor.Id)
 
 			response := AcceptFollow(nActivity)
@@ -159,10 +159,10 @@ func GetBoards(db *sql.DB) []Actor {
 }
 
 func WriteObjectToDB(db *sql.DB, obj ObjectBase) ObjectBase {
-	obj.Id = fmt.Sprintf("%s/%s", obj.Actor.Id, CreateUniqueID(db, obj.Actor.Id))
+	obj.Id = fmt.Sprintf("%s/%s", obj.Actor, CreateUniqueID(db, obj.Actor))
 	if len(obj.Attachment) > 0 {
 		if obj.Preview.Href != "" {
-			obj.Preview.Id = fmt.Sprintf("%s/%s", obj.Actor.Id, CreateUniqueID(db, obj.Actor.Id))
+			obj.Preview.Id = fmt.Sprintf("%s/%s", obj.Actor, CreateUniqueID(db, obj.Actor))
 			obj.Preview.Published = time.Now().Format(time.RFC3339)
 			obj.Preview.Updated = time.Now().Format(time.RFC3339)			
 			obj.Preview.AttributedTo = obj.Id
@@ -170,7 +170,7 @@ func WriteObjectToDB(db *sql.DB, obj ObjectBase) ObjectBase {
 		}
 		
 		for i, _ := range obj.Attachment {
-			obj.Attachment[i].Id = fmt.Sprintf("%s/%s", obj.Actor.Id, CreateUniqueID(db, obj.Actor.Id))			
+			obj.Attachment[i].Id = fmt.Sprintf("%s/%s", obj.Actor, CreateUniqueID(db, obj.Actor))			
 			obj.Attachment[i].Published = time.Now().Format(time.RFC3339)
 			obj.Attachment[i].Updated = time.Now().Format(time.RFC3339)
 			obj.Attachment[i].AttributedTo = obj.Id
@@ -366,7 +366,7 @@ func WriteActivitytoDB(db *sql.DB, obj ObjectBase) {
 
 	query := `insert into activitystream (id, type, name, content, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor.Id, obj.TripCode, obj.Sensitive)	
+	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)	
 	
 	if e != nil{
 		fmt.Println("error inserting new activity")
@@ -382,7 +382,7 @@ func WriteActivitytoDBWithAttachment(db *sql.DB, obj ObjectBase, attachment Obje
 
 	query := `insert into activitystream (id, type, name, content, attachment, preview, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, attachment.Id, preview.Id, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor.Id, obj.TripCode, obj.Sensitive)	
+	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, attachment.Id, preview.Id, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)	
 	
 	if e != nil{
 		fmt.Println("error inserting new activity with attachment")
@@ -436,7 +436,7 @@ func GetActivityFromDB(db *sql.DB, id string) Collection {
 		
 		CheckError(err, "error scan object into post struct")
 
-		post.Actor = &actor
+		post.Actor = actor.Id		
 
 		var postCnt int
 		var imgCnt int
@@ -479,7 +479,7 @@ func GetObjectFromDBPage(db *sql.DB, id string, page int) Collection {
 		
 		CheckError(err, "error scan object into post struct")
 
-		post.Actor = &actor
+		post.Actor = actor.Id
 
 		var postCnt int
 		var imgCnt int		
@@ -522,7 +522,7 @@ func GetObjectFromDB(db *sql.DB, id string) Collection {
 		
 		CheckError(err, "error scan object into post struct")
 
-		post.Actor = &actor
+		post.Actor = actor.Id
 
 		var postCnt int
 		var imgCnt int		
@@ -564,7 +564,7 @@ func GetObjectFromDBCatalog(db *sql.DB, id string) Collection {
 		
 		CheckError(err, "error scan object into post struct")
 
-		post.Actor = &actor
+		post.Actor = actor.Id
 
 		var replies CollectionBase
 
@@ -607,7 +607,7 @@ func GetObjectByIDFromDB(db *sql.DB, postID string) Collection {
 
 		actor = GetActorFromDB(db, actor.Id)
 
-		post.Actor = &actor
+		post.Actor = actor.Id
 
 		nColl.Actor = &actor		
 
@@ -678,7 +678,7 @@ func GetObjectRepliesDBLimit(db *sql.DB, parent ObjectBase, limit int) (*Collect
 
 		CheckError(err, "error with replies db scan")
 
-		post.Actor = &actor
+		post.Actor = actor.Id
 
 		var postCnt int
 		var imgCnt int		
@@ -728,7 +728,7 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, in
 
 		CheckError(err, "error with replies db scan")
 
-		post.Actor = &actor
+		post.Actor = actor.Id
 
 		var postCnt int
 		var imgCnt int		
@@ -773,7 +773,7 @@ func GetObjectRepliesReplies(db *sql.DB, parent ObjectBase) (*CollectionBase, in
 
 		CheckError(err, "error with replies replies db scan")
 
-		post.Actor = &actor
+		post.Actor = actor.Id
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 
@@ -813,7 +813,7 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 
 		CheckError(err, "error with replies replies db scan")
 
-		post.Actor = &actor
+		post.Actor = actor.Id
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 

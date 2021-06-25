@@ -446,12 +446,10 @@ func main() {
 			followActivity.Actor = &nactor
 			followActivity.Object = &obj
 
-			var mactor Actor
-			followActivity.Object.Actor = &mactor
-			followActivity.Object.Actor.Id = r.FormValue("follow")
+			followActivity.Object.Actor = r.FormValue("follow")
 			followActivity.To = append(followActivity.To, r.FormValue("follow"))
 
-			if followActivity.Actor.Id == Domain && !IsActorLocal(db, followActivity.Object.Actor.Id) {
+			if followActivity.Actor.Id == Domain && !IsActorLocal(db, followActivity.Object.Actor) {
 				w.Write([]byte("main board can only follow local boards. Create a new board and then follow outside boards from it."))
 				return
 			}
@@ -514,7 +512,7 @@ func main() {
 			adminData.Key = *Key
 			adminData.Board.TP = TP
 
-			adminData.Board.Post.Actor = &actor
+			adminData.Board.Post.Actor = actor.Id
 			
 			t.ExecuteTemplate(w, "layout", adminData)
 			
@@ -547,7 +545,7 @@ func main() {
 
 			adminData.Boards = Boards
 			
-			adminData.Board.Post.Actor = &actor			
+			adminData.Board.Post.Actor = actor.Id			
 
 			t.ExecuteTemplate(w, "layout",  adminData)				
 		}
@@ -578,8 +576,12 @@ func main() {
 
 		var nobj ObjectBase
 		newActorActivity.Actor = &actor
-		newActorActivity.Object = &nobj		
-		newActorActivity.Object.Actor = &board
+		newActorActivity.Object = &nobj
+
+		newActorActivity.Object.Alias = board.Name
+		newActorActivity.Object.Name = board.PreferredUsername
+		newActorActivity.Object.Summary = board.Summary
+		newActorActivity.Object.Sensitive = board.Restricted		
 
 		MakeActivityRequestOutbox(db, newActorActivity)
 		http.Redirect(w, r, "/" + *Key, http.StatusSeeOther)		
@@ -680,7 +682,7 @@ func main() {
 		
 		actor := col.OrderedItems[0].Actor
 
-		if !HasAuth(db, auth, actor.Id) {
+		if !HasAuth(db, auth, actor) {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(""))
 			return
@@ -774,7 +776,7 @@ func main() {
 			OP = id
 		}
 		
-		if !HasAuth(db, auth, actor.Id) {
+		if !HasAuth(db, auth, actor) {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(""))
 			return
@@ -838,7 +840,7 @@ func main() {
 			OP = id
 		}
 		
-		if !HasAuth(db, auth, actor.Id) {
+		if !HasAuth(db, auth, actor) {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(""))
 			return
@@ -872,7 +874,7 @@ func main() {
 			return
 		}
 
-		if !HasAuth(db, auth, actor.Id) {
+		if !HasAuth(db, auth, actor) {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(""))
 			return
@@ -938,7 +940,7 @@ func main() {
 			return
 		}
 
-		if !HasAuth(db, auth, actor.Id) {
+		if !HasAuth(db, auth, actor) {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(""))
 			return
@@ -1344,7 +1346,7 @@ func AddFollowersToActivity(db *sql.DB, activity Activity) Activity{
 
 func CreateActivity(activityType string, obj ObjectBase) Activity {
 	var newActivity Activity
-	actor := FingerActor(obj.Actor.Id)
+	actor := FingerActor(obj.Actor)
 	
 	newActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 	newActivity.Type = activityType
@@ -1353,13 +1355,13 @@ func CreateActivity(activityType string, obj ObjectBase) Activity {
 	newActivity.Object = &obj
 
 	for _, e := range obj.To {
-		if obj.Actor.Id != e {
+		if obj.Actor != e {
 			newActivity.To = append(newActivity.To, e)
 		}
 	}
 
 	for _, e := range obj.Cc {
-		if obj.Actor.Id != e {		
+		if obj.Actor != e {		
 			newActivity.Cc = append(newActivity.Cc, e)
 		}
 	}	
@@ -1919,30 +1921,6 @@ func GetCollectionFromID(id string) Collection {
 	return nColl
 }
 
-func GetActorFromID(id string) Actor {
-	req, err := http.NewRequest("GET", id, nil)
-
-	CheckError(err, "error getting actor from id req")
-
-	req.Header.Set("Accept", activitystreams)
-
-	resp, err := http.DefaultClient.Do(req)
-
-	CheckError(err, "error getting actor from id resp")
-
-	defer resp.Body.Close()
-
-	body, _ := ioutil.ReadAll(resp.Body)
-
-	var respCollection Collection
-
-	err = json.Unmarshal(body, &respCollection)
-
-	CheckError(err, "error getting actor resp from json body")
-
-	return *respCollection.OrderedItems[0].Actor
-}
-
 func GetConfigValue(value string) string{
 	file, err := os.Open("config")
 
@@ -2007,21 +1985,21 @@ func DeleteObjectRequest(db *sql.DB, id string) {
 	var nObj ObjectBase
 	var nActor Actor
 	nObj.Id = id
-	nObj.Actor = &nActor
+	nObj.Actor = nActor.Id
 
 	activity := CreateActivity("Delete", nObj)
 
 	obj := GetObjectFromPath(db, id)
 
-	actor := FingerActor(obj.Actor.Id)
+	actor := FingerActor(obj.Actor)
 	activity.Actor = &actor
 
-	followers := GetActorFollowDB(db, obj.Actor.Id)
+	followers := GetActorFollowDB(db, obj.Actor)
 	for _, e := range followers {
 		activity.To = append(activity.To, e.Id)
 	}
 
-	following := GetActorFollowingDB(db, obj.Actor.Id)
+	following := GetActorFollowingDB(db, obj.Actor)
 	for _, e := range following {
 		activity.To = append(activity.To, e.Id)
 	}
@@ -2033,22 +2011,22 @@ func DeleteObjectAndRepliesRequest(db *sql.DB, id string) {
 	var nObj ObjectBase
 	var nActor Actor	
 	nObj.Id = id
-	nObj.Actor = &nActor
+	nObj.Actor = nActor.Id
 	
 	activity := CreateActivity("Delete", nObj)
 	
 	obj := GetObjectByIDFromDB(db, id)
 
-	activity.Actor.Id = obj.OrderedItems[0].Actor.Id
+	activity.Actor.Id = obj.OrderedItems[0].Actor
 
 	activity.Object = &obj.OrderedItems[0]
 	
-	followers := GetActorFollowDB(db, obj.OrderedItems[0].Actor.Id)
+	followers := GetActorFollowDB(db, obj.OrderedItems[0].Actor)
 	for _, e := range followers {
 		activity.To = append(activity.To, e.Id)
 	}
 
-	following := GetActorFollowingDB(db, obj.OrderedItems[0].Actor.Id)
+	following := GetActorFollowingDB(db, obj.OrderedItems[0].Actor)
 	for _, e := range following {
 		activity.To = append(activity.To, e.Id)
 	}	
