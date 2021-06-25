@@ -38,6 +38,7 @@ type Signature struct {
 	KeyId string
 	Headers []string
 	Signature string
+	Algorithm string	
 }
 
 func DeleteBoardMod(db *sql.DB, verify Verify) {
@@ -606,10 +607,12 @@ func ActivityVerify(actor Actor, signature string, verify string) error {
 func VerifyHeaderSignature(r *http.Request, actor Actor) bool {
 	s := ParseHeaderSignature(r.Header.Get("Signature"))
 
-	var method string
-	var path string
-	var host string
-	var date string
+	var method        string
+	var path          string
+	var host          string
+	var date          string
+	var digest        string
+	var contentLength string	
 
 	var sig string
 	for _, e := range s.Headers {
@@ -630,7 +633,19 @@ func VerifyHeaderSignature(r *http.Request, actor Actor) bool {
 			date = r.Header.Get("date")
 			sig += "date: " + date
 			continue
-		}		
+		}
+
+		if e == "digest" {
+			digest = r.Header.Get("digest")
+			sig += "digest: " + digest
+			continue
+		}
+
+		if e == "content-length" {
+			contentLength = r.Header.Get("content-length")
+			sig += "content-length: " + contentLength
+			continue
+		}						
 	}
 
 	if s.KeyId != actor.PublicKey.Id {
@@ -656,6 +671,7 @@ func ParseHeaderSignature(signature string) Signature {
 	keyId := regexp.MustCompile(`keyId=`)
 	headers := regexp.MustCompile(`headers=`)
 	sig := regexp.MustCompile(`signature=`)
+	algo := regexp.MustCompile(`algorithm=`)	
 
 	signature = strings.ReplaceAll(signature, "\"", "")
 	parts := strings.Split(signature, ",")
@@ -676,6 +692,11 @@ func ParseHeaderSignature(signature string) Signature {
 			nsig.Signature = sig.ReplaceAllString(e, "")
 			continue
 		}
+
+		if algo.MatchString(e) {
+			nsig.Algorithm = algo.ReplaceAllString(e, "")
+			continue
+		}		
 	}
 
 	return nsig

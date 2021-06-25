@@ -32,6 +32,10 @@ func WriteObjectToCache(db *sql.DB, obj ObjectBase) ObjectBase {
 
 func WriteActorObjectToCache(db *sql.DB, obj ObjectBase) ObjectBase {
 	if len(obj.Attachment) > 0 {
+		
+		if IsIDLocal(db, obj.Id) {
+			return obj
+		}
 		if obj.Preview.Href != "" {
 			WritePreviewToCache(db, *obj.Preview)
 		}
