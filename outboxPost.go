@@ -366,8 +366,7 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 
 	if originalPost.Id != "" {
 		if !IsActivityLocal(db, activity) {
-			id := FingerActor(originalPost.Id).Id
-			actor := GetActor(id)
+			actor := FingerActor(originalPost.Id)
 			if !IsInStringArray(obj.To, actor.Id) {
 				obj.To = append(obj.To, actor.Id)
 			}
@@ -395,8 +394,7 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 			activity.To = append(activity.To, e.Id)
 			
 			if !IsActivityLocal(db, activity) {
-				id := FingerActor(e.Id).Id
-				actor := GetActor(id)
+				actor := FingerActor(e.Id)
 				if !IsInStringArray(obj.To, actor.Id) {
 					obj.To = append(obj.To, actor.Id)
 				}				
@@ -579,9 +577,13 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 func MakeActivityFollowingReq(w http.ResponseWriter, r *http.Request, activity Activity) bool {
 	actor := GetActor(activity.Object.Id)
 	
-	resp, err := http.NewRequest("POST", actor.Inbox, nil)
+	req, err := http.NewRequest("POST", actor.Inbox, nil)
 
 	CheckError(err, "Cannot make new get request to actor inbox for following req")
+
+	resp, err := RouteProxy(req)
+
+	CheckError(err, "could not make remote actor auth resp")
 
 	defer resp.Body.Close()
 
@@ -592,29 +594,6 @@ func MakeActivityFollowingReq(w http.ResponseWriter, r *http.Request, activity A
 	err = json.Unmarshal(body, &respActivity)
 
 	if respActivity.Type == "Accept" {
-		return true
-	}
-
-	return false
-}
-
-func RemoteActorHasAuth(actor string, code string) bool {
-
-	if actor == "" || code == "" {
-		return false
-	}
-	
-	req, err := http.NewRequest("GET", actor + "/verification&code=" + code, nil)
-
-	CheckError(err, "could not make remote actor auth req")
-
-	resp, err := http.DefaultClient.Do(req)
-
-	CheckError(err, "could not make remote actor auth resp")
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode == 200 {
 		return true
 	}
 

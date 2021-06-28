@@ -9,8 +9,6 @@ import "strings"
 import "strconv"
 import "sort"
 import "regexp"
-import "io/ioutil"
-import "encoding/json"
 import "os"
 
 var Key *string = new(string)
@@ -241,43 +239,13 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 	t.ExecuteTemplate(w, "layout",  returnData)			
 }
 
-func GetRemoteActor(id string) Actor {
-
-	var respActor Actor
-
-	id = StripTransferProtocol(id)
-
-	req, err := http.NewRequest("GET", "http://" + id, nil)
-
-	CheckError(err, "error with getting actor req")
-
-	req.Header.Set("Accept", activitystreams)
-
-	resp, err := http.DefaultClient.Do(req)
-
-	if err != nil || resp.StatusCode != 200 {
-		fmt.Println("could not get actor from " + id)		
-		return respActor
-	}
-
-	defer resp.Body.Close()
-
-	body, _ := ioutil.ReadAll(resp.Body)
-
-	err = json.Unmarshal(body, &respActor)
-
-	CheckError(err, "error getting actor from body")
-
-	return respActor
-}
-
 func GetBoardCollection(db *sql.DB) []Board {
 	var collection []Board
 	for _, e := range FollowingBoards {
 		var board Board
 		boardActor := GetActorFromDB(db, e.Id)
 		if boardActor.Id == "" {
-			boardActor = GetRemoteActor(e.Id)
+			boardActor = FingerActor(e.Id)
 		}
 		board.Name = "/" + boardActor.Name + "/"
 		board.PrefName = boardActor.PreferredUsername

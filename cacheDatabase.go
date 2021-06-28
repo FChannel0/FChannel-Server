@@ -258,7 +258,7 @@ func WriteObjectReplyCache(db *sql.DB, obj ObjectBase) {
 }
 
 func WriteActorToCache(db *sql.DB, actorID string) {
-	actor := GetActor(actorID)
+	actor := FingerActor(actorID)
 	collection := GetActorCollection(actor.Outbox)
 
 	for _, e := range collection.OrderedItems {

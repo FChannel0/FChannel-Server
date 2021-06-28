@@ -35,9 +35,7 @@ var SiteEmailPassword = GetConfigValue("emailpass")
 var SiteEmailServer = GetConfigValue("emailserver")   //mail.fchan.xyz
 var SiteEmailPort = GetConfigValue("emailport")       //587
 
-var TorProxy = "127.0.0.1:9050"
-
-var ldjson = "application/ld+json"		
+var TorProxy = GetConfigValue("torproxy") //127.0.0.1:9050
 
 var activitystreams = "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
 
@@ -370,7 +368,7 @@ func main() {
 
 		req.Header.Set("Content-Type", we.FormDataContentType())
 
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := RouteProxy(req)
 
 		CheckError(err, "error with post form resp")
 
@@ -1502,7 +1500,7 @@ func CheckValidActivity(id string) (Collection, bool) {
 
 	req.Header.Set("Accept", activitystreams)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := RouteProxy(req)
 
 	if err != nil {
 		fmt.Println("error with response")
@@ -1542,7 +1540,7 @@ func GetActor(id string) Actor {
 
 	req.Header.Set("Accept", activitystreams)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := RouteProxy(req)
 
 	if err != nil {
 		fmt.Println("error with getting actor resp " + id)
@@ -1573,7 +1571,7 @@ func GetActorCollection(collection string) Collection {
 
 	req.Header.Set("Accept", activitystreams)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := RouteProxy(req)
 
 	if err != nil {
 		fmt.Println("error with getting actor collection resp " + collection)		
@@ -1849,7 +1847,7 @@ func MakeActivityRequestOutbox(db *sql.DB, activity Activity) {
 	req.Header.Set("Signature", signature)
 	req.Host = instance
 
-	_, err = http.DefaultClient.Do(req)
+	_, err = RouteProxy(req)
 
 	CheckError(err, "error with sending activity resp to")	
 }
@@ -1887,7 +1885,7 @@ func MakeActivityRequest(db *sql.DB, activity Activity) {
 					req.Header.Set("Signature", signature)
 					req.Host = instance
 
-					_, err = http.DefaultClient.Do(req)
+					_, err = RouteProxy(req)
 
 					CheckError(err, "error with sending activity resp to")
 				}				
@@ -1905,7 +1903,7 @@ func GetCollectionFromID(id string) Collection {
 
 	req.Header.Set("Accept", activitystreams)				
 	
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := RouteProxy(req)
 
 	if err != nil {
 		return nColl
@@ -2162,7 +2160,7 @@ func GetActorCollectionReq(r *http.Request, collection string) Collection {
 
 	req.Header.Set("Authorization", "Basic " + pass)		
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := RouteProxy(req)
 
 	CheckError(err, "error with getting actor collection resp " + collection)
 
@@ -2327,7 +2325,7 @@ func FingerRequest(actor string, instance string) (*http.Response){
 
 	CheckError(err, "could not get finger request from id req")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := RouteProxy(req)
 
 	var finger Webfinger
 
@@ -2354,7 +2352,7 @@ func FingerRequest(actor string, instance string) (*http.Response){
 
 				req.Header.Set("Accept", activitystreams)				
 				
-				resp, err := http.DefaultClient.Do(req)
+				resp, err := RouteProxy(req)
 				return resp
 			}
 		}
