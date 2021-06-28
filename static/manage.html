@@ -9,10 +9,10 @@
   <!-- <div><a href="/{{ .Key }}/deleteboard?name={{ .Board.Name }}">[Delete Board]</a></div>     -->
   <ul style="display: inline-block; padding: 0;">
     {{ if .IsLocal }}
-    <li style="display: inline-block;"><a href="javascript:show('following')">[ Subscribed ]</a></li>
-    <li style="display: inline-block;"><a href="javascript:show('followers')">[ Subscribers ]</a></li>
+    <li style="display: inline-block;"><a href="#following">[ Subscribed ]</a></li>
+    <li style="display: inline-block;"><a href="#followers">[ Subscribers ]</a></li>
     {{ end }}
-    <li style="display: inline-block;"><a href="javascript:show('reported')">[ Reported ]</a></li>            
+    <li style="display: inline-block;"><a href="#reported">[ Reported ]</a></li>            
   </ul>
 </div>    
 <a href="/{{ .Board.Name }}">[Return]</a>
@@ -20,25 +20,24 @@
 {{ $board := .Board }}
 {{ $key := .Key }}
 {{ if .IsLocal }}
-<div id="following">
-  <h4>Subscribed</h4>
+
+<div id="following" class="popup-box" style="margin-bottom: 25px; margin-top: 5px; padding: 12px;">
+  <h4 style="margin: 0; margin-bottom: 5px;">Subscribed</h4>
   <form id="follow-form" action="/{{ .Key }}/{{ .Board.Name }}/follow" method="post" enctype="application/x-www-form-urlencoded">  
-    <label>Subscribe:</label><br>
-    <input id="follow" name="follow" style="margin-bottom: 12px;" placeholder="https://server.fchan.xyz/g"></input>
+    <input id="follow" name="follow" style="margin-bottom: 12px;" placeholder="https://fchan.xyz/g"></input>
     <input type="submit" value="Subscribe"><br>
     <input type="hidden" name="actor" value="{{ $board.Actor.Id }}">            
-  </form>
-  <ul style="display: inline-block; padding: 0; margin: 0;">
-
+  </form>  
+  <ul style="display: inline-block; padding: 0; margin: 0; list-style-type: none;">
     {{ range .Following }}
     <li><a href="/{{ $key }}/{{ $board.Name }}/follow?follow={{ . }}&actor={{ $actor }}">[Unsubscribe]</a><a href="{{ . }}">{{ . }}</a></li>
     {{ end }}
   </ul>
 </div>
 
-<div id="followers" style="display: none;">
-  <h4>Subscribers</h4>
-  <ul style="display: inline-block; padding: 0; margin: 0;">
+<div id="followers" class="popup-box" style="margin-bottom: 25px; padding: 12px;">
+  <h4 style="margin: 0; margin-bottom: 5px;">Subscribers</h4>
+  <ul style="display: inline-block; padding: 0; margin: 0; list-style-type: none;">
     {{ range .Followers }}
     <li><a href="{{ . }}">{{ . }}</a></li>
     {{ end }}        
@@ -46,13 +45,12 @@
 </div>
 {{ end }}
 
-<div id="reported" style="display: none;">
-  <h4>Reported</h4>
-  <ul style="display: inline-block; padding: 0; margin: 0;">
-
+<div id="reported" class="popup-box" style="margin-bottom: 25px; padding: 12px;">
+  <h4 style="margin: 0; margin-bottom: 5px;">Reported</h4>
+  <ul style="display: inline-block; padding: 0; margin: 0; list-style-type: none;">
     {{ $domain := .Domain }}
     {{ range .Reported }}
-    <li><a id="rpost" post="{{ .ID }}" href=""></a> - <b>{{ .Count }}</b> <a href="/delete?id={{ .ID }}&board={{ $board.Name }}">[Remove Post]</a> <a href="/deleteattach?id={{ .ID }}">[Remove Attachment]</a> <a href="/report?id={{ .ID }}&close=1&board={{ $board.Name }}">[Close]</a></li>
+    <li><a id="rpost" post="{{ .ID }}" href=""></a> - <b>{{ .Count }}</b> <a href="/delete?id={{ .ID }}&board={{ $board.Name }}&manage=t">[Remove Post]</a> <a href="/deleteattach?id={{ .ID }}&board={{ $board.Name }}&manage=t">[Remove Attachment]</a> <a href="/report?id={{ .ID }}&close=1&board={{ $board.Name }}">[Close]</a></li>
     {{ end }}
   </ul>            
 </div>
@@ -61,21 +59,6 @@
 
 {{ define "script" }}
 <script>
-  function show(element)
-  {
-      {{ if .IsLocal }}
-      var following = document.getElementById("following");
-      var followers = document.getElementById("followers");
-      following.style.display = "none";
-      followers.style.display = "none";
-      {{ end }}
-      
-      var reported = document.getElementById("reported");      
-      reported.style.display = "none";
-
-      document.getElementById(element).style.display = "block";
-  }
-
   var reported = document.querySelectorAll('#rpost');
   var reportedArray = [].slice.call(reported);
 

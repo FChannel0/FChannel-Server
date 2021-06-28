@@ -5,7 +5,7 @@ FChannel is a [libre](https://en.wikipedia.org/wiki/Free_and_open-source_softwar
 There are currently two instances federated with each other: https://fchan.xyz and https://0x00000000.xyz
 
 There is an anon testing FChannel instances on TOR/Loki/I2P. Find more information here: https://fchan.xyz/g/MORL0KUT
-It is a testing envirmoent, so the instances might come and go.
+It is a testing environment, so the instances might come and go.
 
 ## To Do List
 Current things that will be implemented first are:
@@ -20,11 +20,15 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
 
 ## Minimum Server Requirements
 
-- golang v1.11+
+- Go v1.16+
   
-- postgresql
+- PostgreSQL
   
-- redis
+- Redis
+
+- ImageMagick
+
+- exiv2
 
 ## Server Installation Instructions
 
@@ -34,9 +38,7 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
 
 - Create the database, user name, and password for psql that is used in config file.
 
-- Run `psql -U (user) -d (database) -f databaseschema.psql`
-
-- Finally start the server with `go run`.
+- Start the server with `go run`.
 
 ## Server Configuration
 
@@ -74,29 +76,18 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
   
   `emailpass:password`
 
+### local testing
 
-### Creating a new board
+     When testing on a local env when setting the `instance` value in the config file you have to append the port number to the local address eg. `instance:localhost:3000` with `instanceport` also being set to the same port.
 
-  `CreateNewBoardDB(db *sql.DB, actor Actor)`
-  
-  returns Actor.
-  
-### Creating a new actor
+     If you want to test federation between servers locally you have to use your local ip as the `instance` eg. `instance:192.168.0.2:3000` and `instance:192:168:0:3:3000` adding the port to localhost will not route correctly.
 
- `CreateNewActor(board string, prefName string, summary string, authReq []string, restricted bool)`
- 
- returns Actor
- 
- - `board` is the abbreviated name such as `g`
- 
- - `prefName` is the fully readable name such as `Technology`
- 
- - `summary` is a summary of the board
- 
- - `authReq` is an array string of required privileges to post on the board, default is: `[]string{"captcha","email","passphrase"}`
- 
- - `restricted` is bool. `true` is blue board, `false` is red board
- 
+### Managing the server
+
+  To access the managment page to create new boards or subscribe to other boards, when you start the server the console will output the `Mod key` and `Admin Login`
+  Use the `Mod key` by appending it to your servers url, `https://fchan.xyz/[Mod key]` once there you will be prompted for the `Admin Login` credentials.
+  You can manage each board by appending the `Mod key` to the desired board url: `https://fchan.xyz/[Mod Key]/g`
+  The `Mod key` is not static and is reset on server restart.
 
 ## Server Update
 

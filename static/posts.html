@@ -9,19 +9,32 @@
 <div style="overflow: auto;">
   <div id="{{ .Id }}" style="overflow: visible; margin-bottom: 12px;">
     {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}
-    <a href="/delete?id={{ .Id }}">[Delete Post]</a>
+    <a href="/delete?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Post]</a>
     {{ end }}        
     {{ if .Attachment }}
     {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}    
-    <a href="/deleteattach?id={{ .Id }}">[Delete Attachment]</a>
+    <a href="/deleteattach?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Attachment]</a>
+    <a href="/marksensitive?id={{ .Id }}&board={{ $board.Actor.Name }}">[Mark Sensitive]</a>
     {{ end }}                
     <span style="display: block;">File: <a id="{{ .Id }}-img" href="{{ (index .Attachment 0).Href}}">{{ (index .Attachment 0).Name  }}</a><span id="{{ .Id }}-size">({{ (index .Attachment 0).Size  }})</span></span>
+    <div id="hide-{{ .Id }}" style="display: none;">[Hide]</div>
+    <div id="sensitive-{{ .Id }}" style="display: none;"><div style="position: relative; text-align: center;"><img style="float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;" src="/static/sensitive.png"><div style="width: 240px; position: absolute; margin-top: 110px; padding: 5px; background-color: black; color: white; cursor: default; ">NSFW Content</div></div></div>    
     <div id="media-{{ .Id }}"></div>
     <script>
       media = document.getElementById("media-{{ .Id }}")
+
+      if({{ .Sensitive }} && {{ $board.Actor.Restricted }}){            
+          sensitive = document.getElementById("sensitive-{{ .Id }}")
+          hide = document.getElementById("hide-{{ .Id }}")
+          sensitive.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: block;"; document.getElementById("sensitive-{{ .Id }}").style="display: none;"; document.getElementById("hide-{{ .Id }}").style="display: block; cursor: pointer;"}
+          hide.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: none;"; document.getElementById("sensitive-{{ .Id }}").style="display: block;"; document.getElementById("hide-{{ .Id }}").style="display: none;"}
+          sensitive.style = "display: block"
+          media.style = "display: none;"
+      }      
+      
       if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "image"){
           var img = document.createElement("img");
-          img.style = "float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px; cursor: pointer;"
+          img.style = "float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;"
           img.setAttribute("id", "img")
           img.setAttribute("main", "1")
           img.setAttribute("enlarge", "0")
@@ -60,7 +73,7 @@
       }                    
     </script>
     {{ end }}
-    <span style="color: #0f0c5d;"><b>{{ .Name }}</b></span><span style="color: #117743;"><b>{{ if .AttributedTo }} {{.AttributedTo }} {{ else }} Anonymous {{ end }}</b></span><span>{{ .Published }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/">No.</a> <a id="{{ .Id }}-link" title="{{ .Id }}" href="javascript:quote('{{ $board.Actor.Id }}', '{{ $opId }}', '{{ .Id }}')">{{ .Id }}</a> {{ if ne .Type "Tombstone" }}<a href="javascript:report('{{ $board.Actor.Id }}', '{{ .Id }}')">[Report]</a>{{ end }}</span>
+    <span style="color: #0f0c5d;"><b>{{ .Name }}</b></span><span style="color: #117743;"><b>{{ if .AttributedTo }} {{.AttributedTo }} {{ else }} Anonymous {{ end }}</b></span><span class="tripcode"> {{ .TripCode }} </span><span>{{ .Published }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/">No.</a> <a id="{{ .Id }}-link" title="{{ .Id }}" href="javascript:quote('{{ $board.Actor.Id }}', '{{ $opId }}', '{{ .Id }}')">{{ .Id }}</a> {{ if ne .Type "Tombstone" }}<a href="javascript:report('{{ $board.Actor.Id }}', '{{ .Id }}')">[Report]</a>{{ end }}</span>
     <p id="{{ .Id }}-content" style="white-space: pre-wrap; margin: 10px 30px 10px 30px;">{{.Content}}</p>
     {{ if .Replies }}
     {{ $replies := .Replies }}
@@ -75,26 +88,42 @@
         <div style="float: left; display: block; margin-right: 5px;">>></div>
         <div class="post" style="overflow: auto; padding: 5px; margin-bottom: 2px;">
           {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}          
-          <a href="/delete?id={{ .Id }}">[Delete Post]</a>
+          <a href="/delete?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Post]</a>
           {{ end }}              
           {{ if .Attachment }}
           {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}                    
-          <a href="/deleteattach?id={{ .Id }}">[Delete Attachment]</a>
+          <a href="/deleteattach?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Attachment]</a>
+          <a href="/marksensitive?id={{ .Id }}&board={{ $board.Actor.Name }}">[Mark Sensitive]</a>          
           {{ end }}
           <span style="display: block;">File <a id="{{ .Id }}-img" href="{{ (index .Attachment 0).Href}}">{{ (index .Attachment 0).Name  }}</a> <span id="{{ .Id }}-size">({{ (index .Attachment 0).Size  }})</span></span>
-          <div id="media-{{ .Id }}"></div>
+          {{ if and .Sensitive $board.Actor.Restricted }}
+          <div id="hide-{{ .Id }}" style="display: none;">[Hide]</div>              
+          <div id="sensitive-{{ .Id }}" style="display: none;"><div style="position: relative; text-align: center;"><img style="float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;" src="/static/sensitive.png"><div style="width: 240px; position: absolute; margin-top: 110px; padding: 5px; background-color: black; color: white; cursor: default; ">NSFW Content</div></div></div>
+          {{ end }}
+          <div id="media-{{ .Id }}" sensitive="0"></div>
           <script>
             media = document.getElementById("media-{{ .Id }}")
+            
+            if({{ .Sensitive }} && {{ $board.Actor.Restricted }}){            
+                sensitive = document.getElementById("sensitive-{{ .Id }}")
+                hide = document.getElementById("hide-{{ .Id }}")
+                sensitive.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: block;"; document.getElementById("sensitive-{{ .Id }}").style="display: none;"; document.getElementById("hide-{{ .Id }}").style="display: block; cursor: pointer;"}
+                hide.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: none;"; document.getElementById("sensitive-{{ .Id }}").style="display: block;"; document.getElementById("hide-{{ .Id }}").style="display: none;"}
+                sensitive.style = "display: block"
+                media.style = "display: none;"
+            }
+            
             if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "image"){
                 var img = document.createElement("img");
-                img.style = "float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px; cursor: pointer;"
+                img.style = "float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;"
                 img.setAttribute("id", "img")
                 img.setAttribute("main", "1")
                 img.setAttribute("enlarge", "0")
                 img.setAttribute("attachment", "{{ (index .Attachment 0).Href }}")
-                {{ if .Preview.Href }} 
+                img.setAttribute("post", "{{ .Id }}")
+                {{ if and .Preview.Href . }}
                 img.setAttribute("src", "{{  .Preview.Href }}")
-                img.setAttribute("preview", "{{ .Preview.Href }}")          
+                img.setAttribute("preview", "{{ .Preview.Href }}")
                 {{ else }}
                 img.setAttribute("src", "{{  (index .Attachment 0).Href }}")
                 img.setAttribute("preview", "{{ (index .Attachment 0).Href }}")                    
@@ -107,7 +136,7 @@
                 audio.controls = 'controls'
                 audio.preload  = 'metadata'              
                 audio.src      = '{{ (index .Attachment 0).Href }}'
-                audio.type     = '{{ (index .Attachment 0).MediaType }}'              
+                audio.type     = '{{ (index .Attachment 0).MediaType }}'
                 audio.style = "float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;"
                 audio.innerText = 'Audio is not supported.'
                 media.appendChild(audio)              
@@ -119,22 +148,25 @@
                 video.preload  = 'metadata'                                        
                 video.muted    = 'muted'              
                 video.src      = '{{ (index .Attachment 0).Href }}'
-                video.type     = '{{ (index .Attachment 0).MediaType }}'              
+                video.type     = '{{ (index .Attachment 0).MediaType }}'
                 video.style = "float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;"
                 video.innerText = 'Video is not supported.'
                 media.appendChild(video)                                                        
             }                    
           </script>              
           {{ end }}
-          <span style="color: #0f0c5d;"><b>{{ .Name }}</b></span><span style="color: #117743;"><b>{{ if .AttributedTo }} {{.AttributedTo }} {{ else }} Anonymous {{ end }}</b></span><span>{{ .Published }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/post/{{ $opId }}#{{ .Id }}">No. </a><a id="{{ .Id }}-link" title="{{ .Id }}" href="javascript:quote('{{ $board.Actor.Id }}', '{{ $opId }}', '{{ .Id }}')">{{ .Id }}</a> {{ if ne .Type "Tombstone" }}<a href="javascript:report('{{ $board.Actor.Id }}', '{{ .Id }}')">[Report]</a>{{ end }}</span>
+          <span style="color: #0f0c5d;"><b>{{ .Name }}</b></span><span style="color: #117743;"><b>{{ if .AttributedTo }} {{.AttributedTo }} {{ else }} Anonymous {{ end }}</b></span><span class="tripcode"> {{ .TripCode }} </span><span>{{ .Published }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/post/{{ $opId }}#{{ .Id }}">No. </a><a id="{{ .Id }}-link" title="{{ .Id }}" href="javascript:quote('{{ $board.Actor.Id }}', '{{ $opId }}', '{{ .Id }}')">{{ .Id }}</a> {{ if ne .Type "Tombstone" }}<a href="javascript:report('{{ $board.Actor.Id }}', '{{ .Id }}')">[Report]</a>{{ end }}</span>
           {{ $parentId := .Id }}
           {{ if .Replies.OrderedItems }}
           {{ range .Replies.OrderedItems }}
           <span id="{{$parentId}}-replyto-{{.Id}}"></span>
-          <script>document.getElementById("{{ $parentId }}-replyto-{{.Id}}").innerHTML = "<a title='{{ .Id }}' href='/{{ $board.Name }}/" + shortURL("{{ $board.Actor.Id }}", "{{ $opId }}") + "#" + shortURL("{{ $board.Actor.Id }}", "{{ .Id }}") + "'>>>" + shortURL("{{ $board.Actor.Id }}", "{{ .Id }}") + "</a>";</script>
-                                                                                                                                                                                                                                                                                                             {{ end }}
-                                                                                                                                                                                                                                                                                                             {{ end }}
-                                                                                                                                                                                                                                                                                                             <p id="{{ .Id }}-content" style="white-space: pre-wrap; margin: 10px 30px 10px 30px;">{{.Content}}</p>
+          <script>
+            var content = convertContentNoLink('{{$board.Actor.Id}}', '{{ .Content }}', '{{ $opId }}')                    
+            document.getElementById("{{ $parentId }}-replyto-{{.Id}}").innerHTML = "<a title='" + content  +"' href='/{{ $board.Name }}/" + shortURL("{{ $board.Actor.Id }}", "{{ $opId }}") + "#" + shortURL("{{ $board.Actor.Id }}", "{{ .Id }}") + "'>>>" + shortURL("{{ $board.Actor.Id }}", "{{ .Id }}") + "</a>";
+          </script>
+          {{ end }}
+          {{ end }}
+          <p id="{{ .Id }}-content" style="white-space: pre-wrap; margin: 10px 30px 10px 30px;">{{.Content}}</p>
         </div>
       </div>
     </div>

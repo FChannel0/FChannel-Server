@@ -1,7 +1,6 @@
 package main
 
 import "fmt"
-import "time"
 import "database/sql"
 import _ "github.com/lib/pq"
 
@@ -31,15 +30,34 @@ func WriteObjectToCache(db *sql.DB, obj ObjectBase) ObjectBase {
 	return obj
 }
 
-func WriteObjectUpdatesToCache(db *sql.DB, obj ObjectBase) {
-	query := `update cacheactivitystream set updated=$1 where id=$2`
-	
-	_, e := db.Exec(query, time.Now().Format(time.RFC3339), obj.Id)
-	
-	if e != nil{
-		fmt.Println("error inserting updating inreplyto")
-		panic(e)			
-	}		
+func WriteActorObjectToCache(db *sql.DB, obj ObjectBase) ObjectBase {
+	if len(obj.Attachment) > 0 {
+		
+		if IsIDLocal(db, obj.Id) {
+			return obj
+		}
+		if obj.Preview.Href != "" {
+			WritePreviewToCache(db, *obj.Preview)
+		}
+		
+		for i, _ := range obj.Attachment {
+			WriteAttachmentToCache(db, obj.Attachment[i])
+			WriteActivitytoCacheWithAttachment(db, obj, obj.Attachment[i], *obj.Preview)
+		}
+
+	} else {
+		WriteActivitytoCache(db, obj)
+	}
+
+	WriteActorObjectReplyToDB(db, obj)
+
+	if obj.Replies != nil {
+		for _, e := range obj.Replies.OrderedItems {
+			WriteActorObjectToCache(db, e)
+		}
+	}
+
+	return obj
 }
 
 func WriteActivitytoCache(db *sql.DB, obj ObjectBase) {
@@ -63,9 +81,9 @@ func WriteActivitytoCache(db *sql.DB, obj ObjectBase) {
 		return
 	}		
 
-	query = `insert into cacheactivitystream (id, type, name, content, published, updated, attributedto, actor) values ($1, $2, $3, $4, $5, $6, $7, $8)`
+	query = `insert into cacheactivitystream (id, type, name, content, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, obj.Published, obj.Published, obj.AttributedTo, obj.Actor.Id)	
+	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, obj.Published, obj.Published, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)	
 	
 	if e != nil{
 		fmt.Println("error inserting new activity cache")
@@ -94,9 +112,9 @@ func WriteActivitytoCacheWithAttachment(db *sql.DB, obj ObjectBase, attachment O
 		return
 	}		
 
-	query = `insert into cacheactivitystream (id, type, name, content, attachment, preview, published, updated, attributedto, actor) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+	query = `insert into cacheactivitystream (id, type, name, content, attachment, preview, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, attachment.Id, preview.Id, obj.Published, obj.Published, obj.AttributedTo, obj.Actor.Id)	
+	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, attachment.Id, preview.Id, obj.Published, obj.Published, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)	
 	
 	if e != nil{
 		fmt.Println("error inserting new activity with attachment cache")
@@ -244,38 +262,8 @@ func WriteActorToCache(db *sql.DB, actorID string) {
 	collection := GetActorCollection(actor.Outbox)
 
 	for _, e := range collection.OrderedItems {
-		WriteObjectToCache(db, e)
+		WriteActorObjectToCache(db, e)
 	}
-}
-
-func DeleteObjectFromCache(db *sql.DB, id string) {
-	query := `select attachment, preview from cacheactivitystream where id=$1 `
-
-	rows, err := db.Query(query, id)
-	CheckError(err, "could not select cache activitystream")
-
-	var attachment string
-	var preview string
-	
-	defer rows.Close()	
-	rows.Next()
-	rows.Scan(&attachment, &preview)
-
-	query = `delete from cacheactivitystream where id=$1`
-	_, err = db.Exec(query, attachment)
-	CheckError(err, "could not delete attachmet cache activitystream")
-
-	query = `delete from cacheactivitystream where id=$1`
-	_, err = db.Exec(query, preview)
-	CheckError(err, "could not delete preview cache activitystream")
-
-	query = `delete from cacheactivitystream where id=$1`
-	_, err = db.Exec(query, id)
-	CheckError(err, "could not delete object cache activitystream")
-
-	query = `delete from replies where id=$1`
-	_, err = db.Exec(query, id)
-	CheckError(err, "could not delete  cache replies activitystream")
 }
 
 func DeleteActorCache(db *sql.DB, actorID string) { 
@@ -291,34 +279,6 @@ func DeleteActorCache(db *sql.DB, actorID string) {
 		var id string
 		rows.Scan(&id)
 
-		DeleteObjectFromCache(db, id)
+		DeleteObject(db, id)
 	}
-}
-
-func TombstoneObjectFromCache(db *sql.DB, id string) {
-
-	datetime := time.Now().Format(time.RFC3339)
-	
-	query := `update cacheactivitystream set type='Tombstone', name='', content='', attributedto='deleted', updated=$1, deleted=$2 where id=$3`
-
-	_, err := db.Exec(query, datetime, datetime, id)	
-
-	CheckError(err, "error with tombstone cache object")
-
-	query = `update cacheactivitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', updated=$2, deleted=$3 where id in (select attachment from cacheactivitystream where id=$4)`
-
-	_, err = db.Exec(query, "/public/removed.png", datetime, datetime, id)
-
-	CheckError(err, "error with tombstone attachment cache object")
-
-	query = `update cacheactivitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', updated=$2, deleted=$3 where id in (select preview from cacheactivitystream where id=$4)`
-
-	_, err = db.Exec(query, "/public/removed.png", datetime, datetime, id)
-
-	CheckError(err, "error with tombstone preview cache object")	
-	
-	query = `delete from replies where id=$1`
-	_, err = db.Exec(query, id)
-	
-	CheckError(err, "could not delete  cache replies activitystream")
 }

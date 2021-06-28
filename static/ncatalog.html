@@ -1,4 +1,16 @@
 {{ define "header" }}
+<title>/{{ .Board.Name }}/ - catalog</title>
+<meta name="description" content="{{ .Board.Summary }}">
+<meta property="og:url" content="{{ .Board.Actor.Id }}">
+<meta property="og:site_name" content="{{ .Instance.PreferredUsername }}" />
+
+<meta property="og:title" content="{{ .Title }}">
+<meta property="og:description" content="{{ .Board.Summary }}">
+
+<meta name="twitter:title" content="{{ .Title }}">
+<meta name="twitter:description" content="{{ .Board.Summary }}">
+<meta name="twitter:card" content="summary_large_image">
+
 <script src="/static/js/posts.js"></script>
 {{ end }}
 
@@ -16,19 +28,36 @@
   {{ range .Posts }}
   <div style="overflow: hidden; vertical-align: top; padding-right: 24px; padding-bottom: 24px; display: inline-block; width: 180px; max-height: 320px; margin-bottom: 10px;">
     {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}              
-    <a href="/delete?id={{ .Id }}">[Delete Post]</a>
+    <a href="/delete?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Post]</a>
     {{ end }}
     {{ if .Attachment }}
     {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}                  
-    <a href="/deleteattach?id={{ .Id }}">[Delete Attachment]</a>
+    <a href="/deleteattach?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Attachment]</a>
+    <a href="/marksensitive?id={{ .Id }}&board={{ $board.Actor.Name }}">[Mark Sensitive]</a>              
     {{ end }}        
-    <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/">
+
+      {{ if and .Sensitive $board.Actor.Restricted }}
+      <div id="hide-{{ .Id }}" style="display: none;">[Hide]</div>              
+      <div id="sensitive-{{ .Id }}" style="display: none;"><div style="position: relative; text-align: center;"><img style="float: left; margin-right: 10px; margin-bottom: 10px; max-width: 180px; max-height: 180px;" src="/static/sensitive.png"><div style="width: 170px; position: absolute; margin-top: 75px; padding: 5px; background-color: black; color: white; cursor: default; ">NSFW Content</div></div></div>
+      {{ end }}
+    <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/">      
       <div id="media-{{ .Id }}" style="width:180px;"></div>
+    </a>
       <script>
         media = document.getElementById("media-{{ .Id }}")
+
+        if({{ .Sensitive }} && {{ $board.Actor.Restricted }}){            
+            sensitive = document.getElementById("sensitive-{{ .Id }}")
+            hide = document.getElementById("hide-{{ .Id }}")
+            sensitive.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: block;"; document.getElementById("sensitive-{{ .Id }}").style="display: none;"; document.getElementById("hide-{{ .Id }}").style="display: block; cursor: pointer;"}
+            hide.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: none;"; document.getElementById("sensitive-{{ .Id }}").style="display: block;"; document.getElementById("hide-{{ .Id }}").style="display: none;"}
+            sensitive.style = "display: block"
+            media.style = "display: none;"
+        }
+        
         if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "image"){
             var img = document.createElement("img");
-            img.style = "max-width: 180px; max-height: 180px; cursor: move;"
+            img.style = "max-width: 180px; max-height: 180px;"
             img.setAttribute("id", "img")
             img.setAttribute("main", "1")
             img.setAttribute("src", "{{ (index .Attachment 0).Href }}")
@@ -56,9 +85,12 @@
             video.style = "margin-right: 10px; margin-bottom: 10px; max-width: 180px; max-height: 180px;"
             video.innerText = 'Video is not supported.'
             media.appendChild(video)                                          
-        }                    
+        }
+        
+        document.getElementById("{{ .Id }}-anchor").href = "/{{ $board.Name }}/" + shortURL("{{$board.Actor.Id}}", "{{ .Id }}")        
       </script>                        
       {{ end }}
+      <a id="{{ .Id }}-link" href="/{{ $board.Name }}/">
       <div>
         {{ $replies := .Replies }}
         {{ if $replies }}
@@ -71,12 +103,11 @@
         {{ if .Content }}
         <span style="display: block">{{.Content}}</span>
         {{ end }}
-
       </div>
-    </a>        
+      </a>
   </div>
   <script>
-    document.getElementById("{{ .Id }}-anchor").href = "/{{ $board.Name }}/" + shortURL("{{$board.Actor.Id}}", "{{ .Id }}")
+    document.getElementById("{{ .Id }}-link").href = "/{{ $board.Name }}/" + shortURL("{{$board.Actor.Id}}", "{{ .Id }}")
   </script>
   {{ end }}
 </div>

@@ -118,19 +118,17 @@ func AcceptFollow(activity Activity) Activity {
 	var accept Activity
 	accept.AtContext.Context = activity.AtContext.Context
 	accept.Type = "Accept"
-	accept.Actor = activity.Object.Actor
+	var nActor Actor
+	accept.Actor = &nActor
+	accept.Actor.Id = activity.Object.Actor
 	var nObj ObjectBase
-	var nActor Actor	
 	accept.Object = &nObj
-	accept.Object.Actor = &nActor	
-	accept.Object.Actor = activity.Actor
+	accept.Object.Actor = activity.Actor.Id
 	var nNested NestedObjectBase
-	var mActor Actor
 	accept.Object.Object = &nNested
-	accept.Object.Object.Actor = &mActor
 	accept.Object.Object.Actor = activity.Object.Actor
 	accept.Object.Object.Type = "Follow"	
-	accept.To = append(accept.To, activity.Object.Actor.Id)
+	accept.To = append(accept.To, activity.Object.Actor)
 
 	return accept
 }
@@ -140,15 +138,13 @@ func RejectActivity(activity Activity) Activity {
 	accept.AtContext.Context = activity.AtContext.Context
 	accept.Type = "Reject"
 	var nObj ObjectBase
-	var nActor Actor	
 	accept.Object = &nObj
-	accept.Object.Actor = &nActor		
-	accept.Actor = activity.Object.Actor
-	accept.Object.Actor = activity.Actor
+	var nActor Actor
+	accept.Actor = &nActor
+	accept.Actor.Id = activity.Object.Actor
+	accept.Object.Actor = activity.Actor.Id
 	var nNested NestedObjectBase
-	var mActor Actor	
 	accept.Object.Object = &nNested
-	accept.Object.Object.Actor = &mActor	
 	accept.Object.Object.Actor = activity.Object.Actor
 	accept.Object.Object.Type = "Follow"
 	accept.To = append(accept.To, activity.Actor.Id)
@@ -162,19 +158,20 @@ func SetActorFollowerDB(db *sql.DB, activity Activity) Activity {
 	followers := GetActorFollowDB(db, activity.Actor.Id)
 	
 	for _, e := range followers {
-		if e.Id == activity.Object.Actor.Id {
+		if e.Id == activity.Object.Actor {
 			alreadyFollow = true
 		}
 	}
+
 	if alreadyFollow {
 		query = `delete from follower where id=$1 and follower=$2`
-		activity.Summary = activity.Object.Actor.Id + " Unfollow " + activity.Actor.Id
+		activity.Summary = activity.Object.Actor + " Unfollow " + activity.Actor.Id
 	} else {
 		query = `insert into follower (id, follower) values ($1, $2)`
-		activity.Summary = activity.Object.Actor.Id + " Follow " + activity.Actor.Id
+		activity.Summary = activity.Object.Actor + " Follow " + activity.Actor.Id
 	}
 
-	_, err := db.Exec(query, activity.Actor.Id, activity.Object.Actor.Id)
+	_, err := db.Exec(query, activity.Actor.Id, activity.Object.Actor)
 
 	if CheckError(err, "error with follower db insert/delete") != nil {
 		activity.Type = "Reject"
@@ -188,7 +185,7 @@ func SetActorFollowerDB(db *sql.DB, activity Activity) Activity {
 func SetActorFollowingDB(db *sql.DB, activity Activity) Activity {
 	var query string
 	alreadyFollow := false
-	following := GetActorFollowingDB(db, activity.Object.Actor.Id)
+	following := GetActorFollowingDB(db, activity.Object.Actor)
 
 	for _, e := range following {
 		if e.Id == activity.Actor.Id {
@@ -198,19 +195,19 @@ func SetActorFollowingDB(db *sql.DB, activity Activity) Activity {
 	
 	if alreadyFollow {
 		query = `delete from following where id=$1 and following=$2`
-		activity.Summary = activity.Object.Actor.Id + " Unfollowing " + activity.Actor.Id
+		activity.Summary = activity.Object.Actor + " Unfollowing " + activity.Actor.Id
 		if !IsActorLocal(db, activity.Actor.Id) {
 			go DeleteActorCache(db, activity.Actor.Id)			
 		}		
 	} else {		
 		query = `insert into following (id, following) values ($1, $2)`
-		activity.Summary = activity.Object.Actor.Id + " Following " + activity.Actor.Id
+		activity.Summary = activity.Object.Actor + " Following " + activity.Actor.Id
 		if !IsActorLocal(db, activity.Actor.Id) {
 			go WriteActorToCache(db, activity.Actor.Id)
 		}
 	}
 	
-	_, err := db.Exec(query, activity.Object.Actor.Id, activity.Actor.Id)
+	_, err := db.Exec(query, activity.Object.Actor, activity.Actor.Id)
 
 	if CheckError(err, "error with following db insert/delete") != nil {
 		activity.Type = "Reject"

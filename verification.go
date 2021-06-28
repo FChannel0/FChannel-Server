@@ -8,6 +8,17 @@ import "time"
 import "os/exec"
 import "os"
 import "math/rand"
+import "crypto"
+import "crypto/rsa"
+import "crypto/x509"
+import "crypto/sha256"
+import "encoding/pem"
+import "encoding/base64"
+import crand "crypto/rand"
+import "io/ioutil"
+import "strings"
+import "net/http"
+import "regexp"
 
 type Verify struct {
 	Type string
@@ -21,6 +32,13 @@ type VerifyCooldown struct {
 	Identifier string
 	Code string
 	Time int
+}
+
+type Signature struct {
+	KeyId string
+	Headers []string
+	Signature string
+	Algorithm string	
 }
 
 func DeleteBoardMod(db *sql.DB, verify Verify) {
@@ -330,8 +348,6 @@ func HasAuth(db *sql.DB, code string, board string) bool {
 		return true
 	}
 
-	fmt.Println("has auth is false")
-	
 	return false;
 }
 
@@ -473,4 +489,222 @@ func Captcha() string {
 	return newID
 }	
 
+func CreatePem(db *sql.DB, actor Actor) {
+	privatekey, err := rsa.GenerateKey(crand.Reader, 2048)
+	CheckError(err, "error creating private pem key")
 
+	privateKeyBytes := x509.MarshalPKCS1PrivateKey(privatekey)
+	
+	privateKeyBlock := &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: privateKeyBytes,
+	}
+	
+	privatePem, err := os.Create("./pem/board/" + actor.Name + "-private.pem")
+	CheckError(err, "error creating private pem file for " + actor.Name) 
+	
+	err = pem.Encode(privatePem, privateKeyBlock)
+	CheckError(err, "error encoding private pem")
+
+	publickey := &privatekey.PublicKey
+	publicKeyBytes, err := x509.MarshalPKIXPublicKey(publickey)
+	CheckError(err, "error Marshaling public key to X509")	
+	
+	publicKeyBlock := &pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: publicKeyBytes,
+	}
+	
+	publicPem, err := os.Create("./pem/board/" + actor.Name + "-public.pem")
+	CheckError(err, "error creating public pem file for " + actor.Name)
+	
+	err = pem.Encode(publicPem, publicKeyBlock)
+	CheckError(err, "error encoding public pem")
+
+	_, err = os.Stat("./pem/board/" + actor.Name + "-public.pem")
+	if os.IsNotExist(err) {
+		CheckError(err, "public pem file for actor does not exist")
+	} else {
+		StorePemToDB(db, actor)
+	}
+}
+
+func StorePemToDB(db *sql.DB, actor Actor) {
+	query := "select publicKeyPem from actor where id=$1"
+	rows, err := db.Query(query, actor.Id)
+	
+	CheckError(err, "error selecting publicKeyPem id from actor")	
+
+	var result string
+	defer rows.Close()
+	rows.Next()
+	rows.Scan(&result)
+
+	if(result != "") {
+		return
+	}
+
+	publicKeyPem := actor.Id + "#main-key"
+	query = "update actor set publicKeyPem=$1 where id=$2"
+	_, err = db.Exec(query, publicKeyPem, actor.Id)
+	CheckError(err, "error updating publicKeyPem id to actor")
+
+	file := "./pem/board/" + actor.Name + "-public.pem"
+	query = "insert into publicKeyPem (id, owner, file) values($1, $2, $3)"
+	_, err = db.Exec(query, publicKeyPem, actor.Id, file)
+	CheckError(err, "error creating publicKeyPem for actor ")
+}
+
+func ActivitySign(db *sql.DB, actor Actor, signature string) string {
+	query := `select file from publicKeyPem where id=$1 `
+
+	rows, err := db.Query(query, actor.PublicKey.Id)
+
+	CheckError(err, "there was error geting actors public key id")
+
+	var file string
+	defer rows.Close()
+	rows.Next()
+	rows.Scan(&file)
+
+	file = strings.ReplaceAll(file, "public.pem", "private.pem")	
+	_, err = os.Stat(file)
+	if err == nil {
+		publickey, err:= ioutil.ReadFile(file)
+		CheckError(err, "error reading file")
+
+		block, _ := pem.Decode(publickey)
+
+		pub, _ := x509.ParsePKCS1PrivateKey(block.Bytes)
+		rng :=crand.Reader
+		hashed := sha256.New()
+		hashed.Write([]byte(signature))		
+		cipher, _ := rsa.SignPKCS1v15(rng, pub, crypto.SHA256, hashed.Sum(nil))
+
+		return base64.StdEncoding.EncodeToString(cipher)
+	}
+
+	return ""
+}
+
+func ActivityVerify(actor Actor, signature string, verify string) error {
+
+	sig, _ := base64.StdEncoding.DecodeString(signature)
+
+	if actor.PublicKey.PublicKeyPem == "" {
+		actor = FingerActor(actor.Id)
+	}
+
+	block, _ := pem.Decode([]byte(actor.PublicKey.PublicKeyPem))
+	pub, _ := x509.ParsePKIXPublicKey(block.Bytes)
+
+	hashed := sha256.New()
+	hashed.Write([]byte(verify))
+
+	return rsa.VerifyPKCS1v15(pub.(*rsa.PublicKey), crypto.SHA256, hashed.Sum(nil), sig)
+}
+
+func VerifyHeaderSignature(r *http.Request, actor Actor) bool {
+	s := ParseHeaderSignature(r.Header.Get("Signature"))
+
+	var method        string
+	var path          string
+	var host          string
+	var date          string
+	var digest        string
+	var contentLength string	
+
+	var sig string
+	for i, e := range s.Headers {
+
+		var nl string
+		if i < len(s.Headers) - 1 {
+			nl = "\n"
+		}
+		
+		
+		if e == "(request-target)" {
+			method = strings.ToLower(r.Method)
+			path = r.URL.Path
+			sig += "(request-target): " + method + " " + path + "" + nl
+			continue
+		}
+
+		if e == "host" {
+			host = r.Host
+			sig += "host: " + host + "" + nl
+			continue
+		}
+
+		if e == "date" {
+			date = r.Header.Get("date")
+			sig += "date: " + date + "" + nl
+			continue
+		}
+
+		if e == "digest" {
+			digest = r.Header.Get("digest")
+			sig += "digest: " + digest + "" + nl
+			continue
+		}
+
+		if e == "content-length" {
+			contentLength = r.Header.Get("content-length")
+			sig += "content-length: " + contentLength + "" + nl 
+			continue
+		}						
+	}
+
+	if s.KeyId != actor.PublicKey.Id {
+		return false
+	}
+
+	t, _ := time.Parse(time.RFC1123, date)
+
+	if(time.Now().Sub(t).Seconds() > 30) {
+		return false
+	}
+	
+	if ActivityVerify(actor, s.Signature, sig) != nil {
+		return false
+	}
+	
+	return true
+}
+
+func ParseHeaderSignature(signature string) Signature {
+	var nsig Signature
+
+	keyId := regexp.MustCompile(`keyId=`)
+	headers := regexp.MustCompile(`headers=`)
+	sig := regexp.MustCompile(`signature=`)
+	algo := regexp.MustCompile(`algorithm=`)	
+
+	signature = strings.ReplaceAll(signature, "\"", "")
+	parts := strings.Split(signature, ",")
+
+	for _, e := range parts {
+		if keyId.MatchString(e) {
+			nsig.KeyId = keyId.ReplaceAllString(e, "")
+			continue
+		}
+		
+		if headers.MatchString(e) {
+			header := headers.ReplaceAllString(e, "")
+			nsig.Headers = strings.Split(header, " ")
+			continue
+		}
+
+		if sig.MatchString(e) {
+			nsig.Signature = sig.ReplaceAllString(e, "")
+			continue
+		}
+
+		if algo.MatchString(e) {
+			nsig.Algorithm = algo.ReplaceAllString(e, "")
+			continue
+		}		
+	}
+
+	return nsig
+}

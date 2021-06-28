@@ -47,6 +47,8 @@ type PageData struct {
 	Boards []Board
 	Posts []ObjectBase
 	Key string
+	PostId string
+	Instance Actor
 }
 
 type AdminPage struct {
@@ -77,7 +79,7 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	t := template.Must(template.ParseFiles("./static/main.html", "./static/index.html"))
 
 	actor := GetActorFromDB(db, Domain)
-	
+
 	var data PageData
 	data.Title = "Welcome to " + actor.PreferredUsername
 	data.Message = fmt.Sprintf("%s is a federated image board based on activitypub. The current version of the code running the server is still a work in progress, expect a bumpy ride for the time being. Get the server code here https://github.com/FChannel0", Domain)
@@ -87,7 +89,8 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	data.Board.Domain = Domain
 	data.Board.ModCred, _ = GetPasswordFromSession(r)
 	data.Board.Actor = actor
-	data.Board.Post.Actor = &actor	
+	data.Board.Post.Actor = actor.Id
+	data.Board.Restricted = actor.Restricted
 
 	t.ExecuteTemplate(w, "layout",  data)	
 }
@@ -115,7 +118,7 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	returnData.Board.Restricted = actor.Restricted
 	returnData.CurrentPage = page
 
-	returnData.Board.Post.Actor = actor
+	returnData.Board.Post.Actor = actor.Id
 
 	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
 	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)
@@ -123,10 +126,6 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	returnData.Title = "/" + actor.Name + "/ - " + actor.PreferredUsername
 
 	returnData.Key = *Key	
-
-	DeleteRemovedPosts(db, &collection)
-	DeleteTombstoneReplies(&collection)
-	DeleteTombstonePosts(&collection)
 
 	returnData.Boards = Boards
 	returnData.Posts = collection.OrderedItems
@@ -149,7 +148,7 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	t := template.Must(template.ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))			
 	
 	actor := collection.Actor
-	
+
 	var returnData PageData
 	returnData.Board.Name = actor.Name
 	returnData.Board.PrefName = actor.PreferredUsername
@@ -162,17 +161,16 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	returnData.Board.Restricted = actor.Restricted
 	returnData.Key = *Key
 
-	returnData.Board.Post.Actor = actor	
+	returnData.Board.Post.Actor = actor.Id
 
+	returnData.Instance = GetActorFromDB(db, Domain)
+	
 	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
 	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)	
 
 	returnData.Title = "/" + actor.Name + "/ - " + actor.PreferredUsername
 
 	returnData.Boards = Boards
-
-	DeleteRemovedPosts(db, &collection)
-	DeleteTombstonePosts(&collection)
 
 	returnData.Posts = collection.OrderedItems
 
@@ -191,7 +189,6 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 	inReplyTo := actor.Id + "/" + postId
 
 	var returnData PageData
-
 	returnData.Board.Name = actor.Name
 	returnData.Board.PrefName = actor.PreferredUsername
 	returnData.Board.To = actor.Outbox
@@ -203,6 +200,8 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 
 	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
 	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)
+
+	returnData.Instance = GetActorFromDB(db, Domain)
 
 	returnData.Title = "/" + returnData.Board.Name + "/ - " + returnData.Board.PrefName
 
@@ -216,28 +215,27 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 		name := GetActorFollowNameFromPath(path)
 		followActors := GetActorsFollowFromName(actor, name)
 		followCollection := GetActorsFollowPostFromId(db, followActors, postId)
-		
-		returnData.Board.Post.Actor = followCollection.Actor
-		
-		DeleteRemovedPosts(db, &followCollection)
-		DeleteTombstoneReplies(&followCollection)
 
-		if len(followCollection.OrderedItems) > 0 {		
+		if len(followCollection.OrderedItems) > 0 {
 			returnData.Board.InReplyTo = followCollection.OrderedItems[0].Id
 			returnData.Posts = append(returnData.Posts, followCollection.OrderedItems[0])
+			var actor Actor
+			actor = FingerActor(returnData.Board.InReplyTo)
+			returnData.Board.Post.Actor = actor.Id
 		}
 	} else {
 		collection := GetObjectByIDFromDB(db, inReplyTo)
 
-		returnData.Board.Post.Actor = collection.Actor
+		returnData.Board.Post.Actor = collection.Actor.Id
 		returnData.Board.InReplyTo = inReplyTo							
-
-		DeleteRemovedPosts(db, &collection)
-		DeleteTombstoneReplies(&collection)		
 
 		if len(collection.OrderedItems) > 0 {
 			returnData.Posts = append(returnData.Posts, collection.OrderedItems[0])
 		}
+	}
+
+	if len(returnData.Posts) > 0 {
+		returnData.PostId = shortURL(returnData.Board.To, returnData.Posts[0].Id)
 	}
 
 	t.ExecuteTemplate(w, "layout",  returnData)			
@@ -343,95 +341,6 @@ func GetCaptchaCode(captcha string) string {
 	code = re.FindString(code)
 
 	return code
-}
-
-func DeleteTombstoneReplies(collection *Collection) {
-
-	for i, e := range collection.OrderedItems {
-		var replies CollectionBase
-		for _, k := range e.Replies.OrderedItems {
-			if k.Type != "Tombstone" {
-				replies.OrderedItems = append(replies.OrderedItems, k)
-			}				
-		}
-		
-		replies.TotalItems = collection.OrderedItems[i].Replies.TotalItems
-		replies.TotalImgs = collection.OrderedItems[i].Replies.TotalImgs
-		collection.OrderedItems[i].Replies = &replies
-	}			
-}
-
-func DeleteTombstonePosts(collection *Collection) {
-	var nColl Collection
-	
-	for _, e := range collection.OrderedItems {
-		if e.Type != "Tombstone" {
-			nColl.OrderedItems = append(nColl.OrderedItems, e)
-		}
-	}
-	collection.OrderedItems = nColl.OrderedItems
-}
-
-func DeleteRemovedPosts(db *sql.DB, collection *Collection) {
-
-	removed := GetLocalDeleteDB(db)
-
-	for p, e := range collection.OrderedItems {
-		for _, j := range removed {
-			if e.Id == j.ID {
-				if j.Type == "attachment" {
-					collection.OrderedItems[p].Preview.Href = "/public/removed.png"
-					collection.OrderedItems[p].Preview.Name = "deleted"
-					collection.OrderedItems[p].Preview.MediaType = "image/png"											
-					collection.OrderedItems[p].Attachment[0].Href = "/public/removed.png"
-					collection.OrderedItems[p].Attachment[0].Name = "deleted"					
-					collection.OrderedItems[p].Attachment[0].MediaType = "image/png"
-				} else {
-					collection.OrderedItems[p].AttributedTo = "deleted"
-					collection.OrderedItems[p].Content = ""
-					collection.OrderedItems[p].Type = "Tombstone"
-					if collection.OrderedItems[p].Attachment != nil {
-						collection.OrderedItems[p].Preview.Href = "/public/removed.png"
-						collection.OrderedItems[p].Preview.Name = "deleted"
-						collection.OrderedItems[p].Preview.MediaType = "image/png"						
-						collection.OrderedItems[p].Attachment[0].Href = "/public/removed.png"
-						collection.OrderedItems[p].Attachment[0].Name = "deleted"
-						collection.OrderedItems[p].Attachment[0].MediaType = "image/png"
-					}
-				}
-			}
-		}
-
-		for i, r := range e.Replies.OrderedItems {
-			for _, k := range removed {
-				if r.Id == k.ID {
-					if k.Type == "attachment" {
-						e.Replies.OrderedItems[i].Preview.Href = "/public/removed.png"
-						e.Replies.OrderedItems[i].Preview.Name = "deleted"						
-						e.Replies.OrderedItems[i].Preview.MediaType = "image/png"													
-						e.Replies.OrderedItems[i].Attachment[0].Href = "/public/removed.png"
-						e.Replies.OrderedItems[i].Attachment[0].Name = "deleted"
-						e.Replies.OrderedItems[i].Attachment[0].MediaType = "image/png"
-						collection.OrderedItems[p].Replies.TotalImgs = collection.OrderedItems[p].Replies.TotalImgs - 1
-					} else {
-						e.Replies.OrderedItems[i].AttributedTo = "deleted"
-						e.Replies.OrderedItems[i].Content = ""
-						e.Replies.OrderedItems[i].Type = "Tombstone"
-						if e.Replies.OrderedItems[i].Attachment != nil {
-							e.Replies.OrderedItems[i].Preview.Href = "/public/removed.png"
-							e.Replies.OrderedItems[i].Preview.Name = "deleted"
-							e.Replies.OrderedItems[i].Preview.MediaType = "image/png"							
-							e.Replies.OrderedItems[i].Attachment[0].Name = "deleted"												
-							e.Replies.OrderedItems[i].Attachment[0].Href = "/public/removed.png"						
-							e.Replies.OrderedItems[i].Attachment[0].MediaType = "image/png"
-							collection.OrderedItems[p].Replies.TotalImgs = collection.OrderedItems[p].Replies.TotalImgs - 1							
-						}
-						collection.OrderedItems[p].Replies.TotalItems = collection.OrderedItems[p].Replies.TotalItems - 1
-					}
-				}
-			}
-		}
-	}
 }
 
 func CreateLocalDeleteDB(db *sql.DB, id string, _type string)	{

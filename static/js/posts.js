@@ -26,6 +26,8 @@ function shortURL(actorName, url)
 {
     re = /.+\//g;
     temp = re.exec(url)
+
+    var output
     
     if(stripTransferProtocol(temp[0]) == stripTransferProtocol(actorName) + "/")
     {
@@ -39,11 +41,8 @@ function shortURL(actorName, url)
 
         re = /\w+$/g;              
 
-        u =  re.exec(short);
-
-        return u;            
+        output =  re.exec(short);
     }else{
-
         var short = url.replace("https://", "");
         short = short.replace("http://", "");
         short = short.replace("www.", "");
@@ -64,10 +63,10 @@ function shortURL(actorName, url)
         
         v = re.exec(str)
 
-        v = "f" + v[0] + "-" + u
-
-        return v;                        
+        output = "f" + v[0] + "-" + u
     }
+
+    return output
 }
 
 function shortImg(url)
@@ -113,7 +112,7 @@ function getBoardId(url)
 
 function convertContent(actorName, content, opid)
 {
-    var re = /(>>)(https:\/\/|http:\/\/)?(www\.)?.+\/\w+/gm;
+    var re = /(>>)(https?:\/\/)?(www\.)?.+\/\w+/gm;
     var match = content.match(re);
     var newContent = content;
     if(match)
@@ -125,23 +124,60 @@ function convertContent(actorName, content, opid)
             {
                 isOP = " (OP)";
             }
-
-            newContent = newContent.replace(quote, '<a class="reply" title="' + link +  '" href="'+ (actorName) + "/" + shortURL(actorName, opid)  +  '#' + shortURL(actorName, link) + '";">>>' + shortURL(actorName, link)  + isOP + '</a>');
+            
+            var q = link
+            
+            if(document.getElementById(link + "-content") != null) {
+                q = document.getElementById(link + "-content").innerText;
+                q = q.replaceAll('>', '/\>')
+                q = q.replaceAll('"', '')
+                q = q.replaceAll("'", "")                                
+            }
+            newContent = newContent.replace(quote, '<a class="reply" title="' + q +  '" href="'+ (actorName) + "/" + shortURL(actorName, opid)  +  '#' + shortURL(actorName, link) + '";">>>' + shortURL(actorName, link)  + isOP + '</a>');
 
         })            
     }
     
-    re =  /^>.+/gm;
+    re =  /^(\s+)?>.+/gm;
 
     match = newContent.match(re);
     if(match)
     {
         match.forEach(function(quote, i) {
+    
             newContent = newContent.replace(quote, '<span class="quote">' + quote + '</span>');
         })
     }
     
-    return newContent
+    return newContent.replaceAll('/\>', '>')
+}
+
+function convertContentNoLink(actorName, content, opid)
+{
+    var re = /(>>)(https?:\/\/)?(www\.)?.+\/\w+/gm;
+    var match = content.match(re);
+    var newContent = content;
+    if(match)
+    {
+        match.forEach(function(quote, i){
+            var link = quote.replace('>>', '')
+            var isOP = ""
+            if(link == opid)
+            {
+                isOP = " (OP)";
+            }
+            
+            var q = link
+            
+            if(document.getElementById(link + "-content") != null) {
+                q = document.getElementById(link + "-content").innerText;
+            }
+            
+            newContent = newContent.replace(quote, '>>' + shortURL(actorName, link)  + isOP);
+        })            
+    }
+    newContent = newContent.replaceAll("'", "")
+    return newContent.replaceAll('"', '')
 }
 
 function closeReply()
@@ -184,11 +220,11 @@ function quote(actorName, opid, id)
     if(id == "reply") {
         var h = document.getElementById(id + "-content").offsetTop - 548;
     } else {
-        var h = document.getElementById(id + "-content").offsetTop - 448;
+        var h = document.getElementById(id + "-content").offsetTop - 348;
     }
 
 
-    box.setAttribute("style", "display: block; position: absolute; width: 400px; height: 550px; z-index: 9; top: " + h + "px; left: " + w + "px; padding: 5px;");
+    box.setAttribute("style", "display: block; position: absolute; width: 400px; height: 600px; z-index: 9; top: " + h + "px; left: " + w + "px; padding: 5px;");
 
 
     if (inReplyTo.value != opid)
@@ -212,7 +248,7 @@ function report(actorName, id)
     var inReplyTo = document.getElementById("report-inReplyTo-box");      
 
     var w = window.innerWidth / 2 - 200;
-    var h = document.getElementById(id + "-content").offsetTop - 448;
+    var h = document.getElementById(id + "-content").offsetTop - 348;
 
     box.setAttribute("style", "display: block; position: absolute; width: 400px; height: 480px; z-index: 9; top: " + h + "px; left: " + w + "px; padding: 5px;");
 

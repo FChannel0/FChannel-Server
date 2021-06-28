@@ -74,9 +74,16 @@ type Actor struct {
 	Followers string `json:"followers,omitempty"`
 	Name string `json:"name,omitempty"`
 	PreferredUsername string `json:"preferredUsername,omitempty"`
+	PublicKey PublicKeyPem `json:"publicKey,omitempty"`
 	Summary string `json:"summary,omitempty"`
 	AuthRequirement []string `json:"authrequirement,omitempty"`
 	Restricted bool `json:"restricted"`	
+}
+
+type PublicKeyPem struct {
+	Id string `json:"id,omitempty"`
+	Owner string `json:"owner,omitempty"`
+	PublicKeyPem string `json:"publicKeyPem,omitempty"`	
 }
 
 type Activity struct {
@@ -101,7 +108,8 @@ type ObjectBase struct {
 	Option []string `json:"option,omitempty"`
 	Alias string `json:"alias,omitempty"`	
 	AttributedTo string `json:"attributedTo,omitempty"`
-	Actor *Actor `json:"actor,omitempty"`
+	TripCode string `json:"tripcode,omitempty"`	
+	Actor string `json:"actor,omitempty"`
 	Audience string `json:"audience,omitempty"`
 	Content string `json:"content,omitempty"`
 	EndTime string `json:"endTime,omitempty"`
@@ -129,7 +137,8 @@ type ObjectBase struct {
 	Bcc string `json:"Bcc,omitempty"`
 	MediaType string `json:"mediatype,omitempty"`
 	Duration string `json:"duration,omitempty"`
-	Size int64 `json:"size,omitempty"`																							
+	Size int64 `json:"size,omitempty"`
+	Sensitive bool `json:"sensitive"` 
 }
 
 type CryptoCur struct {
@@ -144,7 +153,8 @@ type NestedObjectBase struct {
 	Name string `json:"name,omitempty"`
 	Alias string `json:"alias,omitempty"`	
 	AttributedTo string `json:"attributedTo,omitempty"`
-	Actor *Actor `json:"actor,omitempty"`	
+	TripCode string `json:"tripcode,omitempty"`		
+	Actor string `json:"actor,omitempty"`	
 	Audience string `json:"audience,omitempty"`
 	Content string `json:"content,omitempty"`
 	EndTime string `json:"endTime,omitempty"`

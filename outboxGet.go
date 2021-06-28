@@ -16,7 +16,7 @@ func GetActorOutbox(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	collection.TotalItems = GetObjectPostsTotalDB(db, actor)
 	collection.TotalImgs = GetObjectImgsTotalDB(db, actor)
 
-	enc, _ := json.MarshalIndent(collection, "", "\t")
+	enc, _ := json.Marshal(collection)
 
 	w.Header().Set("Content-Type", activitystreams)
 	w.Write(enc)
@@ -45,7 +45,7 @@ func GetCollectionFromPath(db *sql.DB, path string) Collection {
 		
 		CheckError(err, "error scan object into post struct from path")
 
-		post.Actor = &actor
+		post.Actor = actor.Id
 
 		post.InReplyTo = GetInReplyToDB(db, post)
 
@@ -88,9 +88,9 @@ func GetObjectFromPath(db *sql.DB, path string) ObjectBase{
 	var previewID string
 
 	var nActor Actor
-	nObj.Actor = &nActor
+	nObj.Actor = nActor.Id
 	
-	err = rows.Scan(&nObj.Id, &nObj.Name, &nObj.Content, &nObj.Type, &nObj.Published, &nObj.AttributedTo, &attachID, &previewID, &nObj.Actor.Id)
+	err = rows.Scan(&nObj.Id, &nObj.Name, &nObj.Content, &nObj.Type, &nObj.Published, &nObj.AttributedTo, &attachID, &previewID, &nObj.Actor)
 	
 	CheckError(err, "error scan object into post struct from path")
 

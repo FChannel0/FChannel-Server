@@ -10,6 +10,7 @@ import "io/ioutil"
 import "os"
 import "regexp"
 import "strings"
+import "os/exec"
 
 func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	
@@ -31,7 +32,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				}
 				
 				contentType, _ := GetFileContentType(f)
-				
+
 				if(!SupportedMIMEType(contentType)) {
 					w.WriteHeader(http.StatusNotAcceptable)
 					w.Write([]byte("file type not supported"))
@@ -42,9 +43,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			var nObj = CreateObject("Note")
 			nObj = ObjectFromForm(r, db, nObj)
 			
-			var act Actor
-			nObj.Actor = &act
-			nObj.Actor.Id = Domain + "/" + actor.Name
+			nObj.Actor = Domain + "/" + actor.Name
 
 			nObj = WriteObjectToDB(db, nObj)
 			activity := CreateActivity("Create", nObj)
@@ -70,113 +69,83 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		w.Write([]byte("captcha could not auth"))
 	} else {
 		activity = GetActivityFromJson(r, db)
-
 		if IsActivityLocal(db, activity) {
+			if !VerifyHeaderSignature(r, *activity.Actor) {
+				w.WriteHeader(http.StatusBadRequest)										
+				w.Write([]byte(""))					
+				return
+			}
+			
 			switch activity.Type {
 			case "Create":
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte(""))
 				break
+				
 			case "Follow":
-
 				var validActor bool
 				var validLocalActor bool
 
-				header := r.Header.Get("Authorization")
-
-				auth := strings.Split(header, " ")
-
-				if len(auth) < 2 {
-					w.WriteHeader(http.StatusBadRequest)										
-					w.Write([]byte(""))					
-					return
-				}
-				
-				_, validActor = IsValidActor(activity.Object.Actor.Id)
+				validActor = (activity.Object.Actor != "")
 				validLocalActor = (activity.Actor.Id == actor.Id)
-				
-				var verify Verify
-				verify.Identifier = "admin"
-				verify.Board = activity.Actor.Id
-
-				verify = GetVerificationCode(db, verify)
-
-				code := verify.Code
-				code = CreateTripCode(code)
-				code = CreateTripCode(code)
-
-				if code != auth[1] {
-					verify.Identifier = "admin"
-					verify.Board = Domain
-
-					verify = GetVerificationCode(db, verify)
-					code = verify.Code
-					code = CreateTripCode(code)
-					code = CreateTripCode(code)					
-				}
 
 				var rActivity Activity
-				if validActor && validLocalActor && code == auth[1] || verify.Board == Domain {
+				if validActor && validLocalActor {
 					rActivity = AcceptFollow(activity)
 					SetActorFollowingDB(db, rActivity)
 					MakeActivityRequest(db, activity)
 				}
-				
+
+				FollowingBoards = GetActorFollowingDB(db, Domain)
+				Boards = GetBoardCollection(db)
 				break
+				
 			case "Delete":
 				fmt.Println("This is a delete")
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte("could not process activity"))										
 				break
+				
 			case "Note":
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte("could not process activity"))
 				break
 
 			case "New":
-
-				header := r.Header.Get("Authorization")
-
-				auth := strings.Split(header, " ")
-
-				if len(auth) < 2 {
-					w.WriteHeader(http.StatusBadRequest)					
-					w.Write([]byte(""))					
-					return
-				}
-
-				var verify Verify
-				verify.Identifier = "admin"
-				verify.Board = Domain
-				
-				verify = GetVerificationCode(db, verify)
-				
-				code := verify.Code
-				code = CreateTripCode(code)
-				code = CreateTripCode(code)								
-
-				if code != auth[1] {
-					w.WriteHeader(http.StatusBadRequest)					
-					w.Write([]byte(""))					
-					return
-				}
-
-				name := activity.Object.Actor.Name
-				prefname := activity.Object.Actor.PreferredUsername
-				summary := activity.Object.Actor.Summary
-				restricted := activity.Object.Actor.Restricted
+				name := activity.Object.Alias
+				prefname := activity.Object.Name
+				summary := activity.Object.Summary
+				restricted := activity.Object.Sensitive
 
 				actor := CreateNewBoardDB(db, *CreateNewActor(name, prefname, summary, authReq, restricted))
-
+				
 				if actor.Id != "" {
-					j, _ := json.Marshal(&actor)
-					w.Write([]byte(j))
+					var board []ObjectBase
+					var item ObjectBase			
+					var removed bool = false
+
+					item.Id = actor.Id
+					for _, e := range FollowingBoards {
+						if e.Id != item.Id {
+							board = append(board, e)
+						} else {
+							removed = true
+						}
+					}
+
+					if !removed {
+						board = append(board, item)
+					}
+
+					FollowingBoards = board
+					Boards = GetBoardCollection(db)
 					return
 				}
 				
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte(""))
 				break
+				
 			default:
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte("could not process activity"))			
@@ -361,13 +330,26 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 
 		tempFile.Write(fileBytes)
 
+		re := regexp.MustCompile(`image/(jpe?g|png|webp)`)
+		if re.MatchString(obj.Attachment[0].MediaType) {
+			fileLoc := strings.ReplaceAll(obj.Attachment[0].Href, Domain, "")
+
+			cmd := exec.Command("exiv2", "rm", "." + fileLoc)
+
+			err := cmd.Run()
+
+			CheckError(err, "error with removing exif data from image")
+
+		}
+
 		obj.Preview = CreatePreviewObject(obj.Attachment[0])
 	}
 
-	obj.AttributedTo = CreateNameTripCode(r.FormValue("name"))
-	obj.AttributedTo = EscapeString(obj.AttributedTo)
+	obj.AttributedTo = EscapeString(r.FormValue("name"))
+	obj.TripCode = EscapeString(r.FormValue("tripcode"))
 	obj.Name = EscapeString(r.FormValue("subject"))
 	obj.Content = EscapeString(r.FormValue("comment"))
+	obj.Sensitive = (r.FormValue("sensitive") != "")
 
 	obj = ParseOptions(r, obj)
 
@@ -382,10 +364,9 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 		activity.To = append(activity.To, originalPost.Id)
 	}	
 
-
 	if originalPost.Id != "" {
 		if !IsActivityLocal(db, activity) {
-			id := GetActorFromID(originalPost.Id).Id
+			id := FingerActor(originalPost.Id).Id
 			actor := GetActor(id)
 			if !IsInStringArray(obj.To, actor.Id) {
 				obj.To = append(obj.To, actor.Id)
@@ -414,7 +395,7 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 			activity.To = append(activity.To, e.Id)
 			
 			if !IsActivityLocal(db, activity) {
-				id := GetActorFromID(e.Id).Id
+				id := FingerActor(e.Id).Id
 				actor := GetActor(id)
 				if !IsInStringArray(obj.To, actor.Id) {
 					obj.To = append(obj.To, actor.Id)
@@ -531,23 +512,16 @@ func CheckCaptcha(db *sql.DB, captcha string) bool {
 
 func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	activity := GetActivityFromJson(r, db)
+
+	if activity.Actor.PublicKey.Id == "" {
+		nActor := FingerActor(activity.Actor.Id)
+		activity.Actor = &nActor
+	}
 	
-	header := r.Header.Get("Authorization")
-	auth := strings.Split(header, " ")
-
-
-	if len(auth) < 2 {
+	if !VerifyHeaderSignature(r, *activity.Actor) {
 		response := RejectActivity(activity)
 		MakeActivityRequest(db, response)				
 		return
-	}
-
-	if !RemoteActorHasAuth(activity.Actor.Id, auth[1]) {
-		if !RemoteActorHasAuth(Domain, auth[1]) {
-			response := RejectActivity(activity)
-			MakeActivityRequest(db, response)		
-			return
-		}
 	}
 
 	switch(activity.Type) {
@@ -567,11 +541,10 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			if actor.Id != "" {
 				if activity.Object.Replies != nil {
 					for _, k := range activity.Object.Replies.OrderedItems {
-						TombstoneObjectFromCache(db, k.Id)
-						DeleteObject(db, k.Id)					
+						TombstoneObject(db, k.Id)					
 					}
 				}
-				TombstoneObjectFromCache(db, activity.Object.Id)
+				TombstoneObject(db, activity.Object.Id)
 				break
 			}
 		}

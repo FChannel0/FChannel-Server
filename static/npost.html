@@ -1,4 +1,21 @@
 {{ define "header" }}
+<title>/{{ .Board.Name }}/ - {{ .PostId  }}</title>
+<meta name="description" content="{{ (index .Posts 0).Content }}">
+<meta property="og:url" content="{{ (index .Posts 0).Id }}">
+<meta property="og:site_name" content="{{ .Instance.PreferredUsername }}" />
+
+<meta property="og:title" content="{{ (index .Posts 0).Name }}">
+<meta property="og:description" content="{{ (index .Posts 0).Content }}">
+
+<meta name="twitter:title" content="{{ (index .Posts 0).Name }}">
+<meta name="twitter:description" content="{{ (index .Posts 0).Content }}">
+<meta name="twitter:card" content="summary_large_image">
+
+{{ if (index .Posts 0).Preview }}
+<meta property="og:image" content="{{ (index .Posts 0).Preview.Href }}" />
+<meta name="twitter:image" content="{{ (index .Posts 0).Preview.Href }}" />
+{{ end }}
+
 <script src="/static/js/posts.js"></script>
 {{ end }}
 

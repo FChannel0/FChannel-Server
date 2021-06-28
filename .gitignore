@@ -1,5 +1,7 @@
+.*
 *~
 #*
 public/
 config
 clientkey
+pem/
