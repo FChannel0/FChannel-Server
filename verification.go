@@ -138,7 +138,7 @@ func CreateBoardMod(db *sql.DB, verify Verify) {
 func CreateVerification(db *sql.DB, verify Verify) {
 	query := `insert into verification (type, identifier, code, created) values ($1, $2, $3, $4)`
 
-	_, err := db.Exec(query, verify.Type, verify.Identifier, verify.Code, time.Now().Format(time.RFC3339))	
+	_, err := db.Exec(query, verify.Type, verify.Identifier, verify.Code, time.Now().UTC().Format(time.RFC3339))	
 
 	CheckError(err, "error creating verify")
 }
@@ -478,7 +478,7 @@ func BoardHasAuthType(db *sql.DB, board string, auth string) bool {
 }
 
 func Captcha() string {
-	rand.Seed(time.Now().UnixNano())
+	rand.Seed(time.Now().UTC().UnixNano())
 	domain := "ABEFHKMNPQRSUVWXYZ#$&"
 	rng := 4
 	newID := ""
@@ -661,7 +661,7 @@ func VerifyHeaderSignature(r *http.Request, actor Actor) bool {
 
 	t, _ := time.Parse(time.RFC1123, date)
 
-	if(time.Now().Sub(t).Seconds() > 75) {
+	if(time.Now().UTC().Sub(t).Seconds() > 75) {
 		return false
 	}
 	

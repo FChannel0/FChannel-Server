@@ -163,16 +163,16 @@ func WriteObjectToDB(db *sql.DB, obj ObjectBase) ObjectBase {
 	if len(obj.Attachment) > 0 {
 		if obj.Preview.Href != "" {
 			obj.Preview.Id = fmt.Sprintf("%s/%s", obj.Actor, CreateUniqueID(db, obj.Actor))
-			obj.Preview.Published = time.Now().Format(time.RFC3339)
-			obj.Preview.Updated = time.Now().Format(time.RFC3339)			
+			obj.Preview.Published = time.Now().UTC().Format(time.RFC3339)
+			obj.Preview.Updated = time.Now().UTC().Format(time.RFC3339)
 			obj.Preview.AttributedTo = obj.Id
 			WritePreviewToDB(db, *obj.Preview)
 		}
 		
 		for i, _ := range obj.Attachment {
 			obj.Attachment[i].Id = fmt.Sprintf("%s/%s", obj.Actor, CreateUniqueID(db, obj.Actor))			
-			obj.Attachment[i].Published = time.Now().Format(time.RFC3339)
-			obj.Attachment[i].Updated = time.Now().Format(time.RFC3339)
+			obj.Attachment[i].Published = time.Now().UTC().Format(time.RFC3339)
+			obj.Attachment[i].Updated = time.Now().UTC().Format(time.RFC3339)
 			obj.Attachment[i].AttributedTo = obj.Id
 			WriteAttachmentToDB(db, obj.Attachment[i])
 			WriteActivitytoDBWithAttachment(db, obj, obj.Attachment[i], *obj.Preview)
@@ -191,7 +191,7 @@ func WriteObjectToDB(db *sql.DB, obj ObjectBase) ObjectBase {
 func WriteObjectUpdatesToDB(db *sql.DB, obj ObjectBase) {
 	query := `update activitystream set updated=$1 where id=$2`
 	
-	_, e := db.Exec(query, time.Now().Format(time.RFC3339), obj.Id)
+	_, e := db.Exec(query, time.Now().UTC().Format(time.RFC3339), obj.Id)
 	
 	if e != nil{
 		fmt.Println("error inserting updating inreplyto")
@@ -200,7 +200,7 @@ func WriteObjectUpdatesToDB(db *sql.DB, obj ObjectBase) {
 
 	query = `update cacheactivitystream set updated=$1 where id=$2`
 	
-	_, e = db.Exec(query, time.Now().Format(time.RFC3339), obj.Id)
+	_, e = db.Exec(query, time.Now().UTC().Format(time.RFC3339), obj.Id)
 	
 	if e != nil{
 		fmt.Println("error inserting updating cache inreplyto")
@@ -227,7 +227,7 @@ func WriteObjectReplyToLocalDB(db *sql.DB, id string, replyto string) {
 		var val string
 		rows.Scan(&val)
 		if val == "" {
-			updated := time.Now().Format(time.RFC3339)
+			updated := time.Now().UTC().Format(time.RFC3339)
 			query := `update activitystream set updated=$1 where id=$2`
 
 			_, err := db.Exec(query, updated, replyto)
@@ -1066,7 +1066,7 @@ func TombstoneAttachmentRepliesFromDB(db *sql.DB, id string) {
 }
 
 func TombstoneAttachmentFromDB(db *sql.DB, id string) {
-	datetime := time.Now().Format(time.RFC3339)
+	datetime := time.Now().UTC().Format(time.RFC3339)
 
 	var query = `update activitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select attachment from activitystream where id=$3)`
 
@@ -1096,7 +1096,7 @@ func DeleteAttachmentFromDB(db *sql.DB, id string) {
 }
 
 func TombstonePreviewFromDB(db *sql.DB, id string) {
-	datetime := time.Now().Format(time.RFC3339)
+	datetime := time.Now().UTC().Format(time.RFC3339)
 
 	var query = `update activitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select preview from activitystream where id=$3)`
 
@@ -1133,7 +1133,7 @@ func DeleteObjectRepliedTo(db *sql.DB, id string){
 }
 
 func TombstoneObjectFromDB(db *sql.DB, id string) {
-	datetime := time.Now().Format(time.RFC3339)
+	datetime := time.Now().UTC().Format(time.RFC3339)
 	var query = `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', deleted=$1 where id=$2`
 
 	_, err := db.Exec(query, datetime, id)	
@@ -1170,7 +1170,7 @@ func DeleteObjectsInReplyTo(db *sql.DB, id string) {
 }
 
 func TombstoneObjectRepliesFromDB(db *sql.DB, id string) {
-	datetime := time.Now().Format(time.RFC3339)
+	datetime := time.Now().UTC().Format(time.RFC3339)
 
 	var query = `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', deleted=$1 where id in (select id from replies where inreplyto=$2)`
 
@@ -1185,7 +1185,7 @@ func TombstoneObjectRepliesFromDB(db *sql.DB, id string) {
 }
 
 func SetAttachmentFromDB(db *sql.DB, id string, _type string) {
-	datetime := time.Now().Format(time.RFC3339)
+	datetime := time.Now().UTC().Format(time.RFC3339)
 
 	var query = `update activitystream set type=$1, deleted=$2 where id in (select attachment from activitystream where id=$3)`
 
@@ -1201,7 +1201,7 @@ func SetAttachmentFromDB(db *sql.DB, id string, _type string) {
 }
 
 func SetAttachmentRepliesFromDB(db *sql.DB, id string, _type string) {
-	datetime := time.Now().Format(time.RFC3339)
+	datetime := time.Now().UTC().Format(time.RFC3339)
 
 	var query = `update activitystream set type=$1, deleted=$2 where id in (select attachment from activitystream where id in (select id from replies where inreplyto=$3))`
 
@@ -1217,7 +1217,7 @@ func SetAttachmentRepliesFromDB(db *sql.DB, id string, _type string) {
 }
 
 func SetPreviewFromDB(db *sql.DB, id string, _type string) {
-	datetime := time.Now().Format(time.RFC3339)
+	datetime := time.Now().UTC().Format(time.RFC3339)
 
 	var query = `update activitystream set type=$1, deleted=$2 where id in (select preview from activitystream where id=$3)`
 
@@ -1233,7 +1233,7 @@ func SetPreviewFromDB(db *sql.DB, id string, _type string) {
 }
 
 func SetPreviewRepliesFromDB(db *sql.DB, id string, _type string) {
-	datetime := time.Now().Format(time.RFC3339)
+	datetime := time.Now().UTC().Format(time.RFC3339)
 
 	var query = `update activitystream set type=$1, deleted=$2 where id in (select preview from activitystream where id in (select id from replies where inreplyto=$3))`
 
@@ -1249,7 +1249,7 @@ func SetPreviewRepliesFromDB(db *sql.DB, id string, _type string) {
 }
 
 func SetObjectFromDB(db *sql.DB, id string, _type string) {
-	datetime := time.Now().Format(time.RFC3339)
+	datetime := time.Now().UTC().Format(time.RFC3339)
 	
 	var query = `update activitystream set type=$1, deleted=$2 where id=$3`
 
@@ -1265,7 +1265,7 @@ func SetObjectFromDB(db *sql.DB, id string, _type string) {
 }
 
 func SetObjectRepliesFromDB(db *sql.DB, id string, _type string) {
-	datetime := time.Now().Format(time.RFC3339)
+	datetime := time.Now().UTC().Format(time.RFC3339)
 
 	var query = `update activitystream set type=$1, deleted=$2 where id in (select id from replies where inreplyto=$3)`
 	_, err := db.Exec(query, _type, datetime, id)	

@@ -635,7 +635,7 @@ func main() {
 				http.SetCookie(w, &http.Cookie{
 					Name:    "session_token",
 					Value:   sessionToken.String(),
-					Expires: time.Now().Add(60 * 60 * 48 * time.Second),
+					Expires: time.Now().UTC().Add(60 * 60 * 48 * time.Second),
 				})
 
 				http.Redirect(w, r, "/", http.StatusSeeOther)				
@@ -1224,7 +1224,7 @@ func GetContentType(location string) string {
 }
 
 func RandomID(size int) string {
-	rand.Seed(time.Now().UnixNano())
+	rand.Seed(time.Now().UTC().UnixNano())
 	domain := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	rng := size
 	newID := ""
@@ -1308,8 +1308,8 @@ func CreateObject(objType string) ObjectBase {
 	var nObj ObjectBase
 
 	nObj.Type = objType
-	nObj.Published = time.Now().Format(time.RFC3339)
-	nObj.Updated = time.Now().Format(time.RFC3339)
+	nObj.Published = time.Now().UTC().Format(time.RFC3339)
+	nObj.Updated = time.Now().UTC().Format(time.RFC3339)
 
 	return nObj
 }
@@ -1450,7 +1450,7 @@ func CreateAttachmentObject(file multipart.File, header *multipart.FileHeader) (
 	image.Href = Domain + "/" + tempFile.Name()
 	image.MediaType = contentType
 	image.Size = size
-	image.Published = time.Now().Format(time.RFC3339)
+	image.Published = time.Now().UTC().Format(time.RFC3339)
 
 	nAttachment = append(nAttachment, image)
 
@@ -1481,7 +1481,7 @@ func ParseCommentForReplies(comment string) []ObjectBase {
 		if(isValid) {
 			var reply = new(ObjectBase)
 			reply.Id = links[i]
-			reply.Published = time.Now().Format(time.RFC3339)
+			reply.Published = time.Now().UTC().Format(time.RFC3339)
 			validLinks = append(validLinks, *reply)
 		}
 	}
@@ -2265,7 +2265,7 @@ func RouteProxy(req *http.Request) (*http.Response, error) {
 		CheckError(err, "error parsing tor proxy url")
 
 		proxyTransport := &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
-		client := &http.Client{ Transport: proxyTransport, Timeout: time.Second * 10 }
+		client := &http.Client{ Transport: proxyTransport, Timeout: time.Second * 75 }
 		return client.Do(req)
 	}
 
