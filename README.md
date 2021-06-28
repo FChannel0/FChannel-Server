@@ -65,6 +65,8 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
   
   `dbpass:password`     Database password for dbuser.
 
+  `torproxy:127.0.0.1:9050`     Tor proxy route and port, leave blank if you do not want to support
+  
 
   Currently e-mail is not implemented to do anything special, but the code is in place
   
@@ -78,9 +80,9 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
 
 ### local testing
 
-     When testing on a local env when setting the `instance` value in the config file you have to append the port number to the local address eg. `instance:localhost:3000` with `instanceport` also being set to the same port.
+  When testing on a local env when setting the `instance` value in the config file you have to append the port number to the local address eg. `instance:localhost:3000` with `instanceport` also being set to the same port.
 
-     If you want to test federation between servers locally you have to use your local ip as the `instance` eg. `instance:192.168.0.2:3000` and `instance:192:168:0:3:3000` adding the port to localhost will not route correctly.
+  If you want to test federation between servers locally you have to use your local ip as the `instance` eg. `instance:192.168.0.2:3000` and `instance:192:168:0:3:3000` adding the port to localhost will not route correctly.
 
 ### Managing the server
 

@@ -1491,6 +1491,11 @@ func ParseCommentForReplies(comment string) []ObjectBase {
 
 func CheckValidActivity(id string) (Collection, bool) {
 
+	re := regexp.MustCompile(`.+\.onion(.+)?`)
+	if re.MatchString(id) {
+		id = strings.Replace(id, "https", "http", 1)
+	}
+
 	req, err := http.NewRequest("GET", id, nil)
 	
 	if err != nil {

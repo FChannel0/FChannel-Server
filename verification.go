@@ -661,7 +661,7 @@ func VerifyHeaderSignature(r *http.Request, actor Actor) bool {
 
 	t, _ := time.Parse(time.RFC1123, date)
 
-	if(time.Now().Sub(t).Seconds() > 30) {
+	if(time.Now().Sub(t).Seconds() > 75) {
 		return false
 	}
 	
