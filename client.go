@@ -469,19 +469,6 @@ func GetActorsFollowPostFromId(db *sql.DB, actors []string, id string) Collectio
 	return collection
 }
 
-func CreateClientKey() string{
-
-	file, err := os.Create("clientkey")
-
-	CheckError(err, "could not create client key in file")
-
-	defer file.Close()
-
-	key := CreateKey(32)
-	file.WriteString(key)
-	return key
-}
-
 type ObjectBaseSortDesc []ObjectBase
 func (a ObjectBaseSortDesc) Len() int { return len(a) }
 func (a ObjectBaseSortDesc) Less(i, j int) bool { return a[i].Updated > a[j].Updated }

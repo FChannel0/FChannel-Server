@@ -53,7 +53,7 @@ func main() {
 
 	go MakeCaptchas(db, 100)
 
-	*Key = CreateClientKey()
+	*Key = CreateKey(32)
 
 	FollowingBoards = GetActorFollowingDB(db, Domain)
 	
