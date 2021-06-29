@@ -296,7 +296,12 @@ function dragElement(elmnt) {
 
 function stripTransferProtocol(value){
     var re = /(https:\/\/|http:\/\/)?(www.)?/
-
     return value.replace(re, "")
 }
 
+function isOnion(value){
+    var re = /\.onion/
+    if(value.match(re) != null)
+        return true
+    return false
+}

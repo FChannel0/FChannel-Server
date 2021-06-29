@@ -18,19 +18,30 @@
     {{ end }}                
     <span style="display: block;">File: <a id="{{ .Id }}-img" href="{{ (index .Attachment 0).Href}}">{{ (index .Attachment 0).Name  }}</a><span id="{{ .Id }}-size">({{ (index .Attachment 0).Size  }})</span></span>
     <div id="hide-{{ .Id }}" style="display: none;">[Hide]</div>
-    <div id="sensitive-{{ .Id }}" style="display: none;"><div style="position: relative; text-align: center;"><img style="float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;" src="/static/sensitive.png"><div style="width: 240px; position: absolute; margin-top: 110px; padding: 5px; background-color: black; color: white; cursor: default; ">NSFW Content</div></div></div>    
+    <div id="sensitive-{{ .Id }}" style="display: none;"><div style="position: relative; text-align: center;"><img id="sensitive-img-{{ .Id }}" style="float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;" src="/static/sensitive.png"><div id="sensitive-text-{{ .Id }}" style="width: 240px; position: absolute; margin-top: 110px; padding: 5px; background-color: black; color: white; cursor: default; ">NSFW Content</div></div></div>    
     <div id="media-{{ .Id }}"></div>
     <script>
       media = document.getElementById("media-{{ .Id }}")
 
-      if({{ .Sensitive }} && {{ $board.Actor.Restricted }}){            
+      if(({{ .Sensitive }} && {{ $board.Actor.Restricted }}) || isOnion("{{ .Id }}")){            
           sensitive = document.getElementById("sensitive-{{ .Id }}")
           hide = document.getElementById("hide-{{ .Id }}")
           sensitive.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: block;"; document.getElementById("sensitive-{{ .Id }}").style="display: none;"; document.getElementById("hide-{{ .Id }}").style="display: block; cursor: pointer;"}
           hide.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: none;"; document.getElementById("sensitive-{{ .Id }}").style="display: block;"; document.getElementById("hide-{{ .Id }}").style="display: none;"}
           sensitive.style = "display: block"
           media.style = "display: none;"
-      }      
+      }
+
+      if(isOnion("{{ .Id }}")) {
+          sensitive = document.getElementById("sensitive-{{ .Id }}")
+          document.getElementById("sensitive-img-{{ .Id }}").src = "/static/clover.png"
+          document.getElementById("sensitive-text-{{ .Id }}").innerText = "Tor Node"
+          hide = document.getElementById("hide-{{ .Id }}")
+          sensitive.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: block;"; document.getElementById("sensitive-{{ .Id }}").style="display: none;"; document.getElementById("hide-{{ .Id }}").style="display: block; cursor: pointer;"}
+          hide.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: none;"; document.getElementById("sensitive-{{ .Id }}").style="display: block;"; document.getElementById("hide-{{ .Id }}").style="display: none;"}
+          sensitive.style = "display: block"
+          media.style = "display: none;"          
+      }
       
       if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "image"){
           var img = document.createElement("img");
@@ -100,11 +111,12 @@
           <div id="hide-{{ .Id }}" style="display: none;">[Hide]</div>              
           <div id="sensitive-{{ .Id }}" style="display: none;"><div style="position: relative; text-align: center;"><img style="float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;" src="/static/sensitive.png"><div style="width: 240px; position: absolute; margin-top: 110px; padding: 5px; background-color: black; color: white; cursor: default; ">NSFW Content</div></div></div>
           {{ end }}
+          <div> </div>
           <div id="media-{{ .Id }}" sensitive="0"></div>
           <script>
             media = document.getElementById("media-{{ .Id }}")
             
-            if({{ .Sensitive }} && {{ $board.Actor.Restricted }}){            
+            if(({{ .Sensitive }} && {{ $board.Actor.Restricted }}) || isOnion("{{ .Id }}")){            
                 sensitive = document.getElementById("sensitive-{{ .Id }}")
                 hide = document.getElementById("hide-{{ .Id }}")
                 sensitive.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: block;"; document.getElementById("sensitive-{{ .Id }}").style="display: none;"; document.getElementById("hide-{{ .Id }}").style="display: block; cursor: pointer;"}
@@ -112,6 +124,17 @@
                 sensitive.style = "display: block"
                 media.style = "display: none;"
             }
+
+            if(isOnion("{{ .Id }}")) {
+                sensitive = document.getElementById("sensitive-{{ .Id }}")
+                document.getElementById("sensitive-img-{{ .Id }}").src = "/static/clover.png"
+                document.getElementById("sensitive-text-{{ .Id }}").innerText = "Tor Node"
+                hide = document.getElementById("hide-{{ .Id }}")
+                sensitive.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: block;"; document.getElementById("sensitive-{{ .Id }}").style="display: none;"; document.getElementById("hide-{{ .Id }}").style="display: block; cursor: pointer;"}
+                hide.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: none;"; document.getElementById("sensitive-{{ .Id }}").style="display: block;"; document.getElementById("hide-{{ .Id }}").style="display: none;"}
+                sensitive.style = "display: block"
+                media.style = "display: none;"          
+            }            
             
             if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "image"){
                 var img = document.createElement("img");
