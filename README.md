@@ -66,6 +66,8 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
   `dbpass:password`     Database password for dbuser.
 
   `torproxy:127.0.0.1:9050`     Tor proxy route and port, leave blank if you do not want to support
+
+  `publicindex:true`     Add instance to the public instance index at https://fchan.xyz if you do not want to be added set this value to `false` If you are on the public index and want to be removed get in contact with FChan dev to be removed.
   
 
   Currently e-mail is not implemented to do anything special, but the code is in place
@@ -146,3 +148,9 @@ server {
 ### Docker
 
 `Please consider submitting a pull request if you set up a FChannel instance with Docker with instructions on how to do so`
+
+# Support
+
+Any support is appreciated all funds go to hosting and development of the project
+
+XMR - 85ma5KYR8Jk8zhGospQ8DeMNUrY74rQqEgiiPHvKHbowa37TAa5MLUD8RBaupw5oAxWmpFDrSAxsDbeXcfoAwiZF69mq4CE

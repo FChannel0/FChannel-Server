@@ -37,6 +37,8 @@ var SiteEmailPort = GetConfigValue("emailport")       //587
 
 var TorProxy = GetConfigValue("torproxy") //127.0.0.1:9050
 
+var PublicIndexing = strings.ToLower(GetConfigValue("publicindex"))
+
 var activitystreams = "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
 
 func main() {
@@ -63,6 +65,9 @@ func main() {
 	//name, prefname, summary, auth requirements, restricted
 	if GetConfigValue("instancename") != "" {
 		CreateNewBoardDB(db, *CreateNewActor("", GetConfigValue("instancename"), GetConfigValue("instancesummary"), authReq, false))
+		if PublicIndexing == "true" {
+			AddInstanceToIndex(Domain)			
+		}
 	}
 	
 	// Allow access to public media folder
@@ -1093,6 +1098,35 @@ func main() {
 		w.Header().Set("Content-Type", activitystreams)
 		w.Write(enc)
 		
+	})
+
+	http.HandleFunc("/addtoindex", func(w http.ResponseWriter, r *http.Request) {
+		actor := r.URL.Query().Get("id")
+
+		if Domain != "https://fchan.xyz" {
+			return
+		}
+		
+		if FingerActor(actor).Id != actor {
+			return
+		}
+
+		followers := GetCollectionFromID("https://fchan.xyz/followers")
+
+		var alreadyIndex = false
+		for _, e := range followers.Items {
+			if e.Id == actor {
+				alreadyIndex = true
+			}
+		}
+
+		if !alreadyIndex {			
+			query := `insert into follower (id, follower) values ($1, $2)`
+
+			_, err := db.Exec(query, "https://fchan.xyz", actor)
+
+			CheckError(err, "Error with add to index query")
+		}
 	})
 
 	fmt.Println("Server for " + Domain + " running on port " + Port)
@@ -2392,4 +2426,58 @@ func GetActorInstance(path string) (string, string) {
 	}
 
 	return "", ""
+}
+
+func AddInstanceToIndex(actor string) {
+
+	// if local testing enviroment do not add to index
+	re := regexp.MustCompile(`(.+)?(localhost|\d+\.\d+\.\d+\.\d+)(.+)?`)
+	if re.MatchString(actor) {
+		return
+	}
+	
+	followers := GetCollectionFromID("https://fchan.xyz/followers")
+
+	var alreadyIndex = false
+	for _, e := range followers.Items {
+		if e.Id == actor {
+			alreadyIndex = true
+		}
+	}
+
+	if !alreadyIndex {
+		req, err := http.NewRequest("GET", "https://fchan.xyz/addtoindex?id=" + actor, nil)
+
+		CheckError(err, "error with add instance to actor index req")
+
+		_, err = http.DefaultClient.Do(req)
+
+		CheckError(err, "error with add instance to actor index resp")		
+	}
+}
+
+func GetCollectionFromReq(path string) Collection {
+	req, err := http.NewRequest("GET", path, nil)
+
+	CheckError(err, "error with getting collection from req")
+
+	req.Header.Set("Accept", activitystreams)
+
+	resp, err := http.DefaultClient.Do(req)
+
+	CheckError(err, "error getting resp from collection req")
+
+	defer resp.Body.Close()
+
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	var respCollection Collection
+
+	err = json.Unmarshal(body, &respCollection)
+
+	if err != nil {
+		panic(err)
+	}	
+
+	return respCollection
 }

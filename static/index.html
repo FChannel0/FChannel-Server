@@ -21,6 +21,20 @@
 <div style="text-align: center; max-width: 800px; margin: 0 auto;">
   <h1>{{ .Title }}</h1>
   <p style="text-align: justify">{{.Message}}</p>
+  
+  <div style="margin-top:50px;">
+  <table align="center" style="text-align: left;">
+    <th>
+      <tr>Current known instances</tr>
+    </th>
+
+    {{ range .InstanceIndex }}
+    <tr>
+      <td>{{ .Id }}</td>
+    </tr>
+    {{ end }}
+  </table>
+  </div>
 </div>
 {{ end }}
 {{ define "bottom" }}{{ end }}

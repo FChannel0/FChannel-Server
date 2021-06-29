@@ -32,7 +32,7 @@
           media.style = "display: none;"
       }
 
-      if(isOnion("{{ .Id }}")) {
+      if(isOnion("{{ .Id }}") && !isOnion("{{ $board.Domain }}")) {
           sensitive = document.getElementById("sensitive-{{ .Id }}")
           document.getElementById("sensitive-img-{{ .Id }}").src = "/static/onion.png"
           document.getElementById("sensitive-text-{{ .Id }}").innerText = "Tor Instance"
@@ -123,7 +123,7 @@
                 media.style = "display: none;"
             }
 
-            if(isOnion("{{ .Id }}")) {
+            if(isOnion("{{ .Id }}") && !isOnion("{{ $board.Domain }}") {
                 sensitive = document.getElementById("sensitive-{{ .Id }}")
                 document.getElementById("sensitive-img-{{ .Id }}").src = "/static/onion.png"
                 document.getElementById("sensitive-text-{{ .Id }}").innerText = "Tor Instance"

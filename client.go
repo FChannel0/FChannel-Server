@@ -46,6 +46,7 @@ type PageData struct {
 	Key string
 	PostId string
 	Instance Actor
+	InstanceIndex []ObjectBase
 }
 
 type AdminPage struct {
@@ -88,6 +89,7 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	data.Board.Actor = actor
 	data.Board.Post.Actor = actor.Id
 	data.Board.Restricted = actor.Restricted
+	data.InstanceIndex = GetCollectionFromReq("https://fchan.xyz/followers").Items
 
 	t.ExecuteTemplate(w, "layout",  data)	
 }
