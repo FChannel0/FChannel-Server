@@ -35,18 +35,15 @@
     <a href="/deleteattach?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Attachment]</a>
     <a href="/marksensitive?id={{ .Id }}&board={{ $board.Actor.Name }}">[Mark Sensitive]</a>              
     {{ end }}        
-
-      {{ if and .Sensitive $board.Actor.Restricted }}
-      <div id="hide-{{ .Id }}" style="display: none;">[Hide]</div>              
-      <div id="sensitive-{{ .Id }}" style="display: none;"><div style="position: relative; text-align: center;"><img style="float: left; margin-right: 10px; margin-bottom: 10px; max-width: 180px; max-height: 180px;" src="/static/sensitive.png"><div style="width: 170px; position: absolute; margin-top: 75px; padding: 5px; background-color: black; color: white; cursor: default; ">NSFW Content</div></div></div>
-      {{ end }}
+    <div id="hide-{{ .Id }}" style="display: none;">[Hide]</div>
+    <div id="sensitive-{{ .Id }}" style="display: none;"><div style="position: relative; text-align: center;"><img id="sensitive-img-{{ .Id }}" style="float: left; margin-right: 10px; margin-bottom: 10px; max-width: 180px; max-height: 180px;" src="/static/sensitive.png"><div id="sensitive-text-{{ .Id }}" style="width: 170px; position: absolute; margin-top: 75px; padding: 5px; background-color: black; color: white; cursor: default; ">NSFW Content</div></div></div>    
     <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/">      
       <div id="media-{{ .Id }}" style="width:180px;"></div>
     </a>
       <script>
         media = document.getElementById("media-{{ .Id }}")
 
-        if({{ .Sensitive }} && {{ $board.Actor.Restricted }}){            
+        if(({{ .Sensitive }} && {{ $board.Actor.Restricted }}) || isOnion("{{ .Id }}")){                    
             sensitive = document.getElementById("sensitive-{{ .Id }}")
             hide = document.getElementById("hide-{{ .Id }}")
             sensitive.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: block;"; document.getElementById("sensitive-{{ .Id }}").style="display: none;"; document.getElementById("hide-{{ .Id }}").style="display: block; cursor: pointer;"}
@@ -54,6 +51,17 @@
             sensitive.style = "display: block"
             media.style = "display: none;"
         }
+
+        if(isOnion("{{ .Id }}")) {
+            sensitive = document.getElementById("sensitive-{{ .Id }}")
+            document.getElementById("sensitive-img-{{ .Id }}").src = "/static/onion.png"
+            document.getElementById("sensitive-text-{{ .Id }}").innerText = "Tor Instance"
+            hide = document.getElementById("hide-{{ .Id }}")
+            sensitive.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: block;"; document.getElementById("sensitive-{{ .Id }}").style="display: none;"; document.getElementById("hide-{{ .Id }}").style="display: block; cursor: pointer;"}
+            hide.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: none;"; document.getElementById("sensitive-{{ .Id }}").style="display: block;"; document.getElementById("hide-{{ .Id }}").style="display: none;"}
+            sensitive.style = "display: block"
+            media.style = "display: none;"          
+        }        
         
         if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "image"){
             var img = document.createElement("img");
