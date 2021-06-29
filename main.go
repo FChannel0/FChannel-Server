@@ -1107,10 +1107,6 @@ func main() {
 			return
 		}
 		
-		if FingerActor(actor).Id != actor {
-			return
-		}
-
 		followers := GetCollectionFromID("https://fchan.xyz/followers")
 
 		var alreadyIndex = false
