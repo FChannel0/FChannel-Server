@@ -23,7 +23,7 @@
     <script>
       media = document.getElementById("media-{{ .Id }}")
 
-      if(({{ .Sensitive }} && {{ $board.Actor.Restricted }}) || isOnion("{{ .Id }}")){            
+      if(({{ .Sensitive }} && {{ $board.Actor.Restricted }}) || (isOnion("{{ .Id }}") && !isOnion("{{ $board.Domain }}"))){
           sensitive = document.getElementById("sensitive-{{ .Id }}")
           hide = document.getElementById("hide-{{ .Id }}")
           sensitive.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: block;"; document.getElementById("sensitive-{{ .Id }}").style="display: none;"; document.getElementById("hide-{{ .Id }}").style="display: block; cursor: pointer;"}
@@ -114,7 +114,7 @@
           <script>
             media = document.getElementById("media-{{ .Id }}")
             
-            if(({{ .Sensitive }} && {{ $board.Actor.Restricted }}) || isOnion("{{ .Id }}")){            
+            if(({{ .Sensitive }} && {{ $board.Actor.Restricted }}) || (isOnion("{{ .Id }}") && !isOnion("{{ $board.Domain }}"))){            
                 sensitive = document.getElementById("sensitive-{{ .Id }}")
                 hide = document.getElementById("hide-{{ .Id }}")
                 sensitive.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: block;"; document.getElementById("sensitive-{{ .Id }}").style="display: none;"; document.getElementById("hide-{{ .Id }}").style="display: block; cursor: pointer;"}
