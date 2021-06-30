@@ -47,6 +47,7 @@ type PageData struct {
 	PostId string
 	Instance Actor
 	InstanceIndex []ObjectBase
+	ReturnTo string
 }
 
 type AdminPage struct {
@@ -103,7 +104,7 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	postNum := strings.Replace(r.URL.EscapedPath(), "/" + actor.Name + "/", "", 1)
 
 	page, _ := strconv.Atoi(postNum)
-	
+
 	var returnData PageData
 
 	returnData.Board.Name = actor.Name
@@ -116,6 +117,7 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	returnData.Board.Domain = Domain
 	returnData.Board.Restricted = actor.Restricted
 	returnData.CurrentPage = page
+	returnData.ReturnTo = "feed"
 
 	returnData.Board.Post.Actor = actor.Id
 
@@ -159,6 +161,7 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	returnData.Board.Domain = Domain
 	returnData.Board.Restricted = actor.Restricted
 	returnData.Key = *Key
+	returnData.ReturnTo = "catalog"
 
 	returnData.Board.Post.Actor = actor.Id
 
@@ -196,6 +199,7 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 	returnData.Board.ModCred, _ = GetPasswordFromSession(r)
 	returnData.Board.Domain = Domain
 	returnData.Board.Restricted = actor.Restricted
+	returnData.ReturnTo = "feed"
 
 	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
 	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)
