@@ -1,8 +1,17 @@
 instance:fchan.xyz
-instancetp:https://
 instanceport:3000
 instancename:FChan
 instancesummary:FChan is a federated image board instance.
+
+## For `instancetp` if you plan to support https
+## make sure you setup the ssl certs before running the server initially
+## do not start with http:// and then switch to https://
+## this will cause issues if switched from on protocol to the other.
+## If you do, the database entries will have to be converted to support the change
+## this will cause a lot of headaches if switched back and forth.
+## Choose which one you are going to support and do not change it for best results.
+
+instancetp:https://
 
 dbhost:localhost
 dbport:5432
@@ -17,4 +26,6 @@ emailpass:
 
 torproxy:
 
-publicindex:true
+## Change to true if you  want your instance to be added to the public instance index
+
+publicindex:false
