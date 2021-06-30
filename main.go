@@ -2425,7 +2425,6 @@ func GetActorInstance(path string) (string, string) {
 }
 
 func AddInstanceToIndex(actor string) {
-
 	// if local testing enviroment do not add to index
 	re := regexp.MustCompile(`(.+)?(localhost|\d+\.\d+\.\d+\.\d+)(.+)?`)
 	if re.MatchString(actor) {

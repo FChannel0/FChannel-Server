@@ -224,12 +224,13 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 		}
 	} else {
 		collection := GetObjectByIDFromDB(db, inReplyTo)
+		if collection.Actor != nil {
+			returnData.Board.Post.Actor = collection.Actor.Id
+			returnData.Board.InReplyTo = inReplyTo							
 
-		returnData.Board.Post.Actor = collection.Actor.Id
-		returnData.Board.InReplyTo = inReplyTo							
-
-		if len(collection.OrderedItems) > 0 {
-			returnData.Posts = append(returnData.Posts, collection.OrderedItems[0])
+			if len(collection.OrderedItems) > 0 {
+				returnData.Posts = append(returnData.Posts, collection.OrderedItems[0])
+			}
 		}
 	}
 
