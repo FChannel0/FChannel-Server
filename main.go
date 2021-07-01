@@ -1120,12 +1120,19 @@ func main() {
 			}
 		}
 
-		if !alreadyIndex {			
-			query := `insert into follower (id, follower) values ($1, $2)`
+		// delay to give instance time to boot up
+		time.Sleep(15 * time.Second)
 
-			_, err := db.Exec(query, "https://fchan.xyz", actor)
+		checkActor := FingerActor(actor)
 
-			CheckError(err, "Error with add to index query")
+		if checkActor.Id == actor {
+			if !alreadyIndex {			
+				query := `insert into follower (id, follower) values ($1, $2)`
+
+				_, err := db.Exec(query, "https://fchan.xyz", actor)
+
+				CheckError(err, "Error with add to index query")
+			}
 		}
 	})
 
@@ -1350,9 +1357,7 @@ func CreateObject(objType string) ObjectBase {
 
 func AddFollowersToActivity(db *sql.DB, activity Activity) Activity{
 
-	if len(activity.To) < 1 {
-		activity.To = append(activity.To, activity.Actor.Id)
-	}
+	activity.To = append(activity.To, activity.Actor.Id)
 	
 	for _, e := range activity.To {
 		aFollowers := GetActorCollection(e + "/followers")

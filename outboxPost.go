@@ -48,7 +48,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			nObj = WriteObjectToDB(db, nObj)
 			activity := CreateActivity("Create", nObj)
 			activity = AddFollowersToActivity(db, activity)
-			MakeActivityRequest(db, activity)
+			go MakeActivityRequest(db, activity)
 
 			var id string
 			op := len(nObj.InReplyTo) - 1
