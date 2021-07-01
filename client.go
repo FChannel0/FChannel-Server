@@ -1,6 +1,5 @@
 package main
 
-import "fmt"
 import "net/http"
 import "html/template"
 import "database/sql"
@@ -36,7 +35,7 @@ type Board struct{
 
 type PageData struct {
 	Title string
-	Message string	
+	PreferredUsername string
 	Board Board
 	Pages []int
 	CurrentPage int
@@ -81,7 +80,7 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	var data PageData
 	data.Title = "Welcome to " + actor.PreferredUsername
-	data.Message = fmt.Sprintf("%s is a federated image board based on activitypub. The current version of the code running the server is still a work in progress, expect a bumpy ride for the time being. Get the server code here https://github.com/FChannel0", Domain)
+	data.PreferredUsername = actor.PreferredUsername
 	data.Boards = Boards
 	data.Board.Name = ""
 	data.Key = *Key
