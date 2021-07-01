@@ -68,7 +68,9 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
   `torproxy:127.0.0.1:9050`     Tor proxy route and port, leave blank if you do not want to support
 
   `publicindex:true`     Add instance to the public instance index at https://fchan.xyz if you do not want to be added set this value to `false` If you are on the public index and want to be removed get in contact with FChan dev to be removed.
-  
+
+  `instancesalt:put your salt string here` Used for secure tripcodes currently.
+
 
   Currently e-mail is not implemented to do anything special, but the code is in place
   

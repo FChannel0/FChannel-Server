@@ -24,8 +24,15 @@ emailport:
 emailaddress:
 emailpass:
 
+## enter proxy ip and port if you want to have tor connections supported
+## 127.0.0.1:9050 default
+
 torproxy:
 
 ## Change to true if you  want your instance to be added to the public instance index
 
 publicindex:false
+
+## add your instance salt here for secure tripcodes
+
+instancesalt:
