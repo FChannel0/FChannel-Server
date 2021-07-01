@@ -7,11 +7,12 @@ import "time"
 import "os"
 import "strings"
 import "sort"
+import "container/list"
 
 func GetActorFromDB(db *sql.DB, id string) Actor {
-	var nActor Actor
+       var nActor Actor
 
-	query :=`select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary, publickeypem from actor where id=$1`
+       query :=`select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary, publickeypem from actor where id=$1`
 
 	rows, err := db.Query(query, id)
 
@@ -1487,4 +1488,41 @@ func MarkObjectSensitive(db *sql.DB, id string, sensitive bool) {
 	_, err = db.Exec(query, sensitive, id)
 
 	CheckError(err, "error updating sensitive object in cacheactivitystream")	
+}
+
+func getNewsFromDB(db *sql.DB) []NewsItem {
+	news := list.New()
+	query :=`select title, content, time from newsItem order by time desc`
+
+	rows, err := db.Query(query)
+
+	if CheckError(err, "could not get news from db query") != nil {
+		return make([]NewsItem, 0)
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		n := NewsItem{}
+		err = rows.Scan(&n.Title, &n.Content, &n.Time)
+		news.PushBack(n)
+	}
+	
+	anews := make([]NewsItem, news.Len())
+	
+	i:=0
+	for e := news.Front(); e != nil; e = e.Next() {
+		assert := e.Value.(NewsItem)
+		anews[i] = assert
+		i++
+	}
+
+	return anews
+}
+
+func WriteNewsToDB(db *sql.DB, news NewsItem) {
+	query := `insert into newsItem (title, content, time) values ($1, $2, $3)`
+	
+	_, err := db.Exec(query, news.Title, news.Content, time.Now().Unix())
+	
+	CheckError(err, "error writing news item")
 }

@@ -598,6 +598,17 @@ func main() {
 		MakeActivityRequestOutbox(db, newActorActivity)
 		http.Redirect(w, r, "/" + *Key, http.StatusSeeOther)		
 	})
+	
+	http.HandleFunc("/" + *Key + "/postnews", func(w http.ResponseWriter, r *http.Request) {
+		var newsitem NewsItem
+		
+		newsitem.Title = r.FormValue("title")
+		newsitem.Content = r.FormValue("summary")
+		
+		WriteNewsToDB(db, newsitem)
+		
+		http.Redirect(w, r, "/", http.StatusSeeOther)		
+	})
 
 	http.HandleFunc("/verify", func(w http.ResponseWriter, r *http.Request){
 		if(r.Method == "POST") {

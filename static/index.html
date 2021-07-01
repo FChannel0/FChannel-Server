@@ -25,6 +25,34 @@
   <div style="margin-top:50px;">
   <table align="center" style="text-align: left;">
     <th>
+      <tr>Local boards</tr>
+    </th>
+
+    {{ range .Boards }}
+    <tr>
+      <td><a href="{{.Location}}">{{.Name}} - {{.PrefName}}</a></td>
+    </tr>
+    {{ end }}
+  </table>
+  </div>
+  
+  <div style="margin-top:50px;">
+  <table align="center" style="text-align: left;">
+    <th>
+      <tr>{{ .PreferredUsername }} news</tr>
+    </th>
+
+    {{ range .NewsItems }}
+    <tr>
+      <td><p><em><b>{{.Time}} - {{.Title}}</b></em><br>{{.Content}}</p></td>
+    </tr>
+    {{ end }}
+  </table>
+  </div>
+  
+  <div style="margin-top:50px;">
+  <table align="center" style="text-align: left;">
+    <th>
       <tr>Current known instances</tr>
     </th>
 

@@ -47,6 +47,7 @@ type PageData struct {
 	Instance Actor
 	InstanceIndex []ObjectBase
 	ReturnTo string
+	NewsItems []NewsItem
 }
 
 type AdminPage struct {
@@ -73,8 +74,15 @@ type Removed struct {
 	Board string
 }
 
+
+type NewsItem struct {
+	Title string
+	Content string
+	Time int
+}
+
 func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	t := template.Must(template.ParseFiles("./static/main.html", "./static/index.html"))
+	t := template.Must(template.New("").Funcs(template.FuncMap{"mod": func(i, j int) bool { return i%j == 0 }}).ParseFiles("./static/main.html", "./static/index.html"))
 
 	actor := GetActorFromDB(db, Domain)
 
@@ -90,8 +98,9 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	data.Board.Post.Actor = actor.Id
 	data.Board.Restricted = actor.Restricted
 	data.InstanceIndex = GetCollectionFromReq("https://fchan.xyz/followers").Items
+	data.NewsItems = getNewsFromDB(db)
 
-	t.ExecuteTemplate(w, "layout",  data)	
+	t.ExecuteTemplate(w, "layout",  data)
 }
 
 func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection){
