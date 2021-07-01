@@ -393,7 +393,11 @@ func main() {
 				}
 			}
 
-			http.Redirect(w, r, Domain + "/" + r.FormValue("boardName"), http.StatusMovedPermanently)
+			if(r.FormValue("returnTo") == "catalog"){
+				http.Redirect(w, r, Domain + "/" + r.FormValue("boardName") + "/catalog", http.StatusMovedPermanently)
+			} else {
+				http.Redirect(w, r, Domain + "/" + r.FormValue("boardName"), http.StatusMovedPermanently)
+			}
 			return
 		}
 
