@@ -1123,7 +1123,7 @@ func main() {
 		// delay to give instance time to boot up
 		time.Sleep(15 * time.Second)
 
-		checkActor := FingerActor(actor)
+		checkActor := GetActor(actor)
 
 		if checkActor.Id == actor {
 			if !alreadyIndex {			
