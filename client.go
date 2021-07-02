@@ -1,6 +1,5 @@
 package main
 
-import "fmt"
 import "net/http"
 import "html/template"
 import "database/sql"
@@ -36,7 +35,8 @@ type Board struct{
 
 type PageData struct {
 	Title string
-	Message string	
+	Message string
+	MessageHTML template.HTML	
 	Board Board
 	Pages []int
 	CurrentPage int
@@ -81,7 +81,8 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	var data PageData
 	data.Title = "Welcome to " + actor.PreferredUsername
-	data.Message = fmt.Sprintf("%s is a federated image board based on activitypub. The current version of the code running the server is still a work in progress, expect a bumpy ride for the time being. Get the server code here https://github.com/FChannel0", Domain)
+	data.Message = actor.PreferredUsername + " is a federated image board based on activitypub. The current version of the code running the server is still a work in progress, expect a bumpy ride for the time being. Get the server code here https://github.com/FChannel0"
+	data.MessageHTML = template.HTML(actor.PreferredUsername + " is a federated image board based on activitypub. The current version of the code running the server is still a work in progress, expect a bumpy ride for the time being. Get the server code here <a href='https://github.com/FChannel0'>https://github.com/FChannel0</a>")
 	data.Boards = Boards
 	data.Board.Name = ""
 	data.Key = *Key
@@ -92,6 +93,8 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	data.Board.Restricted = actor.Restricted
 	data.InstanceIndex = GetCollectionFromReq("https://fchan.xyz/followers").Items
 
+
+	
 	t.ExecuteTemplate(w, "layout",  data)	
 }
 

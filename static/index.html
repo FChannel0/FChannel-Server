@@ -20,7 +20,7 @@
 {{ define "content" }}
 <div style="text-align: center; max-width: 800px; margin: 0 auto;">
   <h1>{{ .Title }}</h1>
-  <p style="text-align: justify">{{.Message}}</p>
+  <p style="text-align: justify">{{.MessageHTML}}</p>
   
   <div style="margin-top:50px;">
   <table align="center" style="text-align: left;">
@@ -30,7 +30,7 @@
 
     {{ range .InstanceIndex }}
     <tr>
-      <td>{{ .Id }}</td>
+      <td><a href="{{ .Id }}">{{ .Id }}</a></td>
     </tr>
     {{ end }}
   </table>
