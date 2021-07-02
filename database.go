@@ -1504,6 +1504,9 @@ func getNewsFromDB(db *sql.DB) []NewsItem {
 	for rows.Next() {
 		n := NewsItem{}
 		err = rows.Scan(&n.Title, &n.Content, &n.Time)
+		if CheckError(err, "error scanning news from db") != nil {
+			return make([]NewsItem, 0)
+		}
 		news.PushBack(n)
 	}
 	
@@ -1517,6 +1520,27 @@ func getNewsFromDB(db *sql.DB) []NewsItem {
 	}
 
 	return anews
+}
+
+func getNewsItemFromDB(db *sql.DB, timestamp int) (NewsItem, error) {
+	var news NewsItem
+	query := `select title, content, time from newsItem where time=$1 limit 1`
+	
+	rows, err := db.Query(query, timestamp)
+	
+	if err != nil {
+		return news, err
+	}
+	
+	defer rows.Close()
+	rows.Next()
+	err = rows.Scan(&news.Title, &news.Content, &news.Time)
+	
+	if err != nil {
+		return news, err
+	}
+	
+	return news, nil
 }
 
 func WriteNewsToDB(db *sql.DB, news NewsItem) {

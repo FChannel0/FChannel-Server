@@ -286,6 +286,21 @@ func main() {
 		w.WriteHeader(http.StatusForbidden)			
 		w.Write([]byte("404 no path"))
 	})
+	
+	http.HandleFunc("/news/", func(w http.ResponseWriter, r *http.Request){
+		timestamp := r.URL.Path[6:]
+		if timestamp[len(timestamp)-1:] == "/" {
+			timestamp = timestamp[:len(timestamp)-1]
+		}
+		
+		ts, err := strconv.Atoi(timestamp)
+		if err != nil {
+			w.WriteHeader(http.StatusForbidden)			
+			w.Write([]byte("404 no path"))
+		} else {
+			NewsGet(w, r, db, ts)
+		}
+	})
 
 	http.HandleFunc("/post", func(w http.ResponseWriter, r *http.Request){
 

@@ -8,6 +8,7 @@ import "strings"
 import "strconv"
 import "sort"
 import "regexp"
+import "time"
 
 var Key *string = new(string)
 
@@ -82,7 +83,7 @@ type NewsItem struct {
 }
 
 func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	t := template.Must(template.New("").Funcs(template.FuncMap{"mod": func(i, j int) bool { return i%j == 0 }}).ParseFiles("./static/main.html", "./static/index.html"))
+	t := template.Must(template.New("").Funcs(template.FuncMap{"mod": func(i, j int) bool { return i%j == 0 }, "unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/index.html"))
 
 	actor := GetActorFromDB(db, Domain)
 
@@ -99,6 +100,37 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	data.Board.Restricted = actor.Restricted
 	data.InstanceIndex = GetCollectionFromReq("https://fchan.xyz/followers").Items
 	data.NewsItems = getNewsFromDB(db)
+
+	t.ExecuteTemplate(w, "layout",  data)
+}
+
+func NewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB, timestamp int) {
+	t := template.Must(template.New("").Funcs(template.FuncMap{"unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/news.html"))
+	
+	actor := GetActorFromDB(db, Domain)
+
+	var data PageData
+	data.PreferredUsername = actor.PreferredUsername
+	data.Boards = Boards
+	data.Board.Name = ""
+	data.Key = *Key
+	data.Board.Domain = Domain
+	data.Board.ModCred, _ = GetPasswordFromSession(r)
+	data.Board.Actor = actor
+	data.Board.Post.Actor = actor.Id
+	data.Board.Restricted = actor.Restricted
+	data.NewsItems = []NewsItem{NewsItem{}}
+	
+	var err error
+	data.NewsItems[0], err = getNewsItemFromDB(db, timestamp)
+	
+	if err != nil {
+		w.WriteHeader(http.StatusForbidden)			
+		w.Write([]byte("404 no path"))
+		return
+	}
+	
+	data.Title = actor.PreferredUsername + ": " + data.NewsItems[0].Title
 
 	t.ExecuteTemplate(w, "layout",  data)
 }
