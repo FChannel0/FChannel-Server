@@ -57,6 +57,9 @@ func main() {
 
 	RunDatabaseSchema(db)
 
+	//Make sure that we have a clean palette and we don't get any 404's if the admin deleted some captcha images in the `public` directory
+	DeleteAllCaptchas(db)
+	
 	go MakeCaptchas(db, 100)
 
 	*Key = CreateKey(32)

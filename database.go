@@ -1327,7 +1327,7 @@ func GetRandomCaptcha(db *sql.DB) string{
 
 	rows, err := db.Query(query)
 
-	CheckError(err, "could not get captcha")
+	CheckError(err, "could not get a random captcha")
 
 	var verify string
 
@@ -1336,7 +1336,7 @@ func GetRandomCaptcha(db *sql.DB) string{
 	rows.Next()
 	err = rows.Scan(&verify)
 	
-	CheckError(err, "Could not get verify captcha")
+	CheckError(err, "could not get a random captcha")
 
 	return verify
 }
@@ -1346,14 +1346,14 @@ func GetCaptchaTotal(db *sql.DB) int{
 
 	rows, err := db.Query(query)
 	
-	CheckError(err, "could not get query captcha total")	
+	CheckError(err, "could not query the total amount of captchas")	
 
 	defer rows.Close()
 	
 	var count int
 	for rows.Next(){
 		if err := rows.Scan(&count); err != nil{
-			CheckError(err, "could not get captcha total")
+			CheckError(err, "could not get the total amount of captchas")
 		}
 	}
 
@@ -1366,7 +1366,7 @@ func GetCaptchaCodeDB(db *sql.DB, verify string) string {
 
 	rows, err := db.Query(query, verify)
 
-	CheckError(err, "could not get captcha verifciation")
+	CheckError(err, "could not get a captcha from the db")
 
 	defer rows.Close()
 
@@ -1376,7 +1376,7 @@ func GetCaptchaCodeDB(db *sql.DB, verify string) string {
 	err = rows.Scan(&code)
 
 	if err != nil {
-		fmt.Println("Could not get verification captcha")
+		fmt.Println("could not get a captcha from the db")
 	}
 
 	return code
@@ -1397,7 +1397,7 @@ func GetActorAuth(db *sql.DB, actor string) []string {
 		var e string
 		err = rows.Scan(&e)
 
-		CheckError(err, "could not get actor auth row scan")		
+		CheckError(err, "could not get the actor auth from scanned row")		
 
 		auth = append(auth, e)
 	}
@@ -1410,9 +1410,30 @@ func DeleteCaptchaCodeDB(db *sql.DB, verify string) {
 
 	_, err := db.Exec(query, verify)	
 
-	CheckError(err, "could not delete captcah code db")
+	CheckError(err, "could not delete captcha code from the db")
 
 	os.Remove("./" + verify)
+}
+
+func DeleteAllCaptchas(db *sql.DB) {
+	query := `select identifier from verification where type='captcha'`
+	rows, err := db.Query(query)	
+	CheckError(err, `could not delete the captchas from the "public" directory`)
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var id string
+		err = rows.Scan(&id)
+		CheckError(err, `could not delete all captchas from the "public" directory`)
+		os.Remove("./" + id)
+	}
+
+	query = `delete from verification where type='captcha'`
+
+	_, err = db.Exec(query)
+
+	CheckError(err, "could not delete all captchas from the db")
 }
 
 func EscapeString(text string) string {
