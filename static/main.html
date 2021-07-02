@@ -7,7 +7,38 @@
     <meta name="keywords" content="Federated Imageboard based on Activtypub">    
     <meta property="og:locale" content="en_US" />
     <meta property="og:type" content="website" />
-    <link rel="icon" type="image/png"  href="/static/favicon.png">    
+    <link rel="icon" type="image/png"  href="/static/favicon.png">
+    <script>
+    window.addEventListener('DOMContentLoaded', function(){
+      var np = document.getElementById("new-post")
+      if(np){
+        np.setAttribute("onsubmit", "validatePost(this);return false;")
+      }
+      var np = document.getElementById("reply-post")
+      if(np){
+        np.setAttribute("onsubmit", "validatePost(this);return false;")
+      }
+      var np = document.getElementById("report-post")
+      if(np){
+        np.setAttribute("onsubmit", "validatePost(this);return false;")
+      }
+    })
+    function validatePost(form)
+    {
+      var data = new FormData(form)
+      fetch(form.action, {
+        method: "POST",
+        body: data
+      }).then((r) => {
+        if(r.redirected){
+          document.location = r.url
+        } else {
+          r.text().then((t) => {alert(t)})
+        }
+      })
+      return false
+    }
+    </script>
     <style>
       a, a:link, a:visited, a:hover, a:active {
           text-decoration: none
