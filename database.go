@@ -7,7 +7,6 @@ import "time"
 import "os"
 import "strings"
 import "sort"
-import "container/list"
 
 func GetActorFromDB(db *sql.DB, id string) Actor {
        var nActor Actor
@@ -1490,14 +1489,20 @@ func MarkObjectSensitive(db *sql.DB, id string, sensitive bool) {
 	CheckError(err, "error updating sensitive object in cacheactivitystream")	
 }
 
-func getNewsFromDB(db *sql.DB) []NewsItem {
-	news := list.New()
-	query :=`select title, content, time from newsItem order by time desc`
+//if limit less than 1 return all news items
+func getNewsFromDB(db *sql.DB, limit int) []NewsItem {
+	news := []NewsItem
+	
+	if(limit > 0) {
+		query :=`select title, content, time from newsItem order by time desc limit $1`
+	} else {
+		query :=`select title, content, time from newsItem order by time desc`
+	}
 
-	rows, err := db.Query(query)
+	rows, err := db.Query(query, limit)
 
 	if CheckError(err, "could not get news from db query") != nil {
-		return make([]NewsItem, 0)
+		return news
 	}
 
 	defer rows.Close()
@@ -1505,21 +1510,12 @@ func getNewsFromDB(db *sql.DB) []NewsItem {
 		n := NewsItem{}
 		err = rows.Scan(&n.Title, &n.Content, &n.Time)
 		if CheckError(err, "error scanning news from db") != nil {
-			return make([]NewsItem, 0)
+			return news
 		}
-		news.PushBack(n)
+		append(news, n)
 	}
 	
-	anews := make([]NewsItem, news.Len())
-	
-	i:=0
-	for e := news.Front(); e != nil; e = e.Next() {
-		assert := e.Value.(NewsItem)
-		anews[i] = assert
-		i++
-	}
-
-	return anews
+	return news
 }
 
 func getNewsItemFromDB(db *sql.DB, timestamp int) (NewsItem, error) {
