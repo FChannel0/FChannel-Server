@@ -1141,29 +1141,9 @@ func main() {
 			return
 		}
 		
-		followers := GetCollectionFromID("https://fchan.xyz/followers")
 
-		var alreadyIndex = false
-		for _, e := range followers.Items {
-			if e.Id == actor {
-				alreadyIndex = true
-			}
-		}
 
-		// delay to give instance time to boot up
-		time.Sleep(15 * time.Second)
-
-		checkActor := GetActor(actor)
-
-		if checkActor.Id == actor {
-			if !alreadyIndex {			
-				query := `insert into follower (id, follower) values ($1, $2)`
-
-				_, err := db.Exec(query, "https://fchan.xyz", actor)
-
-				CheckError(err, "Error with add to index query")
-			}
-		}
+		go AddInstanceToIndexDB(db, actor)
 	})
 
 	fmt.Println("Server for " + Domain + " running on port " + Port)
@@ -2475,6 +2455,32 @@ func AddInstanceToIndex(actor string) {
 	}
 }
 
+func AddInstanceToIndexDB(db *sql.DB, actor string) {
+
+	time.Sleep(15 * time.Second)
+	
+	followers := GetCollectionFromID("https://fchan.xyz/followers")
+
+	var alreadyIndex = false
+	for _, e := range followers.Items {
+		if e.Id == actor {
+			alreadyIndex = true
+		}
+	}
+
+	checkActor := GetActor(actor)
+
+	if checkActor.Id == actor {
+		if !alreadyIndex {			
+			query := `insert into follower (id, follower) values ($1, $2)`
+
+			_, err := db.Exec(query, "https://fchan.xyz", actor)
+
+			CheckError(err, "Error with add to index query")
+		}
+	}
+}
+
 func GetCollectionFromReq(path string) Collection {
 	req, err := http.NewRequest("GET", path, nil)
 
@@ -2500,3 +2506,4 @@ func GetCollectionFromReq(path string) Collection {
 
 	return respCollection
 }
+

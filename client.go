@@ -90,6 +90,7 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	var data PageData
 	data.Title = "Welcome to " + actor.PreferredUsername
+
 	data.PreferredUsername = actor.PreferredUsername
 	data.Boards = Boards
 	data.Board.Name = ""
