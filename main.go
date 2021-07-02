@@ -1,25 +1,27 @@
 package main
 
-import "fmt"
-import "strings"
-import "strconv"
-import "net/http"
-import "net/url"
-import "database/sql"
-import _ "github.com/lib/pq"
-import "math/rand"
-import "html/template"
-import "time"
-import "regexp"
-import "os/exec"
-import "bytes"
-import "encoding/json"
-import "io/ioutil"
-import "mime/multipart"
-import "os"
-import "bufio"
-import "io"
-import "github.com/gofrs/uuid"
+import (
+	"fmt"
+	"strings"
+	"strconv"
+	"net/http"
+	"net/url"
+	"database/sql"
+	_ "github.com/lib/pq"
+	"math/rand"
+	"html/template"
+	"time"
+	"regexp"
+	"os/exec"
+	"bytes"
+	"encoding/json"
+	"io/ioutil"
+	"mime/multipart"
+	"os"
+	"bufio"
+	"io"
+	"github.com/gofrs/uuid"
+)
 
 var Port = ":" + GetConfigValue("instanceport")
 var TP   = GetConfigValue("instancetp")
@@ -38,6 +40,8 @@ var SiteEmailPort = GetConfigValue("emailport")       //587
 var TorProxy = GetConfigValue("torproxy") //127.0.0.1:9050
 
 var PublicIndexing = strings.ToLower(GetConfigValue("publicindex"))
+
+var Salt = GetConfigValue("instancesalt")
 
 var activitystreams = "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
 
@@ -1237,21 +1241,6 @@ func CreateTripCode(input string) string {
 	return code[0]
 }
 
-func CreateNameTripCode(r *http.Request, db *sql.DB) (string, string) {
-	input := r.FormValue("name")
-	re := regexp.MustCompile("#.+")
-	chunck := re.FindString(input)
-	ce := regexp.MustCompile(`(?i)#Admin`)
-	admin := ce.MatchString(chunck)
-	board, modcred := GetPasswordFromSession(r)	
-	if(admin && HasAuth(db, modcred, board)) {
-		return re.ReplaceAllString(input, ""), "#Admin"
-	} else if(chunck != "") {
-		hash := CreateTripCode(chunck)
-		return re.ReplaceAllString(input, ""), "!" + hash[42:50]
-	}
-	return input, ""
-}
 
 func GetActorFromPath(db *sql.DB, location string, prefix string) Actor {
 	pattern := fmt.Sprintf("%s([^/\n]+)(/.+)?", prefix)
