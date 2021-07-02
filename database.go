@@ -1491,15 +1491,23 @@ func MarkObjectSensitive(db *sql.DB, id string, sensitive bool) {
 
 //if limit less than 1 return all news items
 func getNewsFromDB(db *sql.DB, limit int) []NewsItem {
-	news := []NewsItem
+	var news []NewsItem
 	
+	var query string
 	if(limit > 0) {
-		query :=`select title, content, time from newsItem order by time desc limit $1`
+		query =`select title, content, time from newsItem order by time desc limit $1`
 	} else {
-		query :=`select title, content, time from newsItem order by time desc`
+		query =`select title, content, time from newsItem order by time desc`
 	}
 
-	rows, err := db.Query(query, limit)
+	var rows *sql.Rows
+	var err error
+	if(limit > 0) {
+		rows, err = db.Query(query, limit)
+	} else {
+		rows, err = db.Query(query)
+	}
+	
 
 	if CheckError(err, "could not get news from db query") != nil {
 		return news
@@ -1512,7 +1520,7 @@ func getNewsFromDB(db *sql.DB, limit int) []NewsItem {
 		if CheckError(err, "error scanning news from db") != nil {
 			return news
 		}
-		append(news, n)
+		news = append(news, n)
 	}
 	
 	return news

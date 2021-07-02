@@ -20,28 +20,10 @@
 {{ define "content" }}
 <div style="text-align: center; max-width: 800px; margin: 0 auto;">
   <h1>{{ .Title }}</h1>
-  <p style="text-align: justify">{{ .PreferredUsername }} is a federated image board based on activitypub. The current version of the code running the server is still a work in progress, expect a bumpy ride for the time being. Get the server code <a href="https://github.com/FChannel0">here</a>.</p>
-  
-  <div style="margin-top:50px;">
 
-    <div style="display: grid;border-right: 2px solid #820404">
-      <div style="display: inline-grid;grid-column: 1 / 4;border-bottom: 2px solid #820404;border-left: 2px solid #820404;border-top: 2px solid #820404;"><span style="font-size: 1.5em;font-weight: bold;">Local boards</span></div>
-    {{ range .Boards }}
-      <div style="whitespace: nowrap;display: inline-grid;text-align: left;padding: 5px;border-bottom: 2px solid #820404;border-left: 2px solid #820404;"><a href="{{.Location}}">{{.Name}} - {{.PrefName}}</a></div>
-    {{ end }}
-    {{ range .BoardRemainer }}
-      <div style="whitespace: nowrap;display: inline-grid;text-align: left;padding: 5px;border-bottom: 2px solid #820404;border-left: 2px solid #820404;"></div>
-    {{ end }}
-    </div>
-
-  </div>
-  
   <div style="margin-top:50px;">
   <table align="center" style="text-align: left;">
-    <th>
-      <tr><a href="/news">{{ .PreferredUsername }} news</a></tr>
-    </th>
-
+    
     {{ range $i, $e := .NewsItems }}
     <tr>
       <td><a href="/news/{{.Time}}">{{unixtoreadable $e.Time}} - {{$e.Title}}</a>
@@ -54,19 +36,6 @@
   </table>
   </div>
   
-  <div style="margin-top:50px;">
-  <table align="center" style="text-align: left;">
-    <th>
-      <tr>Current known instances</tr>
-    </th>
-
-    {{ range .InstanceIndex }}
-    <tr>
-      <td><a href="{{ .Id }}">{{ .Id }}</a></td>
-    </tr>
-    {{ end }}
-  </table>
-  </div>
 </div>
 {{ end }}
 {{ define "bottom" }}{{ end }}

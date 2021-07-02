@@ -293,6 +293,12 @@ func main() {
 	
 	http.HandleFunc("/news/", func(w http.ResponseWriter, r *http.Request){
 		timestamp := r.URL.Path[6:]
+
+		if(len(timestamp) < 2) {
+			AllNewsGet(w, r, db)
+			return
+		}
+
 		if timestamp[len(timestamp)-1:] == "/" {
 			timestamp = timestamp[:len(timestamp)-1]
 		}

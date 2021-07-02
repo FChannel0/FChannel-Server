@@ -102,7 +102,7 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	data.Board.Restricted = actor.Restricted
 	data.BoardRemainer = make([]int, (len(data.Boards) % 3)+1)
 	data.InstanceIndex = GetCollectionFromReq("https://fchan.xyz/followers").Items
-	data.NewsItems = getNewsFromDB(db)
+	data.NewsItems = getNewsFromDB(db, 3)
 
 	t.ExecuteTemplate(w, "layout",  data)
 }
@@ -134,6 +134,27 @@ func NewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB, timestamp int) 
 	}
 	
 	data.Title = actor.PreferredUsername + ": " + data.NewsItems[0].Title
+
+	t.ExecuteTemplate(w, "layout",  data)
+}
+
+func AllNewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	t := template.Must(template.New("").Funcs(template.FuncMap{"unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/anews.html"))
+	
+	actor := GetActorFromDB(db, Domain)
+
+	var data PageData
+	data.PreferredUsername = actor.PreferredUsername
+	data.Title = actor.PreferredUsername + " News"
+	data.Boards = Boards
+	data.Board.Name = ""
+	data.Key = *Key
+	data.Board.Domain = Domain
+	data.Board.ModCred, _ = GetPasswordFromSession(r)
+	data.Board.Actor = actor
+	data.Board.Post.Actor = actor.Id
+	data.Board.Restricted = actor.Restricted
+	data.NewsItems = getNewsFromDB(db, 0)
 
 	t.ExecuteTemplate(w, "layout",  data)
 }
