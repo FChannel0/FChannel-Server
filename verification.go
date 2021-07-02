@@ -389,7 +389,7 @@ func CreateNewCaptcha(db *sql.DB){
 			break
 		}
 	}
-	textDriver := base64Captcha.NewDriverString(98, 200, 35, base64Captcha.OptionShowHollowLine | base64Captcha.OptionShowSineLine | base64Captcha.OptionShowSlimeLine, 4, "ABEFHKMNPQRSUVWXYZ#$&", &color.RGBA{}, []string{"Flim-Flam.ttf", "RitaSmith.ttf", "wqy-microhei.ttc"})
+	textDriver := base64Captcha.NewDriverString(98, 200, 35, base64Captcha.OptionShowHollowLine | base64Captcha.OptionShowSineLine | base64Captcha.OptionShowSlimeLine, 4, "ABEFHKMNPQRSUVWXYZ#$&", &color.RGBA{}, []string{"chromohv.ttf", "DeborahFancyDress.ttf", "RitaSmith.ttf", "wqy-microhei.ttc"})
 	c := base64Captcha.NewCaptcha(textDriver, base64Captcha.DefaultMemStore)
 
 	_, content, answer := Captcha(c)
