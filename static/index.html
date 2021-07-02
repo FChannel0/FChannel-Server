@@ -23,17 +23,17 @@
   <p style="text-align: justify">{{ .PreferredUsername }} is a federated image board based on activitypub. The current version of the code running the server is still a work in progress, expect a bumpy ride for the time being. Get the server code <a href="https://github.com/FChannel0">here</a>.</p>
   
   <div style="margin-top:50px;">
-  <table align="center" style="text-align: left;">
-    <th>
-      <tr>Local boards</tr>
-    </th>
 
+    <div style="display: grid;border-right: 2px solid #820404">
+      <div style="display: inline-grid;grid-column: 1 / 4;border-bottom: 2px solid #820404;border-left: 2px solid #820404;border-top: 2px solid #820404;"><span style="font-size: 1.5em;font-weight: bold;">Local boards</span></div>
     {{ range .Boards }}
-    <tr>
-      <td><a href="{{.Location}}">{{.Name}} - {{.PrefName}}</a></td>
-    </tr>
+      <div style="whitespace: nowrap;display: inline-grid;text-align: left;padding: 5px;border-bottom: 2px solid #820404;border-left: 2px solid #820404;"><a href="{{.Location}}">{{.Name}} - {{.PrefName}}</a></div>
     {{ end }}
-  </table>
+    {{ range .BoardRemainer }}
+      <div style="whitespace: nowrap;display: inline-grid;text-align: left;padding: 5px;border-bottom: 2px solid #820404;border-left: 2px solid #820404;"></div>
+    {{ end }}
+    </div>
+
   </div>
   
   <div style="margin-top:50px;">
@@ -42,9 +42,13 @@
       <tr>{{ .PreferredUsername }} news</tr>
     </th>
 
-    {{ range .NewsItems }}
+    {{ range $i, $e := .NewsItems }}
     <tr>
-      <td><a href="/news/{{.Time}}">{{unixtoreadable .Time}} - {{.Title}}</a></td>
+      <td><a href="/news/{{.Time}}">{{unixtoreadable $e.Time}} - {{$e.Title}}</a>
+      {{ if eq $i 0 }}
+      <br><p>{{$e.Content}}</p>
+      {{ end }}
+      </td>
     </tr>
     {{ end }}
   </table>
