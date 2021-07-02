@@ -26,7 +26,7 @@ import (
 var Port = ":" + GetConfigValue("instanceport")
 var TP   = GetConfigValue("instancetp")
 var Instance = GetConfigValue("instance")
-var Domain = TP + "" + Instance
+var Domain = TP + "" + Instance + Port
 
 var authReq = []string{"captcha","email","passphrase"}
 
