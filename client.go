@@ -100,7 +100,12 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	data.Board.Actor = actor
 	data.Board.Post.Actor = actor.Id
 	data.Board.Restricted = actor.Restricted
-	data.BoardRemainer = make([]int, (len(data.Boards) % 3)+1)
+	//almost certainly there is a better algorithm for this but the old one was wrong
+	//and I suck at math. This works at least.
+	data.BoardRemainer = make([]int, 3-(len(data.Boards) % 3))
+	if(len(data.BoardRemainer) == 3){
+		data.BoardRemainer = make([]int, 0)
+	}
 	data.InstanceIndex = GetCollectionFromReq("https://fchan.xyz/followers").Items
 	data.NewsItems = getNewsFromDB(db, 3)
 
