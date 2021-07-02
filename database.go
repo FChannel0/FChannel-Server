@@ -1547,6 +1547,11 @@ func getNewsItemFromDB(db *sql.DB, timestamp int) (NewsItem, error) {
 	return news, nil
 }
 
+func deleteNewsItemFromDB(db *sql.DB, timestamp int) {
+	query := `delete from newsItem where time=$1`
+	db.Exec(query, timestamp)
+}
+
 func WriteNewsToDB(db *sql.DB, news NewsItem) {
 	query := `insert into newsItem (title, content, time) values ($1, $2, $3)`
 	

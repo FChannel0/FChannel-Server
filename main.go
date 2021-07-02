@@ -634,6 +634,21 @@ func main() {
 		
 		http.Redirect(w, r, "/", http.StatusSeeOther)		
 	})
+	
+	http.HandleFunc("/" + *Key + "/newsdelete/", func(w http.ResponseWriter, r *http.Request){
+		timestamp := r.URL.Path[13+len(*Key):]
+		
+		tsint, err := strconv.Atoi(timestamp)
+		
+		if(err != nil){
+			w.WriteHeader(http.StatusForbidden)			
+			w.Write([]byte("404 no path"))
+			return
+		} else {
+			deleteNewsItemFromDB(db, tsint)
+			http.Redirect(w, r, "/news/", http.StatusSeeOther)
+		}
+	})
 
 	http.HandleFunc("/verify", func(w http.ResponseWriter, r *http.Request){
 		if(r.Method == "POST") {

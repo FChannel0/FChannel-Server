@@ -44,7 +44,8 @@
 
     {{ range $i, $e := .NewsItems }}
     <tr>
-      <td><a href="/news/{{.Time}}">{{unixtoreadable $e.Time}} - {{$e.Title}}</a>
+      <td>{{ if $.Board.ModCred }}<a href="/{{ $.Key }}/newsdelete/{{ $e.Time }}">[Delete] </a>{{end}} 
+      <a href="/news/{{.Time}}">{{unixtoreadable $e.Time}} - {{$e.Title}}</a>
       {{ if eq $i 0 }}
       <br><p>{{$e.Content}}</p>
       {{ end }}
