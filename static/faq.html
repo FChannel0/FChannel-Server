@@ -9,39 +9,58 @@
     <a href="javascript:history.back()">[Back]</a>
     <h1 style="text-align: center;">FAQ</h1>
     <div>
-      <h4>What is fchan</h4>
-      <p>fchan short for fchannel and is a federated image board based on activity pub. it removes the need for centeralized boards. many boards can be connected and feeds shared or followed. it draws likeness from other chans for ease of familiarity. you can get the source code here https://github.com/FChannel0 and modify how you choose, any help is appreciated.</p>
+      <h4>What is fchan?</h4>
+      <p>fchan, short for fchannel, is a federated image board based on <a href="https://activitypub.rocks/">ActivityPub</a>, a protocol which allows social sites like social media and image boards to be decentralized. Boards across sites which are on the opposite sides of the Globe can be connected and feeds can be shared or followed. It strives to be familiar looking to regular *chan users.</p><p> You can get the source code on <a href="https://github.com/FChannel0">https://github.com/FChannel0</a> which is available under <a href="https://en.wikipedia.org/wiki/Affero_General_Public_License">AGPLv3</a>, which means that you can modify the source code of fchan however you like as long as you share your source code with everyone else. We appreciate and encourage any positive contributions to the source code!</p>
 
-      <h4 id="options">Options</h4>
-      <p>the options field when posting can be used for special options when posting. type noko in the options field to return to the thread you posting to. use sage to ignore updating the thread bump order. nokosage will do both.</p>
+      <h4 id="options">What are the "Options" used for when posting?</h4>
+      <p>The "Options" field can be used for special options when posting.</p>
+      <ul>
+        <li>Type <span style="font-weight: bold;">"noko"</span> in the options field if you want to stay on the thread you are about to post on.</li>
+        <li>Type <span style="font-weight: bold;">"sage"</span> to not bump the thread, meaning that if will not show up on the front page of the board, that you are replying to.</li>
+        <li>Typing in <span style="font-weight: bold;">"nokosage"</span> will do both actions as described above.</li>
+      </ul>
+      <h4 id="tripcode">What is a "tripcode"?</h4>
+      <p>A tripcode is a way to uniquely identify yourself on an imageboard. This is the closest you will get to registering. There are two kinds of tripcodes that can identify yourself with, however, it's recommended that you use secure tripcodes only if you take your identification number seriously.</p>
+      <ul>
+        <li><span style="font-weight: bold;">Secure tripcode:</span> Type in your name in the "Name" field, and then a double hash mark (##) which is followed by a password. So for example, typing in <span style="font-weight: bold;">moot##faggot</span> in the "Name" field will result in <span style="color:#117743"><span style="font-weight: bold;">moot</span> !!IefQUZVu/1</span></li>
+        <li><span style="font-weight: bold;">Regular tripcode:</span> Type in your name in the "Name" field, and then a hash mark (#) which is followed by a password. So for example, typing in <span style="font-weight: bold;">moot#faggot</span> in the "Name" field will result in <span style="color:#117743"><span style="font-weight: bold;">moot</span> !UcVghOVf01</span></li>
+      </ul> a  by adding a hash mark (#) after your name followed by your unique identifying string, example anon#myunique.</p>    
 
-      <h4 id="tripcode">Tripcode</h4>
-      <p>you can identify yourself with a tripcode by adding a hash mark (#) after your name followed by your unique identifying string, example anon#myunique.</p>    
+      <h4 id="quote">How do I quote?</h4>
+      <p>Use the greater-than symbol (>) to quote strings of text. Use double (>>) followed by the URL id of the post you are referencing or click on the unique ID of the post (for example, FIDV40Q2) if you want to reference a post (keep in mind that this will be changed later for better use).</p>
 
-      <h4 id="quote">Quote</h4>
-      <p>use a greater than symbols (>) to quote strings of text. use double (>>) followed by the url id of the post you are referencing (this will be changed later for better use).</p>
+      <h4 id="link">How do I view an entire thread?</h4>
+      <p>Click the "No." next to the post to view its thread.</p>
 
-      <h4 id="link">No. Link</h4>
-      <p>click on "No." next to a post to view its thread.</p>
+      <h4 id="upload">What kind of files can I upload?</h4>
+      <p>The maximum file size is 7 MiB (mebibyte). The supported file types are:</p>
+      <ul>
+        <li>.GIF: "image/gif"</li>
+        <li>.PNG, (animated) .PNG: "image/png", "image/apng"</li>
+        <li>.JPG: "image/jpeg"</li>
+        <li>.WEBP: "image/webp"</li>
+        <li>.MP4: "image/mp4"</li>
+        <li>.WEBM: "image/webm"</li>
+        <li>.OGG: "image/ogg"</li>
+        <li>.MP2, .MP3: "audio/mpeg"</li>
+        <li>.WAV: "audio/wav", "audio/wave", "audio/x-wav"</li>
+      </ul>
 
-      <h4 id="upload">Uploading files</h4>
-      <p>max file size is 7MB. the supported file types are "image/gif","image/jpeg","image/png","image/webp","image/apng","video/mp4","video/ogg","video/webm","audio/mpeg","audio/ogg","audio/wav","audio/wave","audio/x-wav". these were choosen based on browser support for embeding.</p>
+      <h4 id="javascript">Why use JavaScript?</h4>
+      <p>A version of the frontend with no JavaScript will be made eventually. Current version requires it as it is needed for some basic functionality. There are no external libraries used by the frontend, just basic selection of DOM elements and modifying their styling. <a href="https://github.com/FChannel0/FChannel-Server/pulls">Perhaps (You) could contribute a frontend that uses no JavaScript?</a></p>            
 
-      <h4 id="javascript">JavaScript why?</h4>
-      <p>a version of the client with no javascript will be made eventually. current version requires it, because of basic functionality needed. no libraries or frameworks for javascript is used besides ECMAScript, just basic selection of DOM elements and modifying their styling. maybe someone would be willing to make a client that uses no javascript.</p>            
+      <h4 id="seqnum">Why do the posts not have sequential ID numbers?</h4>
+      <p>Sequential ID numbers have run their course. Random base36 is better against repelling script kiddies.</p>
 
-      <h4 id="seqnum">Why are the posts not sequential numbers?</h4>
-      <p>sequential numbers have run their course. random base 16 (now base 36) is better.</p>
-
-      <h4 id="pubexamp">Activitypub specific examples</h4>
-      <p>coming soon(tm).</p>
+      <h4 id="pubexamp">ActivityPub specific examples</h4>
+      <p>Soon&trade;.</p>
       
-      <h4 id="version">Server Version</h4>
+      <h4 id="version">What's the version of this fchannel instance?</h4>
       <p>v0.0.5c</p>
     </div>
     <div style="width: 500px; margin:0 auto; margin-top: 50px; text-align: center;">
       <a href="/">[Home]</a><a href="/static/rules.html">[Rules]</a><a href="/static/faq.html">[FAQ]</a>
-      <p>All media are copyright to their respective owners.</p>
+      <p>All trademarks and copyrights on this page are owned by their respective parties.</p>
     </div>    
   </body>
 </html>
