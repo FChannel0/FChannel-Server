@@ -8,6 +8,7 @@ import "strings"
 import "strconv"
 import "sort"
 import "regexp"
+import "time"
 
 var Key *string = new(string)
 
@@ -35,8 +36,7 @@ type Board struct{
 
 type PageData struct {
 	Title string
-	Message string
-	MessageHTML template.HTML	
+	PreferredUsername string
 	Board Board
 	Pages []int
 	CurrentPage int
@@ -48,6 +48,8 @@ type PageData struct {
 	Instance Actor
 	InstanceIndex []ObjectBase
 	ReturnTo string
+	NewsItems []NewsItem
+	BoardRemainer []int
 }
 
 type AdminPage struct {
@@ -74,15 +76,22 @@ type Removed struct {
 	Board string
 }
 
+
+type NewsItem struct {
+	Title string
+	Content string
+	Time int
+}
+
 func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	t := template.Must(template.ParseFiles("./static/main.html", "./static/index.html"))
+	t := template.Must(template.New("").Funcs(template.FuncMap{"mod": func(i, j int) bool { return i%j == 0 }, "unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/index.html"))
 
 	actor := GetActorFromDB(db, Domain)
 
 	var data PageData
 	data.Title = "Welcome to " + actor.PreferredUsername
-	data.Message = actor.PreferredUsername + " is a federated image board based on activitypub. The current version of the code running the server is still a work in progress, expect a bumpy ride for the time being. Get the server code here https://github.com/FChannel0"
-	data.MessageHTML = template.HTML(actor.PreferredUsername + " is a federated image board based on activitypub. The current version of the code running the server is still a work in progress, expect a bumpy ride for the time being. Get the server code here <a href='https://github.com/FChannel0'>https://github.com/FChannel0</a>")
+
+	data.PreferredUsername = actor.PreferredUsername
 	data.Boards = Boards
 	data.Board.Name = ""
 	data.Key = *Key
@@ -91,11 +100,68 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	data.Board.Actor = actor
 	data.Board.Post.Actor = actor.Id
 	data.Board.Restricted = actor.Restricted
+	//almost certainly there is a better algorithm for this but the old one was wrong
+	//and I suck at math. This works at least.
+	data.BoardRemainer = make([]int, 3-(len(data.Boards) % 3))
+	if(len(data.BoardRemainer) == 3){
+		data.BoardRemainer = make([]int, 0)
+	}
 	data.InstanceIndex = GetCollectionFromReq("https://fchan.xyz/followers").Items
+	data.NewsItems = getNewsFromDB(db, 3)
 
+	t.ExecuteTemplate(w, "layout",  data)
+}
 
+func NewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB, timestamp int) {
+	t := template.Must(template.New("").Funcs(template.FuncMap{"unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/news.html"))
 	
-	t.ExecuteTemplate(w, "layout",  data)	
+	actor := GetActorFromDB(db, Domain)
+
+	var data PageData
+	data.PreferredUsername = actor.PreferredUsername
+	data.Boards = Boards
+	data.Board.Name = ""
+	data.Key = *Key
+	data.Board.Domain = Domain
+	data.Board.ModCred, _ = GetPasswordFromSession(r)
+	data.Board.Actor = actor
+	data.Board.Post.Actor = actor.Id
+	data.Board.Restricted = actor.Restricted
+	data.NewsItems = []NewsItem{NewsItem{}}
+	
+	var err error
+	data.NewsItems[0], err = getNewsItemFromDB(db, timestamp)
+	
+	if err != nil {
+		w.WriteHeader(http.StatusForbidden)			
+		w.Write([]byte("404 no path"))
+		return
+	}
+	
+	data.Title = actor.PreferredUsername + ": " + data.NewsItems[0].Title
+
+	t.ExecuteTemplate(w, "layout",  data)
+}
+
+func AllNewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	t := template.Must(template.New("").Funcs(template.FuncMap{"unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/anews.html"))
+	
+	actor := GetActorFromDB(db, Domain)
+
+	var data PageData
+	data.PreferredUsername = actor.PreferredUsername
+	data.Title = actor.PreferredUsername + " News"
+	data.Boards = Boards
+	data.Board.Name = ""
+	data.Key = *Key
+	data.Board.Domain = Domain
+	data.Board.ModCred, _ = GetPasswordFromSession(r)
+	data.Board.Actor = actor
+	data.Board.Post.Actor = actor.Id
+	data.Board.Restricted = actor.Restricted
+	data.NewsItems = getNewsFromDB(db, 0)
+
+	t.ExecuteTemplate(w, "layout",  data)
 }
 
 func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection){

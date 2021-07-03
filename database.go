@@ -9,9 +9,9 @@ import "strings"
 import "sort"
 
 func GetActorFromDB(db *sql.DB, id string) Actor {
-	var nActor Actor
+       var nActor Actor
 
-	query :=`select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary, publickeypem from actor where id=$1`
+       query :=`select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary, publickeypem from actor where id=$1`
 
 	rows, err := db.Query(query, id)
 
@@ -1487,4 +1487,75 @@ func MarkObjectSensitive(db *sql.DB, id string, sensitive bool) {
 	_, err = db.Exec(query, sensitive, id)
 
 	CheckError(err, "error updating sensitive object in cacheactivitystream")	
+}
+
+//if limit less than 1 return all news items
+func getNewsFromDB(db *sql.DB, limit int) []NewsItem {
+	var news []NewsItem
+	
+	var query string
+	if(limit > 0) {
+		query =`select title, content, time from newsItem order by time desc limit $1`
+	} else {
+		query =`select title, content, time from newsItem order by time desc`
+	}
+
+	var rows *sql.Rows
+	var err error
+	if(limit > 0) {
+		rows, err = db.Query(query, limit)
+	} else {
+		rows, err = db.Query(query)
+	}
+	
+
+	if CheckError(err, "could not get news from db query") != nil {
+		return news
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		n := NewsItem{}
+		err = rows.Scan(&n.Title, &n.Content, &n.Time)
+		if CheckError(err, "error scanning news from db") != nil {
+			return news
+		}
+		news = append(news, n)
+	}
+	
+	return news
+}
+
+func getNewsItemFromDB(db *sql.DB, timestamp int) (NewsItem, error) {
+	var news NewsItem
+	query := `select title, content, time from newsItem where time=$1 limit 1`
+	
+	rows, err := db.Query(query, timestamp)
+	
+	if err != nil {
+		return news, err
+	}
+	
+	defer rows.Close()
+	rows.Next()
+	err = rows.Scan(&news.Title, &news.Content, &news.Time)
+	
+	if err != nil {
+		return news, err
+	}
+	
+	return news, nil
+}
+
+func deleteNewsItemFromDB(db *sql.DB, timestamp int) {
+	query := `delete from newsItem where time=$1`
+	db.Exec(query, timestamp)
+}
+
+func WriteNewsToDB(db *sql.DB, news NewsItem) {
+	query := `insert into newsItem (title, content, time) values ($1, $2, $3)`
+	
+	_, err := db.Exec(query, news.Title, news.Content, time.Now().Unix())
+	
+	CheckError(err, "error writing news item")
 }

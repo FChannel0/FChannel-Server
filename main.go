@@ -290,6 +290,27 @@ func main() {
 		w.WriteHeader(http.StatusForbidden)			
 		w.Write([]byte("404 no path"))
 	})
+	
+	http.HandleFunc("/news/", func(w http.ResponseWriter, r *http.Request){
+		timestamp := r.URL.Path[6:]
+
+		if(len(timestamp) < 2) {
+			AllNewsGet(w, r, db)
+			return
+		}
+
+		if timestamp[len(timestamp)-1:] == "/" {
+			timestamp = timestamp[:len(timestamp)-1]
+		}
+		
+		ts, err := strconv.Atoi(timestamp)
+		if err != nil {
+			w.WriteHeader(http.StatusForbidden)			
+			w.Write([]byte("404 no path"))
+		} else {
+			NewsGet(w, r, db, ts)
+		}
+	})
 
 	http.HandleFunc("/post", func(w http.ResponseWriter, r *http.Request){
 
@@ -601,6 +622,32 @@ func main() {
 
 		MakeActivityRequestOutbox(db, newActorActivity)
 		http.Redirect(w, r, "/" + *Key, http.StatusSeeOther)		
+	})
+	
+	http.HandleFunc("/" + *Key + "/postnews", func(w http.ResponseWriter, r *http.Request) {
+		var newsitem NewsItem
+		
+		newsitem.Title = r.FormValue("title")
+		newsitem.Content = r.FormValue("summary")
+		
+		WriteNewsToDB(db, newsitem)
+		
+		http.Redirect(w, r, "/", http.StatusSeeOther)		
+	})
+	
+	http.HandleFunc("/" + *Key + "/newsdelete/", func(w http.ResponseWriter, r *http.Request){
+		timestamp := r.URL.Path[13+len(*Key):]
+		
+		tsint, err := strconv.Atoi(timestamp)
+		
+		if(err != nil){
+			w.WriteHeader(http.StatusForbidden)			
+			w.Write([]byte("404 no path"))
+			return
+		} else {
+			deleteNewsItemFromDB(db, tsint)
+			http.Redirect(w, r, "/news/", http.StatusSeeOther)
+		}
 	})
 
 	http.HandleFunc("/verify", func(w http.ResponseWriter, r *http.Request){
