@@ -1,12 +1,15 @@
 package main
 
-import "fmt"
-import "database/sql"
-import _ "github.com/lib/pq"
-import "time"
-import "os"
-import "strings"
-import "sort"
+import (
+	"database/sql"
+	"fmt"
+	"os"
+	"sort"
+	"strings"
+	"time"
+
+	_ "github.com/lib/pq"
+)
 
 func GetActorFromDB(db *sql.DB, id string) Actor {
        var nActor Actor
@@ -27,6 +30,10 @@ func GetActorFromDB(db *sql.DB, id string) Actor {
 	}
 
 	nActor.PublicKey = GetActorPemFromDB(db, publicKeyPem)
+	if nActor.PublicKey.PublicKeyPem == ""{
+		err = CreatePublicKeyFromPrivate(db, &nActor, publicKeyPem)
+		CheckError(err, "error creating public key from private")
+	}
 
 	return nActor	
 }
@@ -50,6 +57,10 @@ func GetActorByNameFromDB(db *sql.DB, name string) Actor {
 	}
 
 	nActor.PublicKey = GetActorPemFromDB(db, publicKeyPem)	
+	if nActor.PublicKey.PublicKeyPem == ""{
+		err = CreatePublicKeyFromPrivate(db, &nActor, publicKeyPem)
+		CheckError(err, "error creating public key from private")
+	}
 
 	return nActor	
 }
@@ -1470,11 +1481,30 @@ func GetActorPemFromDB(db *sql.DB, pemID string) PublicKeyPem {
 	defer rows.Close()
 	rows.Next()
 	rows.Scan(&pem.Id, &pem.Owner, &pem.PublicKeyPem)
-	f, _ := os.ReadFile(pem.PublicKeyPem)
+	f, err := os.ReadFile(pem.PublicKeyPem)
+	if err != nil{
+		pem.PublicKeyPem = ""
+		return pem
+	}
 
 	pem.PublicKeyPem = strings.ReplaceAll(string(f), "\r\n", `\n`)
 	
 	return pem
+}
+
+func GetActorPemFileFromDB(db *sql.DB, pemID string) string{
+	query := `select file from publickeypem where id=$1`
+	rows, err := db.Query(query, pemID)
+
+	CheckError(err, "could not get public key filename from database")
+
+	var file string
+
+	defer rows.Close()
+	rows.Next()
+	rows.Scan(&file)
+
+	return file
 }
 
 func MarkObjectSensitive(db *sql.DB, id string, sensitive bool) {

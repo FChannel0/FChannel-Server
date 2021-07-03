@@ -1899,7 +1899,8 @@ func MakeActivityRequestOutbox(db *sql.DB, activity Activity) {
 	path = re.ReplaceAllString(path, "")
 
 	sig := fmt.Sprintf("(request-target): %s %s\nhost: %s\ndate: %s", "post", path, instance, date)
-	encSig := ActivitySign(db, *activity.Actor, sig)
+	encSig, err := ActivitySign(db, *activity.Actor, sig)
+	CheckError(err, "unable to sign activity response")
 	signature := fmt.Sprintf("keyId=\"%s\",headers=\"(request-target) host date\",signature=\"%s\"", activity.Actor.PublicKey.Id, encSig)	
 	
 	req.Header.Set("Content-Type", activitystreams)			
@@ -1937,7 +1938,8 @@ func MakeActivityRequest(db *sql.DB, activity Activity) {
 					path = re.ReplaceAllString(path, "")
 
 					sig := fmt.Sprintf("(request-target): %s %s\nhost: %s\ndate: %s", "post", path, instance, date)
-					encSig := ActivitySign(db, *activity.Actor, sig)
+					encSig, err := ActivitySign(db, *activity.Actor, sig)
+					CheckError(err, "unable to sign activity response")
 					signature := fmt.Sprintf("keyId=\"%s\",headers=\"(request-target) host date\",signature=\"%s\"", activity.Actor.PublicKey.Id, encSig)
 
 					req.Header.Set("Content-Type", activitystreams)			
