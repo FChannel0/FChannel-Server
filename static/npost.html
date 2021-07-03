@@ -17,6 +17,7 @@
 {{ end }}
 
 <script src="/static/js/posts.js"></script>
+<script src="/static/js/timer.js"></script>
 {{ end }}
 
 {{ define "content" }}
@@ -39,6 +40,7 @@
   <li style="display: inline"><a href="/{{ $board.Name }}/catalog">[Catalog]</a></li>            
   <li style="display: inline"><a id="bottom" href="#top">[Top]</a></li>
   <li style="display: inline"><a href="javascript:location.reload()">[Refresh]</a></li>
+  <li style="display: inline"><input id="autoreload-checkbox" type="checkbox" onclick="autoTimer()"> Auto refresh <span id="autoreload-countdown" style="visibility: hidden;">0</span></li>
 </ul>
 {{ $replies := (index .Posts 0).Replies }}            
 <span style="float: right;">{{ $replies.TotalItems }} / {{ $replies.TotalImgs }}</span>
