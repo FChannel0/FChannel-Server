@@ -31,7 +31,7 @@ func GetActorFromDB(db *sql.DB, id string) Actor {
 	}
 
 	nActor.PublicKey = GetActorPemFromDB(db, publicKeyPem)
-	if nActor.PublicKey.PublicKeyPem == ""{
+	if nActor.Id != "" && nActor.PublicKey.PublicKeyPem == ""{
 		err = CreatePublicKeyFromPrivate(db, &nActor, publicKeyPem)
 		CheckError(err, "error creating public key from private")
 	}
@@ -57,8 +57,7 @@ func GetActorByNameFromDB(db *sql.DB, name string) Actor {
 		CheckError(err, "error with actor from db scan ")
 	}
 
-	nActor.PublicKey = GetActorPemFromDB(db, publicKeyPem)	
-	if nActor.PublicKey.PublicKeyPem == ""{
+	if nActor.Id != "" &&  nActor.PublicKey.PublicKeyPem == ""{
 		err = CreatePublicKeyFromPrivate(db, &nActor, publicKeyPem)
 		CheckError(err, "error creating public key from private")
 	}

@@ -551,6 +551,7 @@ func CreatePublicKeyFromPrivate(db *sql.DB, actor *Actor, publicKeyPem string) e
 		if block == nil || block.Type != "RSA PRIVATE KEY" {
 			return errors.New("failed to decode PEM block containing public key")
 		}
+		
 		key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 		CheckError(err, "failed to parse private key")
 
@@ -561,13 +562,14 @@ func CreatePublicKeyFromPrivate(db *sql.DB, actor *Actor, publicKeyPem string) e
 			Headers: nil,
 			Bytes:   publicKeyDer,
 		}
+		
 		publicFileWriter, err := os.Create(publicFilename)
 		CheckError(err, "error creating public pem file for " + actor.Name)
 
 		err = pem.Encode(publicFileWriter, &pubKeyBlock)
 		CheckError(err, "error encoding public pem")
 	}else{
-		fmt.Println(`Unable to locate private key from public key generation. Now,
+		fmt.Println(`\nUnable to locate private key from public key generation. Now,
 this means that you are now missing the proof that you are the
 owner of the "` + actor.Name + `" board. If you are the developer,
 then your job is just as easy as generating a new keypair, but
@@ -633,7 +635,7 @@ func ActivitySign(db *sql.DB, actor Actor, signature string) (string, error) {
 
 		return base64.StdEncoding.EncodeToString(cipher), nil
 	}else{
-		fmt.Println(`Unable to locate private key. Now,
+		fmt.Println(`\n Unable to locate private key. Now,
 this means that you are now missing the proof that you are the
 owner of the "` + actor.Name + `" board. If you are the developer,
 then your job is just as easy as generating a new keypair, but
