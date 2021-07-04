@@ -86,7 +86,9 @@
     <ul style="display: inline; padding:0;">
       {{ $l := len .Boards }}
       {{range $i, $e := .Boards}}
-      {{ if eq $i 0 }}
+      {{ if eq (sub $l 1) 0 }}
+      <li style="display: inline;">[ <a href="{{.Location}}">{{$e.Name}} </a>]</li>      
+      {{ else if eq $i 0 }}
       <li style="display: inline;">[<a href="{{.Location}}">{{$e.Name}} </a>/</li>
       {{ else if eq $i (sub $l 1) }}
       <li style="display: inline;"><a href="{{.Location}}">{{$e.Name}}</a>]</li>
