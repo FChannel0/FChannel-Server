@@ -1,17 +1,21 @@
 package main
 
-import "fmt"
-import "database/sql"
-import _ "github.com/lib/pq"
-import "time"
-import "os"
-import "strings"
-import "sort"
+import (
+	"database/sql"
+	"fmt"
+	"os"
+	"sort"
+	"strings"
+	"time"
+	"html/template"	
+
+	_ "github.com/lib/pq"
+)
 
 func GetActorFromDB(db *sql.DB, id string) Actor {
-	var nActor Actor
+       var nActor Actor
 
-	query :=`select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary, publickeypem from actor where id=$1`
+       query :=`select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary, publickeypem from actor where id=$1`
 
 	rows, err := db.Query(query, id)
 
@@ -27,6 +31,10 @@ func GetActorFromDB(db *sql.DB, id string) Actor {
 	}
 
 	nActor.PublicKey = GetActorPemFromDB(db, publicKeyPem)
+	if nActor.Id != "" && nActor.PublicKey.PublicKeyPem == ""{
+		err = CreatePublicKeyFromPrivate(db, &nActor, publicKeyPem)
+		CheckError(err, "error creating public key from private")
+	}
 
 	return nActor	
 }
@@ -49,7 +57,10 @@ func GetActorByNameFromDB(db *sql.DB, name string) Actor {
 		CheckError(err, "error with actor from db scan ")
 	}
 
-	nActor.PublicKey = GetActorPemFromDB(db, publicKeyPem)	
+	if nActor.Id != "" &&  nActor.PublicKey.PublicKeyPem == ""{
+		err = CreatePublicKeyFromPrivate(db, &nActor, publicKeyPem)
+		CheckError(err, "error creating public key from private")
+	}
 
 	return nActor	
 }
@@ -1440,7 +1451,7 @@ func GetActorReportedTotal(db *sql.DB, id string) int {
 func GetActorReportedDB(db *sql.DB, id string) []ObjectBase {
 	var nObj []ObjectBase
 
-	query := `select id, count from reported where board=$1`
+	query := `select id, count, reason from reported where board=$1`
 
 	rows, err := db.Query(query, id)	
 
@@ -1451,7 +1462,7 @@ func GetActorReportedDB(db *sql.DB, id string) []ObjectBase {
 	for rows.Next() {
 		var obj ObjectBase
 
-		rows.Scan(&obj.Id, &obj.Size)
+		rows.Scan(&obj.Id, &obj.Size, &obj.Content)
 
 		nObj = append(nObj, obj)
 	}
@@ -1470,11 +1481,30 @@ func GetActorPemFromDB(db *sql.DB, pemID string) PublicKeyPem {
 	defer rows.Close()
 	rows.Next()
 	rows.Scan(&pem.Id, &pem.Owner, &pem.PublicKeyPem)
-	f, _ := os.ReadFile(pem.PublicKeyPem)
+	f, err := os.ReadFile(pem.PublicKeyPem)
+	if err != nil{
+		pem.PublicKeyPem = ""
+		return pem
+	}
 
 	pem.PublicKeyPem = strings.ReplaceAll(string(f), "\r\n", `\n`)
 	
 	return pem
+}
+
+func GetActorPemFileFromDB(db *sql.DB, pemID string) string{
+	query := `select file from publickeypem where id=$1`
+	rows, err := db.Query(query, pemID)
+
+	CheckError(err, "could not get public key filename from database")
+
+	var file string
+
+	defer rows.Close()
+	rows.Next()
+	rows.Scan(&file)
+
+	return file
 }
 
 func MarkObjectSensitive(db *sql.DB, id string, sensitive bool) {
@@ -1487,4 +1517,84 @@ func MarkObjectSensitive(db *sql.DB, id string, sensitive bool) {
 	_, err = db.Exec(query, sensitive, id)
 
 	CheckError(err, "error updating sensitive object in cacheactivitystream")	
+}
+
+//if limit less than 1 return all news items
+func getNewsFromDB(db *sql.DB, limit int) []NewsItem {
+	var news []NewsItem
+	
+	var query string
+	if(limit > 0) {
+		query =`select title, content, time from newsItem order by time desc limit $1`
+	} else {
+		query =`select title, content, time from newsItem order by time desc`
+	}
+
+	var rows *sql.Rows
+	var err error
+	if(limit > 0) {
+		rows, err = db.Query(query, limit)
+	} else {
+		rows, err = db.Query(query)
+	}
+	
+
+	if CheckError(err, "could not get news from db query") != nil {
+		return news
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		n := NewsItem{}
+		var content string
+		err = rows.Scan(&n.Title, &content, &n.Time)
+		if CheckError(err, "error scanning news from db") != nil {
+			return news
+		}
+
+		content = strings.ReplaceAll(content, "\n", "<br>")
+		n.Content = template.HTML(content)
+		
+		news = append(news, n)
+	}
+	
+	return news
+}
+
+func getNewsItemFromDB(db *sql.DB, timestamp int) (NewsItem, error) {
+	var news NewsItem
+	var content string
+	query := `select title, content, time from newsItem where time=$1 limit 1`
+	
+	rows, err := db.Query(query, timestamp)
+	
+	if err != nil {
+		return news, err
+	}
+	
+	defer rows.Close()
+	rows.Next()
+	err = rows.Scan(&news.Title, &content, &news.Time)
+	
+	if err != nil {
+		return news, err
+	}
+
+	content = strings.ReplaceAll(content, "\n", "<br>")
+	news.Content = template.HTML(content)	
+	
+	return news, nil
+}
+
+func deleteNewsItemFromDB(db *sql.DB, timestamp int) {
+	query := `delete from newsItem where time=$1`
+	db.Exec(query, timestamp)
+}
+
+func WriteNewsToDB(db *sql.DB, news NewsItem) {
+	query := `insert into newsItem (title, content, time) values ($1, $2, $3)`
+	
+	_, err := db.Exec(query, news.Title, news.Content, time.Now().Unix())
+	
+	CheckError(err, "error writing news item")
 }

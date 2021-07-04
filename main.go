@@ -290,6 +290,27 @@ func main() {
 		w.WriteHeader(http.StatusForbidden)			
 		w.Write([]byte("404 no path"))
 	})
+	
+	http.HandleFunc("/news/", func(w http.ResponseWriter, r *http.Request){
+		timestamp := r.URL.Path[6:]
+
+		if(len(timestamp) < 2) {
+			AllNewsGet(w, r, db)
+			return
+		}
+
+		if timestamp[len(timestamp)-1:] == "/" {
+			timestamp = timestamp[:len(timestamp)-1]
+		}
+		
+		ts, err := strconv.Atoi(timestamp)
+		if err != nil {
+			w.WriteHeader(http.StatusForbidden)			
+			w.Write([]byte("404 no path"))
+		} else {
+			NewsGet(w, r, db, ts)
+		}
+	})
 
 	http.HandleFunc("/post", func(w http.ResponseWriter, r *http.Request){
 
@@ -480,7 +501,8 @@ func main() {
 			http.Redirect(w, r, "/" + *Key + "/" + redirect, http.StatusSeeOther)							
 			
 		} else if manage && actor.Name != "" {
-			t := template.Must(template.ParseFiles("./static/main.html", "./static/manage.html"))
+			t := template.Must(template.New("").Funcs(template.FuncMap{
+				"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/manage.html"))
 
 			follow := GetActorCollection(actor.Following)
 			follower := GetActorCollection(actor.Followers)
@@ -502,6 +524,7 @@ func main() {
 				var r Report
 				r.Count = int(e.Size)
 				r.ID    = e.Id
+				r.Reason = e.Content
 				reports = append(reports, r)
 			}
 
@@ -511,6 +534,7 @@ func main() {
 				var r Report
 				r.Count = e.Count
 				r.ID    = e.ID
+				r.Reason = e.Reason
 				reports = append(reports, r)
 			}			
 
@@ -533,8 +557,8 @@ func main() {
 			t.ExecuteTemplate(w, "layout", adminData)
 			
 		} else if admin || actor.Id == Domain {
-
-			t := template.Must(template.ParseFiles("./static/main.html", "./static/nadmin.html"))						
+			t := template.Must(template.New("").Funcs(template.FuncMap{
+				"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/nadmin.html"))						
 	
 			actor := GetActor(Domain)
 			follow := GetActorCollection(actor.Following).Items
@@ -569,11 +593,20 @@ func main() {
 
 	http.HandleFunc("/" + *Key + "/addboard", func(w http.ResponseWriter, r *http.Request) {
 
+		id, _ := GetPasswordFromSession(r)
+		
+		actor := GetActorFromDB(db, Domain)
+
+
+		if id == "" || (id != actor.Id && id != Domain) {
+			t := template.Must(template.ParseFiles("./static/verify.html"))
+			t.Execute(w, "")
+			return
+		}
+		
 		var newActorActivity Activity
 		var board Actor
 		r.ParseForm()
-
-		actor := GetActorFromDB(db, Domain)
 
 		var restrict bool
 		if r.FormValue("restricted") == "True" {
@@ -601,6 +634,56 @@ func main() {
 
 		MakeActivityRequestOutbox(db, newActorActivity)
 		http.Redirect(w, r, "/" + *Key, http.StatusSeeOther)		
+	})
+	
+	http.HandleFunc("/" + *Key + "/postnews", func(w http.ResponseWriter, r *http.Request) {
+
+		id, _ := GetPasswordFromSession(r)
+		
+		actor := GetActorFromDB(db, Domain)
+
+
+		if id == "" || (id != actor.Id && id != Domain) {
+			t := template.Must(template.ParseFiles("./static/verify.html"))
+			t.Execute(w, "")
+			return
+		}
+		
+		var newsitem NewsItem
+		
+		newsitem.Title = r.FormValue("title")
+		newsitem.Content = template.HTML(r.FormValue("summary"))
+		
+		WriteNewsToDB(db, newsitem)
+		
+		http.Redirect(w, r, "/", http.StatusSeeOther)		
+	})
+	
+	http.HandleFunc("/" + *Key + "/newsdelete/", func(w http.ResponseWriter, r *http.Request){
+
+		id, _ := GetPasswordFromSession(r)
+		
+		actor := GetActorFromDB(db, Domain)
+
+
+		if id == "" || (id != actor.Id && id != Domain) {
+			t := template.Must(template.ParseFiles("./static/verify.html"))
+			t.Execute(w, "")
+			return
+		}
+		
+		timestamp := r.URL.Path[13+len(*Key):]
+		
+		tsint, err := strconv.Atoi(timestamp)
+		
+		if(err != nil){
+			w.WriteHeader(http.StatusForbidden)			
+			w.Write([]byte("404 no path"))
+			return
+		} else {
+			deleteNewsItemFromDB(db, tsint)
+			http.Redirect(w, r, "/news/", http.StatusSeeOther)
+		}
 	})
 
 	http.HandleFunc("/verify", func(w http.ResponseWriter, r *http.Request){
@@ -1852,7 +1935,8 @@ func MakeActivityRequestOutbox(db *sql.DB, activity Activity) {
 	path = re.ReplaceAllString(path, "")
 
 	sig := fmt.Sprintf("(request-target): %s %s\nhost: %s\ndate: %s", "post", path, instance, date)
-	encSig := ActivitySign(db, *activity.Actor, sig)
+	encSig, err := ActivitySign(db, *activity.Actor, sig)
+	CheckError(err, "unable to sign activity response")
 	signature := fmt.Sprintf("keyId=\"%s\",headers=\"(request-target) host date\",signature=\"%s\"", activity.Actor.PublicKey.Id, encSig)	
 	
 	req.Header.Set("Content-Type", activitystreams)			
@@ -1890,7 +1974,8 @@ func MakeActivityRequest(db *sql.DB, activity Activity) {
 					path = re.ReplaceAllString(path, "")
 
 					sig := fmt.Sprintf("(request-target): %s %s\nhost: %s\ndate: %s", "post", path, instance, date)
-					encSig := ActivitySign(db, *activity.Actor, sig)
+					encSig, err := ActivitySign(db, *activity.Actor, sig)
+					CheckError(err, "unable to sign activity response")
 					signature := fmt.Sprintf("keyId=\"%s\",headers=\"(request-target) host date\",signature=\"%s\"", activity.Actor.PublicKey.Id, encSig)
 
 					req.Header.Set("Content-Type", activitystreams)			

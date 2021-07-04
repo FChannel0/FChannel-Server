@@ -8,6 +8,7 @@ import "strings"
 import "strconv"
 import "sort"
 import "regexp"
+import "time"
 
 var Key *string = new(string)
 
@@ -35,8 +36,7 @@ type Board struct{
 
 type PageData struct {
 	Title string
-	Message string
-	MessageHTML template.HTML	
+	PreferredUsername string
 	Board Board
 	Pages []int
 	CurrentPage int
@@ -48,6 +48,8 @@ type PageData struct {
 	Instance Actor
 	InstanceIndex []ObjectBase
 	ReturnTo string
+	NewsItems []NewsItem
+	BoardRemainer []int
 }
 
 type AdminPage struct {
@@ -66,6 +68,7 @@ type AdminPage struct {
 type Report struct {
 	ID string
 	Count int
+	Reason string
 }
 
 type Removed struct {
@@ -74,8 +77,18 @@ type Removed struct {
 	Board string
 }
 
+
+type NewsItem struct {
+	Title string
+	Content template.HTML
+	Time int
+}
+
 func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	t := template.Must(template.ParseFiles("./static/main.html", "./static/index.html"))
+	t := template.Must(template.New("").Funcs(template.FuncMap{
+		"mod": func(i, j int) bool { return i%j == 0 },
+		"sub": func (i, j int) int { return i - j },
+		"unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/index.html"))
 
 	actor := GetActorFromDB(db, Domain)
 
@@ -91,16 +104,79 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	data.Board.Actor = actor
 	data.Board.Post.Actor = actor.Id
 	data.Board.Restricted = actor.Restricted
+	//almost certainly there is a better algorithm for this but the old one was wrong
+	//and I suck at math. This works at least.
+	data.BoardRemainer = make([]int, 3-(len(data.Boards) % 3))
+	if(len(data.BoardRemainer) == 3){
+		data.BoardRemainer = make([]int, 0)
+	}
 	data.InstanceIndex = GetCollectionFromReq("https://fchan.xyz/followers").Items
+	data.NewsItems = getNewsFromDB(db, 3)
 
+	t.ExecuteTemplate(w, "layout",  data)
+}
 
+func NewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB, timestamp int) {
+	t := template.Must(template.New("").Funcs(template.FuncMap{
+		"sub": func (i, j int) int { return i - j },		
+		"unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/news.html"))
 	
-	t.ExecuteTemplate(w, "layout",  data)	
+	actor := GetActorFromDB(db, Domain)
+
+	var data PageData
+	data.PreferredUsername = actor.PreferredUsername
+	data.Boards = Boards
+	data.Board.Name = ""
+	data.Key = *Key
+	data.Board.Domain = Domain
+	data.Board.ModCred, _ = GetPasswordFromSession(r)
+	data.Board.Actor = actor
+	data.Board.Post.Actor = actor.Id
+	data.Board.Restricted = actor.Restricted
+	data.NewsItems = []NewsItem{NewsItem{}}
+	
+	var err error
+	data.NewsItems[0], err = getNewsItemFromDB(db, timestamp)
+	
+	if err != nil {
+		w.WriteHeader(http.StatusForbidden)			
+		w.Write([]byte("404 no path"))
+		return
+	}
+	
+	data.Title = actor.PreferredUsername + ": " + data.NewsItems[0].Title
+
+	t.ExecuteTemplate(w, "layout",  data)
+}
+
+func AllNewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	t := template.Must(template.New("").Funcs(template.FuncMap{
+		"mod": func(i, j int) bool { return i%j == 0 },
+		"sub": func (i, j int) int { return i - j },				
+		"unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/anews.html"))
+	
+	actor := GetActorFromDB(db, Domain)
+
+	var data PageData
+	data.PreferredUsername = actor.PreferredUsername
+	data.Title = actor.PreferredUsername + " News"
+	data.Boards = Boards
+	data.Board.Name = ""
+	data.Key = *Key
+	data.Board.Domain = Domain
+	data.Board.ModCred, _ = GetPasswordFromSession(r)
+	data.Board.Actor = actor
+	data.Board.Post.Actor = actor.Id
+	data.Board.Restricted = actor.Restricted
+	data.NewsItems = getNewsFromDB(db, 0)
+
+	t.ExecuteTemplate(w, "layout",  data)
 }
 
 func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection){
+	t := template.Must(template.New("").Funcs(template.FuncMap{
+		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/nposts.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 
-	t := template.Must(template.ParseFiles("./static/main.html", "./static/nposts.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))	
 
 	actor := collection.Actor
 
@@ -148,9 +224,8 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 }
 
 func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection){
-
-	t := template.Must(template.ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))			
-	
+	t := template.Must(template.New("").Funcs(template.FuncMap{
+		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))			
 	actor := collection.Actor
 
 	var returnData PageData
@@ -183,8 +258,8 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 }
 
 func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
-
-	t := template.Must(template.ParseFiles("./static/main.html", "./static/npost.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
+	t := template.Must(template.New("").Funcs(template.FuncMap{
+		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/npost.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 	
 	path := r.URL.Path
 	actor := GetActorFromPath(db, path, "/")
@@ -256,10 +331,11 @@ func GetBoardCollection(db *sql.DB) []Board {
 		if boardActor.Id == "" {
 			boardActor = FingerActor(e.Id)
 		}
-		board.Name = "/" + boardActor.Name + "/"
+		board.Name = boardActor.Name
 		board.PrefName = boardActor.PreferredUsername
 		board.Location = "/" + boardActor.Name
 		board.Actor = boardActor
+		board.Restricted = boardActor.Restricted
 		collection = append(collection, board)
 	}
 
@@ -409,7 +485,7 @@ func CreateLocalReportDB(db *sql.DB, id string, board string, reason string) {
 func GetLocalReportDB(db *sql.DB, board string) []Report {
 	var reported []Report
 	
-	query := `select id, count from reported where board=$1`
+	query := `select id, count, reason from reported where board=$1`
 
 	rows, err := db.Query(query, board)
 
@@ -420,7 +496,7 @@ func GetLocalReportDB(db *sql.DB, board string) []Report {
 	for rows.Next() {
 		var r Report
 
-		rows.Scan(&r.ID, &r.Count)
+		rows.Scan(&r.ID, &r.Count, &r.Reason)
 
 		reported = append(reported, r)
 	}

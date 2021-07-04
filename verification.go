@@ -1,24 +1,30 @@
 package main
 
-import "fmt"
-import "database/sql"
-import _ "github.com/lib/pq"
-import	"net/smtp"
-import "time"
-import "os/exec"
-import "os"
-import "math/rand"
-import "crypto"
-import "crypto/rsa"
-import "crypto/x509"
-import "crypto/sha256"
-import "encoding/pem"
-import "encoding/base64"
-import crand "crypto/rand"
-import "io/ioutil"
-import "strings"
-import "net/http"
-import "regexp"
+import (
+	"crypto"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
+	"database/sql"
+	"encoding/base64"
+	"encoding/pem"
+	"errors"
+	"fmt"
+	"math/rand"
+	"net/smtp"
+	"os"
+	"os/exec"
+	"time"
+
+	_ "github.com/lib/pq"
+
+	crand "crypto/rand"
+	"io/ioutil"
+	"net/http"
+	"regexp"
+	"strings"
+)
+
 
 type Verify struct {
 	Type string
@@ -527,6 +533,52 @@ func CreatePem(db *sql.DB, actor Actor) {
 	} else {
 		StorePemToDB(db, actor)
 	}
+
+	fmt.Println(`Created PEM keypair for the "` + actor.Name +`" board. Please keep in mind that
+the PEM key is crucial in identifying yourself as the legitimate owner of the board,
+so DO NOT LOSE IT!!! If you lose it, YOU WILL LOSE ACCESS TO YOUR BOARD!`);
+}
+
+func CreatePublicKeyFromPrivate(db *sql.DB, actor *Actor, publicKeyPem string) error{
+	publicFilename := GetActorPemFileFromDB(db, publicKeyPem);
+	privateFilename := strings.ReplaceAll(publicFilename, "public.pem", "private.pem")
+	_, err := os.Stat(privateFilename)
+	if err == nil {
+		//Not a lost cause
+		priv, err := ioutil.ReadFile(privateFilename)
+
+		block, _ := pem.Decode([]byte(priv))
+		if block == nil || block.Type != "RSA PRIVATE KEY" {
+			return errors.New("failed to decode PEM block containing public key")
+		}
+		
+		key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+		CheckError(err, "failed to parse private key")
+
+		publicKeyDer, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
+		CheckError(err, "failed to marshal public key from private key")
+		pubKeyBlock := pem.Block{
+			Type:    "PUBLIC KEY",
+			Headers: nil,
+			Bytes:   publicKeyDer,
+		}
+		
+		publicFileWriter, err := os.Create(publicFilename)
+		CheckError(err, "error creating public pem file for " + actor.Name)
+
+		err = pem.Encode(publicFileWriter, &pubKeyBlock)
+		CheckError(err, "error encoding public pem")
+	}else{
+		fmt.Println(`\nUnable to locate private key from public key generation. Now,
+this means that you are now missing the proof that you are the
+owner of the "` + actor.Name + `" board. If you are the developer,
+then your job is just as easy as generating a new keypair, but
+if this board is live, then you'll also have to convince the other
+owners to switch their public keys for you so that they will start
+accepting your posts from your board from this site. Good luck ;)`)
+		return errors.New("unable to locate private key")
+	}
+	return nil
 }
 
 func StorePemToDB(db *sql.DB, actor Actor) {
@@ -555,7 +607,7 @@ func StorePemToDB(db *sql.DB, actor Actor) {
 	CheckError(err, "error creating publicKeyPem for actor ")
 }
 
-func ActivitySign(db *sql.DB, actor Actor, signature string) string {
+func ActivitySign(db *sql.DB, actor Actor, signature string) (string, error) {
 	query := `select file from publicKeyPem where id=$1 `
 
 	rows, err := db.Query(query, actor.PublicKey.Id)
@@ -581,10 +633,17 @@ func ActivitySign(db *sql.DB, actor Actor, signature string) string {
 		hashed.Write([]byte(signature))		
 		cipher, _ := rsa.SignPKCS1v15(rng, pub, crypto.SHA256, hashed.Sum(nil))
 
-		return base64.StdEncoding.EncodeToString(cipher)
+		return base64.StdEncoding.EncodeToString(cipher), nil
+	}else{
+		fmt.Println(`\n Unable to locate private key. Now,
+this means that you are now missing the proof that you are the
+owner of the "` + actor.Name + `" board. If you are the developer,
+then your job is just as easy as generating a new keypair, but
+if this board is live, then you'll also have to convince the other
+owners to switch their public keys for you so that they will start
+accepting your posts from your board from this site. Good luck ;)`)
+		return "", errors.New("unable to locate private key")
 	}
-
-	return ""
 }
 
 func ActivityVerify(actor Actor, signature string, verify string) error {

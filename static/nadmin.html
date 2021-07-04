@@ -17,13 +17,24 @@
       <option value="False">False</option>          
     </select>
   </form>
-
   <ul style="display: inline-block; padding: 0;">
     <li style="display: inline-block;"><a href="#following">Subscribed</a></li>
     <!-- <li style="display: inline-block;"><a href="javascript:show('followers')">Followers</a></li> -->
     <li style="display: inline-block;"><a href="#reported">Reported</a></li>            
   </ul>
-</div>    
+</div>
+
+<div class="popup-box" style="margin-bottom: 25px; padding: 12px;">
+  <h3>Post News</h3>
+  <form id="news" action="/{{ .Key }}/postnews" method="post" enctype="application/x-www-form-urlencoded">
+    <label>Title:</label><br>
+    <input type="text" name="title" placeholder="New Board" required><input type="submit" value="Post"><br>
+    <label>Content:</label><br>
+    <textarea name="summary" rows="8" cols="50"></textarea><br>
+  </form>
+</div>
+
+
 
 <div id="following" class="popup-box" style="margin-bottom: 25px; padding: 12px;">
   <h4 style="margin: 0; margin-bottom: 5px;">Subscribed</h4>
