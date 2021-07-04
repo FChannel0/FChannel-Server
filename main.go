@@ -1,26 +1,27 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
+	"database/sql"
+	"encoding/json"
 	"fmt"
-	"strings"
-	"strconv"
+	"html/template"
+	"io"
+	"io/ioutil"
+	"math/rand"
+	"mime/multipart"
 	"net/http"
 	"net/url"
-	"database/sql"
-	_ "github.com/lib/pq"
-	"math/rand"
-	"html/template"
-	"time"
-	"regexp"
-	"os/exec"
-	"bytes"
-	"encoding/json"
-	"io/ioutil"
-	"mime/multipart"
 	"os"
-	"bufio"
-	"io"
+	"os/exec"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/gofrs/uuid"
+	_ "github.com/lib/pq"
 )
 
 var Port = ":" + GetConfigValue("instanceport")
@@ -83,6 +84,7 @@ func main() {
 
 	// main routing
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request){
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		path := r.URL.Path
 
 		// remove trailing slash
@@ -292,6 +294,7 @@ func main() {
 	})
 	
 	http.HandleFunc("/news/", func(w http.ResponseWriter, r *http.Request){
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		timestamp := r.URL.Path[6:]
 
 		if(len(timestamp) < 2) {
@@ -313,6 +316,9 @@ func main() {
 	})
 
 	http.HandleFunc("/post", func(w http.ResponseWriter, r *http.Request){
+		if CORSOptions(w, r, "OPTIONS, POST") {
+			return
+		}
 
 		r.ParseMultipartForm(10 << 20)
 
@@ -435,6 +441,9 @@ func main() {
 	})
 
 	http.HandleFunc("/" + *Key + "/", func(w http.ResponseWriter, r *http.Request) {
+		if CORSOptions(w, r, "*") {
+			return
+		}
 
 		id, _ := GetPasswordFromSession(r)
 		
@@ -592,6 +601,9 @@ func main() {
 	})
 
 	http.HandleFunc("/" + *Key + "/addboard", func(w http.ResponseWriter, r *http.Request) {
+		if CORSOptions(w, r, "OPTIONS, POST") {
+			return
+		}
 
 		id, _ := GetPasswordFromSession(r)
 		
@@ -637,6 +649,9 @@ func main() {
 	})
 	
 	http.HandleFunc("/" + *Key + "/postnews", func(w http.ResponseWriter, r *http.Request) {
+		if CORSOptions(w, r, "OPTIONS, POST") {
+			return
+		}
 
 		id, _ := GetPasswordFromSession(r)
 		
@@ -660,6 +675,9 @@ func main() {
 	})
 	
 	http.HandleFunc("/" + *Key + "/newsdelete/", func(w http.ResponseWriter, r *http.Request){
+		if CORSOptions(w, r, "OPTIONS, GET") {
+			return
+		}
 
 		id, _ := GetPasswordFromSession(r)
 		
@@ -687,6 +705,10 @@ func main() {
 	})
 
 	http.HandleFunc("/verify", func(w http.ResponseWriter, r *http.Request){
+		if CORSOptions(w, r, "OPTIONS, POST") {
+			return
+		}
+
 		if(r.Method == "POST") {
 			r.ParseForm()
 			identifier := r.FormValue("id")
@@ -743,6 +765,10 @@ func main() {
 	})			
 
 	http.HandleFunc("/delete", func(w http.ResponseWriter, r *http.Request){
+		if CORSOptions(w, r, "OPTIONS, GET") {
+			return
+		}
+
 		id := r.URL.Query().Get("id")
 		board := r.URL.Query().Get("board")
 		
@@ -829,6 +855,9 @@ func main() {
 	})
 
 	http.HandleFunc("/deleteattach", func(w http.ResponseWriter, r *http.Request){
+		if CORSOptions(w, r, "OPTIONS, GET") {
+			return
+		}
 		
 		id := r.URL.Query().Get("id")
 		board := r.URL.Query().Get("board")		
@@ -903,6 +932,9 @@ func main() {
 	})
 
 	http.HandleFunc("/marksensitive", func(w http.ResponseWriter, r *http.Request){
+		if CORSOptions(w, r, "OPTIONS, GET") {
+			return
+		}
 		
 		id := r.URL.Query().Get("id")
 		board := r.URL.Query().Get("board")		
@@ -960,6 +992,10 @@ func main() {
 	})	
 
 	http.HandleFunc("/remove", func(w http.ResponseWriter, r *http.Request){
+		if CORSOptions(w, r, "OPTIONS, GET") {
+			return
+		}
+
 		id := r.URL.Query().Get("id")
 		manage := r.URL.Query().Get("manage")
 		board := r.URL.Query().Get("board")
@@ -1017,6 +1053,9 @@ func main() {
 	})
 
 	http.HandleFunc("/removeattach", func(w http.ResponseWriter, r *http.Request){
+		if CORSOptions(w, r, "OPTIONS, GET") {
+			return
+		}
 		
 		id := r.URL.Query().Get("id")
 		manage := r.URL.Query().Get("manage")		
@@ -1064,6 +1103,9 @@ func main() {
 	})	
 
 	http.HandleFunc("/report", func(w http.ResponseWriter, r *http.Request){
+		if CORSOptions(w, r, "OPTIONS, POST") {
+			return
+		}
 
 		r.ParseForm()
 
@@ -1132,6 +1174,10 @@ func main() {
 		var verify Verify
 		defer r.Body.Close()
 
+		if CORSOptions(w, r, "OPTIONS, POST") {
+			return
+		}
+
 		body, _ := ioutil.ReadAll(r.Body)
 
 		err := json.Unmarshal(body, &verify)
@@ -1150,6 +1196,7 @@ func main() {
 	})
 
 	http.HandleFunc("/.well-known/webfinger", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		acct := r.URL.Query()["resource"]
 
 		if(len(acct) < 1) {
@@ -1192,13 +1239,12 @@ func main() {
 	})
 
 	http.HandleFunc("/addtoindex", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		actor := r.URL.Query().Get("id")
 
 		if Domain != "https://fchan.xyz" {
 			return
 		}
-		
-
 
 		go AddInstanceToIndexDB(db, actor)
 	})
@@ -1209,6 +1255,19 @@ func main() {
 	PrintAdminAuth(db)
 	
 	http.ListenAndServe(Port, nil)	
+}
+
+func CORSOptions(w http.ResponseWriter, r *http.Request, methods string) bool{
+	w.Header().Set("Access-Control-Allow-Origin", Domain)
+	if r.Method == "OPTIONS"{
+		w.WriteHeader(http.StatusNoContent)
+		w.Header().Set("Connection", "Keep-Alive")
+		w.Header().Set("Access-Control-Allow-Origin", Domain)
+		w.Header().Set("Access-Control-Allow-Methods", methods)
+		w.Header().Set("Access-Control-Max-Age", "3600")
+		return true
+	}
+	return false
 }
 
 func CheckError(e error, m string) error{
