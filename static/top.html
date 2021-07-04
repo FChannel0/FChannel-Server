@@ -9,7 +9,7 @@
   <h3 id="newpostbtn"  state="0" style="text-align: center; margin-top: 80px;"><a href="javascript:newpost()">[Start a New Thread]</a></h3>
   {{ end }}
   <div id="newpost" style="display: none;">    
-    <form id="new-post" action="/post" method="post" enctype="multipart/form-data" style="margin-left: 180px;">        
+    <form onsubmit="sessionStorage.setItem('element-closed-reply', true)" id="new-post" action="/post" method="post" enctype="multipart/form-data" style="margin-left: 180px;">        
       <label for="name">Name:</label><br>
       <input type="text" id="name" name="name" placeholder="Anonymous" maxlength="100"><br>
       <label for="options">Options:</label><br>
