@@ -1,0 +1,32 @@
+{{ define "header" }}
+<title>{{ .Title }}</title>
+<meta name="description" content="{{ .PreferredUsername }} is a federated image board based on activitypub. The current version of the code running the server is still a work in progress, expect a bumpy ride for the time being. Get the server code here: https://github.com/FChannel0.">    
+
+<meta property="og:locale" content="en_US" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="{{ .Board.Domain }}">
+<meta property="og:site_name" content="{{ .Board.Actor.PreferredUsername }}" />
+
+<meta property="og:title" content="{{ .Title }}">
+<meta property="og:description" content="{{ .PreferredUsername }} is a federated image board based on activitypub. The current version of the code running the server is still a work in progress, expect a bumpy ride for the time being. Get the server code here: https://github.com/FChannel0.">
+
+<meta name="twitter:title" content="{{ .Title }}">
+<meta name="twitter:description" content="{{ .PreferredUsername }} is a federated image board based on activitypub. The current version of the code running the server is still a work in progress, expect a bumpy ride for the time being. Get the server code here: https://github.com/FChannel0.">
+<meta name="twitter:card" content="summary_large_image">
+
+{{ end }}
+
+{{ define "top" }}{{ end }}
+{{ define "content" }}
+<div style="text-align: left; max-width: 800px; margin: 0 auto;">
+
+  {{ range .NewsItems }}
+  <p><h1>{{unixtoreadable .Time}} - {{.Title}}</h1><br>{{.Content}}</p>
+  {{ end }}
+  
+</div>
+{{ end }}
+{{ define "bottom" }}{{ end }}
+
+{{ define "script" }}
+{{ end }}

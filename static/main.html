@@ -7,7 +7,7 @@
     <meta name="keywords" content="Federated Imageboard based on Activtypub">    
     <meta property="og:locale" content="en_US" />
     <meta property="og:type" content="website" />
-    <link rel="icon" type="image/png"  href="/static/favicon.png">    
+    <link rel="icon" type="image/png"  href="/static/favicon.png">
     <style>
       a, a:link, a:visited, a:hover, a:active {
           text-decoration: none
@@ -40,6 +40,14 @@
           background-color: #f9f9e0;
           {{ end }}
       }
+
+      .box {
+          {{ if .Board.Restricted }}
+          background-color: #eff5ff;
+          {{ else }}
+          background-color: #f9f9e0;
+          {{ end }}
+      }      
       
       .quote {
           color: #789922;
@@ -76,8 +84,17 @@
   </head>
   <body>
     <ul style="display: inline; padding:0;">
-      {{range .Boards}}
-      <li style="display: inline;"><a href="{{.Location}}">{{.Name}}</a></li>
+      {{ $l := len .Boards }}
+      {{range $i, $e := .Boards}}
+      {{ if eq (sub $l 1) 0 }}
+      <li style="display: inline;">[ <a href="{{.Location}}">{{$e.Name}} </a>]</li>      
+      {{ else if eq $i 0 }}
+      <li style="display: inline;">[<a href="{{.Location}}">{{$e.Name}} </a>/</li>
+      {{ else if eq $i (sub $l 1) }}
+      <li style="display: inline;"><a href="{{.Location}}">{{$e.Name}}</a>]</li>
+      {{ else }}
+      <li style="display: inline;"><a href="{{.Location}}">{{$e.Name}} </a>/</li>      
+      {{ end }}
       {{end}}
     </ul>
     {{ if .Board.ModCred }}

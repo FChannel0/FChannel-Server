@@ -1,10 +1,10 @@
 {{ define "bottom" }}
 <div id="reply-box" class="popup-box" style="display: none;">
   <div id="reply-header" style="display: inline-block; width: 370px; z-index: 0; cursor: move;"></div><div id="reply-close" style="display: inline-block; float: right;"><a href="javascript:closeReply()">[X]</a></div>
-  <form id="reply-post" action="/post" method="post" enctype="multipart/form-data">
+  <form onsubmit="sessionStorage.setItem('element-closed-reply', true)"  id="reply-post" action="/post" method="post" enctype="multipart/form-data">
     <input id="reply-name" name="name" size="43" type="text" placeholder="Name" maxlength="100">
     <input id="reply-options" name="options" size="43" type="text" placeholder="Options" maxlength="100">
-    <textarea id="reply-comment" name="comment" rows="12" cols="54" style="width: 396px;" maxlength="2000"></textarea>
+    <textarea id="reply-comment" name="comment" rows="12" cols="54" style="width: 396px;" maxlength="2000" oninput="sessionStorage.setItem('element-reply-comment', document.getElementById('reply-comment').value)"></textarea>
     <input id="reply-file" name="file" type="file">
     <input id="reply-submit" type="submit" value="Reply" style="float: right;"><br><br>
     <input type="hidden" id="inReplyTo-box" name="inReplyTo" value="{{ .Board.InReplyTo }}">
@@ -25,9 +25,9 @@
 
 <div id="report-box" class="popup-box" style="display: none; ">
   <div id="report-header" style="text-align: center; display: inline-block; width: 370px; z-index: 0; cursor: move;"></div><div id="report-close" style="display: inline-block; float: right;"><a href="javascript:closeReport()">[X]</a></div>
-  <form id="report-post" action="/report" method="post">
+  <form onsubmit="sessionStorage.setItem('element-closed-report', true)" id="report-post" action="/report" method="post">
     <label for="comment">Reason:</label>
-    <textarea id="report-comment" name="comment" rows="12" cols="54" style="width: 396px;" maxlength="100"></textarea>
+    <textarea id="report-comment" name="comment" rows="12" cols="54" style="width: 396px;" maxlength="100" oninput="sessionStorage.setItem('element-report-comment', document.getElementById('report-comment').value)"></textarea>
     <input id="report-submit" type="submit" value="Report" style="float: right;">
     <input type="hidden" id="report-inReplyTo-box" name="id" value="{{ .Board.InReplyTo }}">
     <input type="hidden" id="sendTo" name="sendTo" value="{{ .Board.To }}">
