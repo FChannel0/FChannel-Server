@@ -94,8 +94,7 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	var data PageData
 	data.Title = "Welcome to " + actor.PreferredUsername
-	data.Message = actor.PreferredUsername + " is a federated image board based on ActivityPub. The current version of the code running on the server is still a work-in-progress product, expect a bumpy ride for the time being. Get the server code here: https://github.com/FChannel0"
-	data.MessageHTML = template.HTML(actor.PreferredUsername + ` is a federated image board based on <a href="https://activitypub.rocks/">ActivityPub</a>. The current version of the code running on the server is still a work-in-progress product, expect a bumpy ride for the time being. Get the server code here: <a href="https://github.com/FChannel0">https://github.com/FChannel0</a>`)
+	data.PreferredUsername = actor.PreferredUsername
 	data.Boards = Boards
 	data.Board.Name = ""
 	data.Key = *Key
