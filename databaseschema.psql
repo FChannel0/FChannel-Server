@@ -226,3 +226,4 @@ ALTER TABLE actor ADD COLUMN IF NOT EXISTS publicKeyPem varchar(100) default '';
 
 ALTER TABLE activitystream ADD COLUMN IF NOT EXISTS sensitive boolean default false;
 ALTER TABLE cacheactivitystream ADD COLUMN IF NOT EXISTS sensitive boolean default false;
+

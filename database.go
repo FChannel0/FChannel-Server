@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"html/template"	
 
 	_ "github.com/lib/pq"
 )
@@ -1546,10 +1547,15 @@ func getNewsFromDB(db *sql.DB, limit int) []NewsItem {
 	defer rows.Close()
 	for rows.Next() {
 		n := NewsItem{}
-		err = rows.Scan(&n.Title, &n.Content, &n.Time)
+		var content string
+		err = rows.Scan(&n.Title, &content, &n.Time)
 		if CheckError(err, "error scanning news from db") != nil {
 			return news
 		}
+
+		content = strings.ReplaceAll(content, "\n", "<br>")
+		n.Content = template.HTML(content)
+		
 		news = append(news, n)
 	}
 	
@@ -1558,6 +1564,7 @@ func getNewsFromDB(db *sql.DB, limit int) []NewsItem {
 
 func getNewsItemFromDB(db *sql.DB, timestamp int) (NewsItem, error) {
 	var news NewsItem
+	var content string
 	query := `select title, content, time from newsItem where time=$1 limit 1`
 	
 	rows, err := db.Query(query, timestamp)
@@ -1568,11 +1575,14 @@ func getNewsItemFromDB(db *sql.DB, timestamp int) (NewsItem, error) {
 	
 	defer rows.Close()
 	rows.Next()
-	err = rows.Scan(&news.Title, &news.Content, &news.Time)
+	err = rows.Scan(&news.Title, &content, &news.Time)
 	
 	if err != nil {
 		return news, err
 	}
+
+	content = strings.ReplaceAll(content, "\n", "<br>")
+	news.Content = template.HTML(content)	
 	
 	return news, nil
 }

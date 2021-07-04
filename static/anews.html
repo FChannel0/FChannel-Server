@@ -22,16 +22,16 @@
   <h1>{{ .Title }}</h1>
 
   <div style="margin-top:50px;">
-  <table align="center" style="text-align: left;">
+  <table style="text-align: left;">
     
     {{ range $i, $e := .NewsItems }}
     <tr>
       <td>
+        <div class="box" style="width:800px; padding: 25px; margin-bottom: 25px;">
           {{ if $.Board.ModCred }}<a href="/{{ $.Key }}/newsdelete/{{ $e.Time }}">[Delete] </a>{{end}}
-      <a href="/news/{{.Time}}">{{unixtoreadable $e.Time}} - {{$e.Title}}</a>
-      {{ if eq $i 0 }}
-      <br><p>{{$e.Content}}</p>
-      {{ end }}
+          <a href="/news/{{.Time}}">{{unixtoreadable $e.Time}} - {{$e.Title}}</a>
+          <br><p style="margin-left: 25px;">{{$e.Content}}</p>
+        </div>
       </td>
     </tr>
     {{ end }}

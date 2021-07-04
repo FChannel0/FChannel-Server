@@ -501,7 +501,8 @@ func main() {
 			http.Redirect(w, r, "/" + *Key + "/" + redirect, http.StatusSeeOther)							
 			
 		} else if manage && actor.Name != "" {
-			t := template.Must(template.ParseFiles("./static/main.html", "./static/manage.html"))
+			t := template.Must(template.New("").Funcs(template.FuncMap{
+				"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/manage.html"))
 
 			follow := GetActorCollection(actor.Following)
 			follower := GetActorCollection(actor.Followers)
@@ -554,8 +555,8 @@ func main() {
 			t.ExecuteTemplate(w, "layout", adminData)
 			
 		} else if admin || actor.Id == Domain {
-
-			t := template.Must(template.ParseFiles("./static/main.html", "./static/nadmin.html"))						
+			t := template.Must(template.New("").Funcs(template.FuncMap{
+				"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/nadmin.html"))						
 	
 			actor := GetActor(Domain)
 			follow := GetActorCollection(actor.Following).Items
@@ -590,11 +591,20 @@ func main() {
 
 	http.HandleFunc("/" + *Key + "/addboard", func(w http.ResponseWriter, r *http.Request) {
 
+		id, _ := GetPasswordFromSession(r)
+		
+		actor := GetActorFromDB(db, Domain)
+
+
+		if id == "" || (id != actor.Id && id != Domain) {
+			t := template.Must(template.ParseFiles("./static/verify.html"))
+			t.Execute(w, "")
+			return
+		}
+		
 		var newActorActivity Activity
 		var board Actor
 		r.ParseForm()
-
-		actor := GetActorFromDB(db, Domain)
 
 		var restrict bool
 		if r.FormValue("restricted") == "True" {
@@ -625,10 +635,22 @@ func main() {
 	})
 	
 	http.HandleFunc("/" + *Key + "/postnews", func(w http.ResponseWriter, r *http.Request) {
+
+		id, _ := GetPasswordFromSession(r)
+		
+		actor := GetActorFromDB(db, Domain)
+
+
+		if id == "" || (id != actor.Id && id != Domain) {
+			t := template.Must(template.ParseFiles("./static/verify.html"))
+			t.Execute(w, "")
+			return
+		}
+		
 		var newsitem NewsItem
 		
 		newsitem.Title = r.FormValue("title")
-		newsitem.Content = r.FormValue("summary")
+		newsitem.Content = template.HTML(r.FormValue("summary"))
 		
 		WriteNewsToDB(db, newsitem)
 		
@@ -636,6 +658,18 @@ func main() {
 	})
 	
 	http.HandleFunc("/" + *Key + "/newsdelete/", func(w http.ResponseWriter, r *http.Request){
+
+		id, _ := GetPasswordFromSession(r)
+		
+		actor := GetActorFromDB(db, Domain)
+
+
+		if id == "" || (id != actor.Id && id != Domain) {
+			t := template.Must(template.ParseFiles("./static/verify.html"))
+			t.Execute(w, "")
+			return
+		}
+		
 		timestamp := r.URL.Path[13+len(*Key):]
 		
 		tsint, err := strconv.Atoi(timestamp)

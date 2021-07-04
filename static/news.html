@@ -20,9 +20,9 @@
 {{ define "content" }}
 <div style="text-align: left; max-width: 800px; margin: 0 auto;">
 
-    {{ range .NewsItems }}
-      <p><h1>{{unixtoreadable .Time}} - {{.Title}}</h1><br>{{.Content}}</p>
-    {{ end }}
+  {{ range .NewsItems }}
+  <p><h1>{{unixtoreadable .Time}} - {{.Title}}</h1><br>{{.Content}}</p>
+  {{ end }}
   
 </div>
 {{ end }}

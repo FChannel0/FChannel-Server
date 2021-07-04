@@ -79,12 +79,15 @@ type Removed struct {
 
 type NewsItem struct {
 	Title string
-	Content string
+	Content template.HTML
 	Time int
 }
 
 func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	t := template.Must(template.New("").Funcs(template.FuncMap{"mod": func(i, j int) bool { return i%j == 0 }, "unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/index.html"))
+	t := template.Must(template.New("").Funcs(template.FuncMap{
+		"mod": func(i, j int) bool { return i%j == 0 },
+		"sub": func (i, j int) int { return i - j },
+		"unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/index.html"))
 
 	actor := GetActorFromDB(db, Domain)
 
@@ -113,7 +116,9 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 }
 
 func NewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB, timestamp int) {
-	t := template.Must(template.New("").Funcs(template.FuncMap{"unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/news.html"))
+	t := template.Must(template.New("").Funcs(template.FuncMap{
+		"sub": func (i, j int) int { return i - j },		
+		"unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/news.html"))
 	
 	actor := GetActorFromDB(db, Domain)
 
@@ -144,7 +149,10 @@ func NewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB, timestamp int) 
 }
 
 func AllNewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	t := template.Must(template.New("").Funcs(template.FuncMap{"unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/anews.html"))
+	t := template.Must(template.New("").Funcs(template.FuncMap{
+		"mod": func(i, j int) bool { return i%j == 0 },
+		"sub": func (i, j int) int { return i - j },				
+		"unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/anews.html"))
 	
 	actor := GetActorFromDB(db, Domain)
 
@@ -165,8 +173,9 @@ func AllNewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 }
 
 func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection){
+	t := template.Must(template.New("").Funcs(template.FuncMap{
+		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/nposts.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 
-	t := template.Must(template.ParseFiles("./static/main.html", "./static/nposts.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))	
 
 	actor := collection.Actor
 
@@ -214,9 +223,8 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 }
 
 func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection){
-
-	t := template.Must(template.ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))			
-	
+	t := template.Must(template.New("").Funcs(template.FuncMap{
+		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))			
 	actor := collection.Actor
 
 	var returnData PageData
@@ -249,8 +257,8 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 }
 
 func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
-
-	t := template.Must(template.ParseFiles("./static/main.html", "./static/npost.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
+	t := template.Must(template.New("").Funcs(template.FuncMap{
+		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/npost.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 	
 	path := r.URL.Path
 	actor := GetActorFromPath(db, path, "/")
@@ -322,10 +330,11 @@ func GetBoardCollection(db *sql.DB) []Board {
 		if boardActor.Id == "" {
 			boardActor = FingerActor(e.Id)
 		}
-		board.Name = "/" + boardActor.Name + "/"
+		board.Name = boardActor.Name
 		board.PrefName = boardActor.PreferredUsername
 		board.Location = "/" + boardActor.Name
 		board.Actor = boardActor
+		board.Restricted = boardActor.Restricted
 		collection = append(collection, board)
 	}
 
