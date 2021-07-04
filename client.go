@@ -68,6 +68,7 @@ type AdminPage struct {
 type Report struct {
 	ID string
 	Count int
+	Reason string
 }
 
 type Removed struct {
@@ -484,7 +485,7 @@ func CreateLocalReportDB(db *sql.DB, id string, board string, reason string) {
 func GetLocalReportDB(db *sql.DB, board string) []Report {
 	var reported []Report
 	
-	query := `select id, count from reported where board=$1`
+	query := `select id, count, reason from reported where board=$1`
 
 	rows, err := db.Query(query, board)
 
@@ -495,7 +496,7 @@ func GetLocalReportDB(db *sql.DB, board string) []Report {
 	for rows.Next() {
 		var r Report
 
-		rows.Scan(&r.ID, &r.Count)
+		rows.Scan(&r.ID, &r.Count, &r.Reason)
 
 		reported = append(reported, r)
 	}

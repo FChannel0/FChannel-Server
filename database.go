@@ -1451,7 +1451,7 @@ func GetActorReportedTotal(db *sql.DB, id string) int {
 func GetActorReportedDB(db *sql.DB, id string) []ObjectBase {
 	var nObj []ObjectBase
 
-	query := `select id, count from reported where board=$1`
+	query := `select id, count, reason from reported where board=$1`
 
 	rows, err := db.Query(query, id)	
 
@@ -1462,7 +1462,7 @@ func GetActorReportedDB(db *sql.DB, id string) []ObjectBase {
 	for rows.Next() {
 		var obj ObjectBase
 
-		rows.Scan(&obj.Id, &obj.Size)
+		rows.Scan(&obj.Id, &obj.Size, &obj.Content)
 
 		nObj = append(nObj, obj)
 	}

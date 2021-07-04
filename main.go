@@ -524,6 +524,7 @@ func main() {
 				var r Report
 				r.Count = int(e.Size)
 				r.ID    = e.Id
+				r.Reason = e.Content
 				reports = append(reports, r)
 			}
 
@@ -533,6 +534,7 @@ func main() {
 				var r Report
 				r.Count = e.Count
 				r.ID    = e.ID
+				r.Reason = e.Reason
 				reports = append(reports, r)
 			}			
 
