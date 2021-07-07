@@ -174,6 +174,9 @@ func AllNewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection){
 	t := template.Must(template.New("").Funcs(template.FuncMap{
+		"proxy": func(url string) string {
+			return MediaProxy(url)
+		},
 		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/nposts.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 
 
@@ -224,6 +227,9 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 
 func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection){
 	t := template.Must(template.New("").Funcs(template.FuncMap{
+		"proxy": func(url string) string {
+			return MediaProxy(url)			
+		},		
 		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))			
 	actor := collection.Actor
 
@@ -258,6 +264,9 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 
 func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 	t := template.Must(template.New("").Funcs(template.FuncMap{
+		"proxy": func(url string) string {
+			return MediaProxy(url)						
+		},		
 		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/npost.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 	
 	path := r.URL.Path
@@ -567,3 +576,14 @@ type BoardSortAsc []Board
 func (a BoardSortAsc) Len() int { return len(a) }
 func (a BoardSortAsc) Less(i, j int) bool { return a[i].Name < a[j].Name }
 func (a BoardSortAsc) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+
+func MediaProxy(url string) string {
+	re := regexp.MustCompile("(.+)?" + Domain + "(.+)?")
+
+	if re.MatchString(url) {
+		return url
+	}
+	
+	MediaHashs[HashMedia(url)] = url
+	return "/api/media?hash=" + HashMedia(url)
+}

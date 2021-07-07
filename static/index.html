@@ -64,17 +64,15 @@
   {{ end }}  
   
   <div class="popup-box" style="margin-top:50px;">
-  <table style="text-align: left; margin: 25px;">
-    <th>
-      <tr><h4>Current known instances</h4></tr>
-    </th>
-
-    {{ range .InstanceIndex }}
-    <tr>
-      <td><a href="{{ .Id }}">{{ .Id }}</a></td>
-    </tr>
-    {{ end }}
-  </table>
+    <h4 style="margin-bottom:5px;">Current known instances</h4>
+    <span>(always use a proxy)</span>
+    <table style="text-align: left; margin: 25px;">
+      {{ range .InstanceIndex }}
+      <tr>
+        <td><a href="{{ .Id }}">{{ .Id }}</a></td>
+      </tr>
+      {{ end }}
+    </table>
   </div>
 </div>
 {{ end }}

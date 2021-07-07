@@ -16,7 +16,7 @@
     <a href="/deleteattach?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Attachment]</a>
     <a href="/marksensitive?id={{ .Id }}&board={{ $board.Actor.Name }}">[Mark Sensitive]</a>
     {{ end }}                
-    <span style="display: block;">File: <a id="{{ .Id }}-img" href="{{ (index .Attachment 0).Href}}">{{ (index .Attachment 0).Name  }}</a><span id="{{ .Id }}-size">({{ (index .Attachment 0).Size  }})</span></span>
+    <span style="display: block;">File: <a id="{{ .Id }}-img" href="{{ proxy (index .Attachment 0).Href}}">{{ (index .Attachment 0).Name  }}</a><span id="{{ .Id }}-size">({{ (index .Attachment 0).Size  }})</span></span>
     <div id="hide-{{ .Id }}" style="display: none;">[Hide]</div>
     <div id="sensitive-{{ .Id }}" style="display: none;"><div style="position: relative; text-align: center;"><img id="sensitive-img-{{ .Id }}" style="float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;" src="/static/sensitive.png"><div id="sensitive-text-{{ .Id }}" style="width: 240px; position: absolute; margin-top: 110px; padding: 5px; background-color: black; color: white; cursor: default; ">NSFW Content</div></div></div>    
     <div id="media-{{ .Id }}"></div>
@@ -49,13 +49,13 @@
           img.setAttribute("id", "img")
           img.setAttribute("main", "1")
           img.setAttribute("enlarge", "0")
-          img.setAttribute("attachment", "{{ (index .Attachment 0).Href }}")
+          img.setAttribute("attachment", "{{ proxy (index .Attachment 0).Href }}")
           {{ if .Preview.Href }} 
-          img.setAttribute("src", "{{  .Preview.Href }}")
-          img.setAttribute("preview", "{{ .Preview.Href }}")          
+          img.setAttribute("src", "{{  proxy .Preview.Href }}")
+          img.setAttribute("preview", "{{ proxy .Preview.Href }}")          
           {{ else }}
-          img.setAttribute("src", "{{  (index .Attachment 0).Href }}")
-          img.setAttribute("preview", "{{ (index .Attachment 0).Href }}")                    
+          img.setAttribute("src", "{{  proxy (index .Attachment 0).Href }}")
+          img.setAttribute("preview", "{{ proxy (index .Attachment 0).Href }}")                    
           {{ end }}
           media.appendChild(img)
       }          
@@ -64,7 +64,7 @@
           var audio = document.createElement("audio")
           audio.controls = 'controls'
           audio.preload  = 'metadata'              
-          audio.src      = '{{ (index .Attachment 0).Href }}'
+          audio.src      = '{{ proxy (index .Attachment 0).Href }}'
           audio.type     = '{{ (index .Attachment 0).MediaType }}'              
           audio.style = "float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;"
           audio.innerText = 'Audio is not supported.'
@@ -76,7 +76,7 @@
           video.controls = 'controls'
           video.preload  = 'metadata'                        
           video.muted    = 'muted'              
-          video.src      = '{{ (index .Attachment 0).Href }}'
+          video.src      = '{{ proxy (index .Attachment 0).Href }}'
           video.type     = '{{ (index .Attachment 0).MediaType }}'              
           video.style = "float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;"
           video.innerText = 'Video is not supported.'
@@ -106,7 +106,7 @@
           <a href="/deleteattach?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Attachment]</a>
           <a href="/marksensitive?id={{ .Id }}&board={{ $board.Actor.Name }}">[Mark Sensitive]</a>          
           {{ end }}
-          <span style="display: block;">File <a id="{{ .Id }}-img" href="{{ (index .Attachment 0).Href}}">{{ (index .Attachment 0).Name  }}</a> <span id="{{ .Id }}-size">({{ (index .Attachment 0).Size  }})</span></span>
+          <span style="display: block;">File <a id="{{ .Id }}-img" href="{{ proxy (index .Attachment 0).Href}}">{{ (index .Attachment 0).Name  }}</a> <span id="{{ .Id }}-size">({{ (index .Attachment 0).Size  }})</span></span>
           <div id="hide-{{ .Id }}" style="display: none;">[Hide]</div>
           <div id="sensitive-{{ .Id }}" style="display: none;"><div style="position: relative; text-align: center;"><img id="sensitive-img-{{ .Id }}" style="float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;" src="/static/sensitive.png"><div id="sensitive-text-{{ .Id }}" style="width: 240px; position: absolute; margin-top: 110px; padding: 5px; background-color: black; color: white; cursor: default; ">NSFW Content</div></div></div>              
           <div> </div>
@@ -140,14 +140,14 @@
                 img.setAttribute("id", "img")
                 img.setAttribute("main", "1")
                 img.setAttribute("enlarge", "0")
-                img.setAttribute("attachment", "{{ (index .Attachment 0).Href }}")
+                img.setAttribute("attachment", "{{ proxy (index .Attachment 0).Href }}")
                 img.setAttribute("post", "{{ .Id }}")
                 {{ if and .Preview.Href . }}
-                img.setAttribute("src", "{{  .Preview.Href }}")
-                img.setAttribute("preview", "{{ .Preview.Href }}")
+                img.setAttribute("src", "{{  proxy .Preview.Href }}")
+                img.setAttribute("preview", "{{ proxy .Preview.Href }}")
                 {{ else }}
-                img.setAttribute("src", "{{  (index .Attachment 0).Href }}")
-                img.setAttribute("preview", "{{ (index .Attachment 0).Href }}")                    
+                img.setAttribute("src", "{{  proxy (index .Attachment 0).Href }}")
+                img.setAttribute("preview", "{{ proxy (index .Attachment 0).Href }}")                    
                 {{ end }}                
                 media.appendChild(img)
             }
@@ -156,7 +156,7 @@
                 var audio = document.createElement("audio")
                 audio.controls = 'controls'
                 audio.preload  = 'metadata'              
-                audio.src      = '{{ (index .Attachment 0).Href }}'
+                audio.src      = '{{ proxy (index .Attachment 0).Href }}'
                 audio.type     = '{{ (index .Attachment 0).MediaType }}'
                 audio.style = "float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;"
                 audio.innerText = 'Audio is not supported.'
@@ -168,7 +168,7 @@
                 video.controls = 'controls'
                 video.preload  = 'metadata'                                        
                 video.muted    = 'muted'              
-                video.src      = '{{ (index .Attachment 0).Href }}'
+                video.src      = '{{ proxy (index .Attachment 0).Href }}'
                 video.type     = '{{ (index .Attachment 0).MediaType }}'
                 video.style = "float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;"
                 video.innerText = 'Video is not supported.'

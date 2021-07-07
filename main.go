@@ -21,6 +21,8 @@ import (
 	"bufio"
 	"io"
 	"github.com/gofrs/uuid"
+	"crypto/sha256" 	
+	"encoding/hex"
 )
 
 var Port = ":" + GetConfigValue("instanceport")
@@ -44,6 +46,8 @@ var PublicIndexing = strings.ToLower(GetConfigValue("publicindex"))
 var Salt = GetConfigValue("instancesalt")
 
 var activitystreams = "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+
+var MediaHashs = make(map[string]string)
 
 func main() {
 
@@ -1202,6 +1206,10 @@ func main() {
 
 		go AddInstanceToIndexDB(db, actor)
 	})
+
+	http.HandleFunc("/api/media", func(w http.ResponseWriter, r *http.Request) {
+		RouteImages(w, r.URL.Query().Get("hash"))
+	})	
 
 	fmt.Println("Server for " + Domain + " running on port " + Port)
 
@@ -2566,3 +2574,30 @@ func GetCollectionFromReq(path string) Collection {
 	return respCollection
 }
 
+func HashMedia(media string) string {
+	h:= sha256.New()
+	h.Write([]byte(media))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func RouteImages(w http.ResponseWriter, media string) {
+
+	req, err := http.NewRequest("GET", MediaHashs[media], nil)
+
+	CheckError(err, "error with Route Images req")
+
+	resp, err := http.DefaultClient.Do(req)
+
+	CheckError(err, "error with Route Images resp")	
+	
+	defer resp.Body.Close()
+
+	body, _ := ioutil.ReadAll(resp.Body)
+	for name, values := range resp.Header {
+    for _, value := range values {
+			w.Header().Set(name, value)			
+		}
+	}
+	
+	w.Write(body)	
+}
