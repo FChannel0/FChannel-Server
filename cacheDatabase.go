@@ -79,11 +79,15 @@ func WriteActivitytoCache(db *sql.DB, obj ObjectBase) {
 
 	if id != "" {
 		return
-	}		
+	}
+
+	if obj.Updated == "" {
+		obj.Updated = obj.Published
+	}
 
 	query = `insert into cacheactivitystream (id, type, name, content, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, obj.Published, obj.Published, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)	
+	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)	
 	
 	if e != nil{
 		fmt.Println("error inserting new activity cache")
@@ -110,11 +114,15 @@ func WriteActivitytoCacheWithAttachment(db *sql.DB, obj ObjectBase, attachment O
 
 	if id != "" {
 		return
-	}		
+	}
+
+	if obj.Updated == "" {
+		obj.Updated = obj.Published
+	}	
 
 	query = `insert into cacheactivitystream (id, type, name, content, attachment, preview, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, attachment.Id, preview.Id, obj.Published, obj.Published, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)	
+	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, attachment.Id, preview.Id, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)	
 	
 	if e != nil{
 		fmt.Println("error inserting new activity with attachment cache")
@@ -138,10 +146,14 @@ func WriteAttachmentToCache(db *sql.DB, obj ObjectBase) {
 	if id != "" {
 		return
 	}
+
+	if obj.Updated == "" {
+		obj.Updated = obj.Published
+	}	
 	
 	query = `insert into cacheactivitystream (id, type, name, href, published, updated, attributedTo, mediatype, size) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 	
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Href, obj.Published, obj.Published, obj.AttributedTo, obj.MediaType, obj.Size)	
+	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)	
 	
 	if e != nil{
 		fmt.Println("error inserting new attachment cache")
@@ -164,11 +176,15 @@ func WritePreviewToCache(db *sql.DB, obj NestedObjectBase) {
 
 	if id != "" {
 		return
+	}
+
+	if obj.Updated == "" {
+		obj.Updated = obj.Published
 	}	
 	
 	query = `insert into cacheactivitystream (id, type, name, href, published, updated, attributedTo, mediatype, size) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 	
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Href, obj.Published, obj.Published, obj.AttributedTo, obj.MediaType, obj.Size)
+	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)
 	
 	if e != nil{
 		fmt.Println("error inserting new preview cache")
