@@ -583,6 +583,12 @@ func MediaProxy(url string) string {
 	if re.MatchString(url) {
 		return url
 	}
+
+	re = regexp.MustCompile("(.+)?\\.onion(.+)?")
+
+	if re.MatchString(url) {
+		return url
+	}	
 	
 	MediaHashs[HashMedia(url)] = url
 	return "/api/media?hash=" + HashMedia(url)
