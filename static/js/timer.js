@@ -4,8 +4,8 @@ var timer;
 const contentLoadHandler = function(event){
     timerToggle = !!document.getElementById("autoreload-checkbox").checked;
     if(timerToggle){
-        timerCount = 5;
-        document.getElementById("autoreload-countdown").innerHTML = "5";
+        timerCount = 45;
+        document.getElementById("autoreload-countdown").innerHTML = "45";
         document.getElementById("autoreload-countdown").style.visibility = "visible";
         timer = setInterval(timerFunction, 1000);
         document.removeEventListener("DOMContentLoaded", contentLoadHandler, false);
@@ -27,8 +27,8 @@ function timerFunction(){
 function autoTimer(){
     timerToggle = !timerToggle;
     if(timerToggle === true){
-        timerCount = 5;
-        document.getElementById("autoreload-countdown").innerHTML = "5";
+        timerCount = 45;
+        document.getElementById("autoreload-countdown").innerHTML = "45";
         document.getElementById("autoreload-countdown").style.visibility = "visible";
         timer = setInterval(timerFunction, 1000);
     }else{
