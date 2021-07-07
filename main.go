@@ -495,7 +495,9 @@ func main() {
 				return
 			}
 
-			MakeActivityRequestOutbox(db, followActivity)
+			if FingerActor(r.FormValue("follow")).Id != "" {
+				MakeActivityRequestOutbox(db, followActivity)
+			}
 
 			var redirect string
 			if(actor.Name != "main") {
@@ -809,7 +811,7 @@ func main() {
 		}
 
 		if IsIDLocal(db, id){
-			DeleteObjectRequest(db, id)
+			go DeleteObjectRequest(db, id)
 		}
 
 		if(manage == "t"){
