@@ -67,7 +67,15 @@
             img.style = "max-width: 180px; max-height: 180px;"
             img.setAttribute("id", "img")
             img.setAttribute("main", "1")
-            img.setAttribute("src", "{{ proxy (index .Attachment 0).Href }}")
+            img.setAttribute("enlarge", "0")
+            img.setAttribute("attachment", "{{ proxy (index .Attachment 0).Href }}")            
+            {{ if .Preview.Href }} 
+            img.setAttribute("src", "{{  proxy .Preview.Href }}")
+            img.setAttribute("preview", "{{ proxy .Preview.Href }}")          
+            {{ else }}
+            img.setAttribute("src", "{{  proxy (index .Attachment 0).Href }}")
+            img.setAttribute("preview", "{{ proxy (index .Attachment 0).Href }}")                    
+            {{ end }}            
             media.appendChild(img)
         }                                
 
