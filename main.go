@@ -322,6 +322,12 @@ func main() {
 
 		file, header, _ := r.FormFile("file")
 
+		if(IsPostBlacklist(db, r.FormValue("comment"))){
+			fmt.Println("\n\nBlacklist post blocked\n\n")
+			http.Redirect(w, r, Domain + "/", http.StatusMovedPermanently)
+			return
+		}		
+
 		if(file != nil && header.Size > (7 << 20)){
 			w.Write([]byte("7MB max file size"))
 			return
@@ -559,7 +565,9 @@ func main() {
 			adminData.Board.TP = TP
 
 			adminData.Board.Post.Actor = actor.Id
-			
+
+
+
 			t.ExecuteTemplate(w, "layout", adminData)
 			
 		} else if admin || actor.Id == Domain {
@@ -591,7 +599,9 @@ func main() {
 
 			adminData.Boards = Boards
 			
-			adminData.Board.Post.Actor = actor.Id			
+			adminData.Board.Post.Actor = actor.Id
+
+			adminData.PostBlacklist = GetRegexBlacklistDB(db)			
 
 			t.ExecuteTemplate(w, "layout",  adminData)				
 		}
@@ -1203,14 +1213,56 @@ func main() {
 		if Domain != "https://fchan.xyz" {
 			return
 		}
-		
-
 
 		go AddInstanceToIndexDB(db, actor)
 	})
 
+	http.HandleFunc("/blacklist", func(w http.ResponseWriter, r *http.Request) {
+
+		id, _ := GetPasswordFromSession(r)
+		
+		actor := GetActorFromDB(db, Domain)
+
+		if id == "" || (id != actor.Id && id != Domain) {
+			http.Redirect(w, r, "/", http.StatusSeeOther)			
+			return
+		}
+
+		if r.Method == "GET" {
+			id := r.URL.Query().Get("remove")
+
+			if id != "" {
+				i, _ := strconv.Atoi(id)
+				DeleteRegexBlacklistDB(db, i)
+			}
+
+		} else {
+			regex := r.FormValue("regex")
+			testCase := r.FormValue("testCase")
+
+			if regex == "" {
+				http.Redirect(w, r, "/", http.StatusSeeOther)						
+				return
+			}
+			
+			r.ParseForm()
+
+			re := regexp.MustCompile(regex)
+
+			if testCase == "" {
+				WriteRegexBlacklistDB(db, regex)
+			} else if re.MatchString(testCase) {
+				WriteRegexBlacklistDB(db, regex)
+			}
+		}
+		
+		http.Redirect(w, r, "/" + *Key + "#regex", http.StatusSeeOther)		
+	})	
+
 	http.HandleFunc("/api/media", func(w http.ResponseWriter, r *http.Request) {
-		RouteImages(w, r.URL.Query().Get("hash"))
+		if r.URL.Query().Get("hash") != "" {
+			RouteImages(w, r.URL.Query().Get("hash"))
+		}
 	})	
 
 	fmt.Println("Server for " + Domain + " running on port " + Port)
@@ -2590,8 +2642,8 @@ func RouteImages(w http.ResponseWriter, media string) {
 
 	resp, err := http.DefaultClient.Do(req)
 
-	CheckError(err, "error with Route Images resp")	
-	
+	CheckError(err, "error with Route Images resp")
+
 	defer resp.Body.Close()
 
 	body, _ := ioutil.ReadAll(resp.Body)
@@ -2602,4 +2654,18 @@ func RouteImages(w http.ResponseWriter, media string) {
 	}
 	
 	w.Write(body)	
+}
+
+func IsPostBlacklist(db *sql.DB, comment string) bool {
+	postblacklist := GetRegexBlacklistDB(db)
+
+	for _, e := range postblacklist {
+		re := regexp.MustCompile(e.Regex)
+
+		if re.MatchString(comment) {
+			return true
+		}
+	}
+
+	return false
 }

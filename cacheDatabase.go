@@ -5,6 +5,12 @@ import "database/sql"
 import _ "github.com/lib/pq"
 
 func WriteObjectToCache(db *sql.DB, obj ObjectBase) ObjectBase {
+
+	if(IsPostBlacklist(db, obj.Content)){
+		fmt.Println("\n\nBlacklist post blocked\n\n")
+		return obj
+	}
+	
 	if len(obj.Attachment) > 0 {
 		if obj.Preview.Href != "" {
 			WritePreviewToCache(db, *obj.Preview)

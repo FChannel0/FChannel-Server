@@ -1598,3 +1598,54 @@ func WriteNewsToDB(db *sql.DB, news NewsItem) {
 	
 	CheckError(err, "error writing news item")
 }
+
+func WriteRegexBlacklistDB(db *sql.DB, regex string) {
+	query := `select from postblacklist where regex=$1`
+
+	rows, err := db.Query(query, regex)
+
+	CheckError(err, "error select from postblacklist db")	
+
+	var re string
+	defer rows.Close()
+	rows.Next()
+	rows.Scan(&re)
+
+	if re != "" {
+		return
+	}
+
+	query = `insert into postblacklist (regex) values ($1)`
+
+	_, err = db.Exec(query, regex)
+
+	CheckError(err, "error inserting postblacklist into db")
+}
+
+func GetRegexBlacklistDB(db *sql.DB) []PostBlacklist {
+	query := `select id, regex from postblacklist`
+
+	rows, err := db.Query(query)
+
+	CheckError(err, "error with select all from postblacklist db")	
+
+	var List []PostBlacklist
+
+	defer rows.Close()
+	for rows.Next() {
+		var temp PostBlacklist		
+		rows.Scan(&temp.Id, &temp.Regex)
+
+		List = append(List, temp)
+	}
+
+	return List
+}
+
+func DeleteRegexBlacklistDB(db *sql.DB, id int) {
+	query := `delete from postblacklist where id=$1`
+
+	_, err := db.Exec(query, id)
+
+	CheckError(err, "error with delete from postblacklist")
+}

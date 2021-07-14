@@ -63,6 +63,7 @@ type AdminPage struct {
 	Reported []Report
 	Domain string
 	IsLocal bool
+	PostBlacklist []PostBlacklist
 }
 
 type Report struct {
@@ -82,6 +83,11 @@ type NewsItem struct {
 	Title string
 	Content template.HTML
 	Time int
+}
+
+type PostBlacklist struct {
+	Id int
+	Regex string
 }
 
 func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
