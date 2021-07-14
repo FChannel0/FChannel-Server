@@ -2642,7 +2642,18 @@ func RouteImages(w http.ResponseWriter, media string) {
 
 	resp, err := http.DefaultClient.Do(req)
 
-	CheckError(err, "error with Route Images resp")
+	if err != nil {
+		fmt.Println("error with Route Images resp " + MediaHashs[media])
+	}
+
+	if err != nil || resp.StatusCode == 404 {
+		fileBytes, err := ioutil.ReadFile("./static/notfound.png")
+
+		CheckError(err, "could not get /static/notfound.png file bytes")
+		
+		w.Write(fileBytes)
+		return
+	}
 
 	defer resp.Body.Close()
 
