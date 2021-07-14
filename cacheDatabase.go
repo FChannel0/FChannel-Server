@@ -37,6 +37,11 @@ func WriteObjectToCache(db *sql.DB, obj ObjectBase) ObjectBase {
 }
 
 func WriteActorObjectToCache(db *sql.DB, obj ObjectBase) ObjectBase {
+
+	if(IsPostBlacklist(db, obj.Content)){
+		return obj
+	}
+	
 	if len(obj.Attachment) > 0 {
 		
 		if IsIDLocal(db, obj.Id) {
