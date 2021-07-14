@@ -2,7 +2,7 @@
 
 FChannel is a [libre](https://en.wikipedia.org/wiki/Free_and_open-source_software), [self-hostable](https://en.wikipedia.org/wiki/Self-hosting_(web_services)), [federated](https://en.wikipedia.org/wiki/Federation_(information_technology)), [imageboard](https://en.wikipedia.org/wiki/Imageboard) platform that utilizes [ActivityPub](https://activitypub.rocks/).
 
-There are currently two instances federated with each other: https://fchan.xyz and https://0x00000000.xyz
+There are currently serveral instances federated with each other, for a full list see: https://fchan.xyz
 
 There is an anon testing FChannel instances on TOR/Loki/I2P. Find more information here: https://fchan.xyz/g/MORL0KUT
 It is a testing environment, so the instances might come and go.
@@ -11,7 +11,7 @@ It is a testing environment, so the instances might come and go.
 Current things that will be implemented first are:
 - A way to automatically index new instances into a list so others can discover instances as they come online. 
 - Setting up a server proxy so that clearnet instances can talk to TOR/Loki/I2P instances. 
-- Other improvements will be made over time, first it needs to be as  easy as possible for new instances to come online and connect with others reliably.
+- Other improvements will be made over time, first it needs to be as easy as possible for new instances to come online and connect with others reliably.
 
 Try and run your own instances and federate with one of the instances above.
 Any contributions or suggestions are appreciated. Best way to give immediate feedback is the Matrix channel #fchan:matrix.org
@@ -32,13 +32,15 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
 
 ## Server Installation Instructions
 
-- Ensure you have golang installed at a correct `GOPATH`
+- Ensure you have golang installed and set a correct `GOPATH`
+
+- `git clone` the software
 
 - Copy `config-init` to `config` and change the values appropriately to reflect the instance.
 
-- Create the database, user name, and password for psql that is used in config file.
+- Create the database, username, and password for psql that is used in the `config` file.
 
-- Start the server with `go run`.
+- Start the server with `go run .`.
 
 ## Server Configuration
 
@@ -82,7 +84,7 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
   
   `emailpass:password`
 
-### local testing
+### Local testing
 
   When testing on a local env when setting the `instance` value in the config file you have to append the port number to the local address eg. `instance:localhost:3000` with `instanceport` also being set to the same port.
 
@@ -97,7 +99,7 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
 
 ## Server Update
 
- Check the git repo for the latest commits. If there are commits you want to update to, pull and restart instance.
+ Check the git repo for the latest commits. If there are commits you want to update to, git pull and restart the instance.
 
 ## Networking
 
