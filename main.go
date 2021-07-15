@@ -484,8 +484,14 @@ func main() {
 			if following.MatchString(follow) {
 				followingActor := FingerActor(follow)
 				col := GetActorCollection(followingActor.Following)
+				
+				var nObj ObjectBase
+				nObj.Id = followingActor.Id
+
+				col.Items = append(col.Items, nObj)
+				
 				for _, e := range col.Items {
-					if !IsAlreadyFollowing(db, actorId, e.Id) && e.Id != Domain {
+					if !IsAlreadyFollowing(db, actorId, e.Id) && e.Id != Domain && e.Id != actorId {
 						followActivity := MakeFollowActivity(db, actorId, e.Id)
 
 						if FingerActor(e.Id).Id != "" {
@@ -498,8 +504,14 @@ func main() {
 			} else if followers.MatchString(follow){
 				followersActor := FingerActor(follow)
 				col := GetActorCollection(followersActor.Followers)
+
+				var nObj ObjectBase
+				nObj.Id = followersActor.Id
+
+				col.Items = append(col.Items, nObj)				
+				
 				for _, e := range col.Items {
-					if !IsAlreadyFollowing(db, actorId, e.Id) && e.Id != Domain {
+					if !IsAlreadyFollowing(db, actorId, e.Id) && e.Id != Domain && e.Id != actorId {
 						followActivity := MakeFollowActivity(db, actorId, e.Id)
 						if FingerActor(e.Id).Id != "" {
 							MakeActivityRequestOutbox(db, followActivity)
