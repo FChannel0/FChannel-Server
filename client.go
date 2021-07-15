@@ -64,6 +64,7 @@ type AdminPage struct {
 	Domain string
 	IsLocal bool
 	PostBlacklist []PostBlacklist
+	AutoSubscribe bool
 }
 
 type Report struct {

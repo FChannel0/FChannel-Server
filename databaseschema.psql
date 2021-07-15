@@ -231,3 +231,5 @@ CREATE TABLE IF NOT EXISTS postblacklist(
 id serial primary key,
 regex varchar(200)
 );
+
+ALTER TABLE actor ADD COLUMN IF NOT EXISTS autosubscribe boolean default false;

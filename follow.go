@@ -217,3 +217,49 @@ func SetActorFollowingDB(db *sql.DB, activity Activity) Activity {
 	activity.Type = "Accept"
 	return	activity
 }
+
+func AutoFollow(db *sql.DB, actor string) {
+	following := GetActorFollowingDB(db, actor)
+	follower := GetActorFollowDB(db, actor)
+
+	isFollowing := false
+	
+	for _, e := range follower {
+		for _, k := range following {
+			if e.Id == k.Id {
+				isFollowing = true
+			}
+		}
+
+		if !isFollowing && e.Id != Domain {
+			followActivity := MakeFollowActivity(db, actor, e.Id)	
+
+			if FingerActor(e.Id).Id != "" {
+				MakeActivityRequestOutbox(db, followActivity)
+			}	
+		}
+	}
+}
+
+func MakeFollowActivity(db *sql.DB, actor string, follow string) Activity {
+	var followActivity Activity
+
+	followActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+	followActivity.Type = "Follow"
+	
+	var obj ObjectBase
+	var nactor Actor
+	if actor == Domain {
+		nactor = GetActorFromDB(db, actor)
+	} else {
+		nactor = FingerActor(actor)			
+	}
+	
+	followActivity.Actor = &nactor
+	followActivity.Object = &obj
+
+	followActivity.Object.Actor = follow
+	followActivity.To = append(followActivity.To, follow)
+
+	return followActivity
+}

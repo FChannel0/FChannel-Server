@@ -1649,3 +1649,29 @@ func DeleteRegexBlacklistDB(db *sql.DB, id int) {
 
 	CheckError(err, "error with delete from postblacklist")
 }
+
+func GetActorAutoSubscribeDB(db *sql.DB, id string) bool{
+	query := `select autosubscribe from actor where id=$1`
+
+	rows, err:= db.Query(query, id)
+
+	CheckError(err, "error with getting actor auto subscribe status from db")
+
+	var subscribed bool
+	defer rows.Close()
+	rows.Next()
+	rows.Scan(&subscribed)
+
+
+	return subscribed
+}
+
+func SetActorAutoSubscribeDB(db *sql.DB, id string) {
+	current := GetActorAutoSubscribeDB(db, id)
+
+	query := `update actor set autosubscribe=$1 where id=$2`
+
+	_, err := db.Exec(query, !current, id)
+
+	CheckError(err, "error with set actor auto subscribe status from db")
+}

@@ -555,6 +555,24 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				response := AcceptFollow(activity)
 				response = SetActorFollowerDB(db, response)
 				MakeActivityRequest(db, response)
+
+				alreadyFollow := false
+				autoSub := GetActorAutoSubscribeDB(db, response.Actor.Id)
+				following := GetActorFollowingDB(db, response.Actor.Id)
+
+				for _, e := range following {
+					if e.Id == activity.Actor.Id {
+						alreadyFollow = true
+					}
+				}				
+
+				if autoSub && !alreadyFollow {
+					followActivity := MakeFollowActivity(db, response.Actor.Id, response.Object.Actor)	
+					
+					if FingerActor(response.Object.Actor).Id != "" {
+						MakeActivityRequestOutbox(db, followActivity)
+					}	
+				}
 			} else {
 				fmt.Println("follow request for rejected")				
 				response := RejectActivity(activity)
