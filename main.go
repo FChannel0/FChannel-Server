@@ -474,15 +474,51 @@ func main() {
 		if follow || adminFollow {
 			r.ParseForm()
 
-			followActivity := MakeFollowActivity(db, r.FormValue("actor"), r.FormValue("follow"))
+			following := regexp.MustCompile(`(.+)\/following`)
+			followers := regexp.MustCompile(`(.+)\/followers`)
 
-			if followActivity.Actor.Id == Domain && !IsActorLocal(db, followActivity.Object.Actor) {
-				w.Write([]byte("main board can only follow local boards. Create a new board and then follow outside boards from it."))
-				return
-			}
+			follow := r.FormValue("follow")
+			actorId := r.FormValue("actor")
 
-			if FingerActor(r.FormValue("follow")).Id != "" {
-				MakeActivityRequestOutbox(db, followActivity)
+			//follow all of boards following
+			if following.MatchString(follow) {
+				followingActor := FingerActor(follow)
+				col := GetActorCollection(followingActor.Following)
+				for _, e := range col.Items {
+					if !IsAlreadyFollowing(db, actorId, e.Id) && e.Id != Domain {
+						followActivity := MakeFollowActivity(db, actorId, e.Id)
+
+						if FingerActor(e.Id).Id != "" {
+							MakeActivityRequestOutbox(db, followActivity)
+						}					
+					}
+				}
+				
+			//follow all of boards followers
+			} else if followers.MatchString(follow){
+				followersActor := FingerActor(follow)
+				col := GetActorCollection(followersActor.Followers)
+				for _, e := range col.Items {
+					if !IsAlreadyFollowing(db, actorId, e.Id) && e.Id != Domain {
+						followActivity := MakeFollowActivity(db, actorId, e.Id)
+						if FingerActor(e.Id).Id != "" {
+							MakeActivityRequestOutbox(db, followActivity)
+						}					
+					}
+				}
+				
+		  //do a normal follow to a single board
+			} else {
+				followActivity := MakeFollowActivity(db, actorId, follow)
+
+				if followActivity.Actor.Id == Domain && !IsActorLocal(db, followActivity.Object.Actor) {
+					w.Write([]byte("main board can only follow local boards. Create a new board and then follow outside boards from it."))
+					return
+				}
+
+				if FingerActor(follow).Id != "" {
+					MakeActivityRequestOutbox(db, followActivity)
+				}
 			}
 
 			var redirect string

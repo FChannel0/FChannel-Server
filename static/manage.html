@@ -21,11 +21,11 @@
 {{ $key := .Key }}
 {{ if .IsLocal }}
 <div id="following" class="popup-box" style="margin-bottom: 25px; margin-top: 5px; padding: 12px;">
-  <h4 style="margin: 0; margin-bottom: 5px;">Subscribed</h4>
+  <h4 style="margin: 0; margin-bottom: 5px;">Following</h4>
   <a href="/autosubscribe?board={{ .Board.Name }}">{{ if .AutoSubscribe }}[Auto Subscribe On]{{ else }}[Auto Subscribe Off]{{ end }}</a>  
   <form id="follow-form" action="/{{ .Key }}/{{ .Board.Name }}/follow" method="post" enctype="application/x-www-form-urlencoded" style="margin-top: 5px;">  
     <input id="follow" name="follow" style="margin-bottom: 12px;" placeholder="https://fchan.xyz/g"></input>
-    <input type="submit" value="Subscribe"><br>
+    <input type="submit" value="Follow"><br>
     <input type="hidden" name="actor" value="{{ $board.Actor.Id }}">            
   </form>  
   <ul style="display: inline-block; padding: 0; margin: 0; list-style-type: none;">
@@ -36,7 +36,7 @@
 </div>
 
 <div id="followers" class="popup-box" style="margin-bottom: 25px; padding: 12px;">
-  <h4 style="margin: 0; margin-bottom: 5px;">Subscribers</h4>
+  <h4 style="margin: 0; margin-bottom: 5px;">Followers</h4>
   <ul style="display: inline-block; padding: 0; margin: 0; list-style-type: none;">
     {{ range .Followers }}
     <li><a href="{{ . }}">{{ . }}</a></li>

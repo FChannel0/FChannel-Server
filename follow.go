@@ -152,16 +152,21 @@ func RejectActivity(activity Activity) Activity {
 	return accept	
 }
 
-func SetActorFollowerDB(db *sql.DB, activity Activity) Activity {
-	var query string
-	alreadyFollow := false
-	followers := GetActorFollowDB(db, activity.Actor.Id)
+func IsAlreadyFollowing(db *sql.DB, actor string, follow string) bool {
+	followers := GetActorFollowingDB(db, actor)
 	
 	for _, e := range followers {
-		if e.Id == activity.Object.Actor {
-			alreadyFollow = true
+		if e.Id == follow {
+			return true
 		}
 	}
+
+	return false;
+}	
+
+func SetActorFollowerDB(db *sql.DB, activity Activity) Activity {
+	var query string
+	alreadyFollow := IsAlreadyFollowing(db, activity.Actor.Id, activity.Object.Actor)
 
 	if alreadyFollow {
 		query = `delete from follower where id=$1 and follower=$2`
