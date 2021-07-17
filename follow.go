@@ -1,9 +1,13 @@
 package main
 
-import "net/http"
-import "database/sql"
-import _ "github.com/lib/pq"
-import "encoding/json"
+import (
+	"database/sql"
+	"encoding/json"
+	"net/http"
+
+	_ "github.com/lib/pq"
+
+)
 
 func GetActorFollowing(w http.ResponseWriter, db *sql.DB, id string) {
 	var following Collection
@@ -162,18 +166,37 @@ func IsAlreadyFollowing(db *sql.DB, actor string, follow string) bool {
 	}
 
 	return false;
+}
+
+func IsAlreadyFollower(db *sql.DB, actor string, follow string) bool {
+	followers := GetActorFollowDB(db, actor)
+	
+	for _, e := range followers {
+		if e.Id == follow {
+			return true
+		}
+	}
+
+	return false;
 }	
 
 func SetActorFollowerDB(db *sql.DB, activity Activity) Activity {
 	var query string
-	alreadyFollow := IsAlreadyFollowing(db, activity.Actor.Id, activity.Object.Actor)
+	alreadyFollow := IsAlreadyFollower(db, activity.Actor.Id, activity.Object.Actor)
 
 	if alreadyFollow {
 		query = `delete from follower where id=$1 and follower=$2`
 		activity.Summary = activity.Object.Actor + " Unfollow " + activity.Actor.Id
+
+		_, err := db.Exec(query, activity.Actor.Id, activity.Object.Actor)
+
+		if CheckError(err, "error with follower db insert/delete") != nil {
+			activity.Type = "Reject"
+			return activity
+		}						
 	} else {
-		query = `insert into follower (id, follower) values ($1, $2)`
-		activity.Summary = activity.Object.Actor + " Follow " + activity.Actor.Id
+			query = `insert into follower (id, follower) values ($1, $2)`
+			activity.Summary = activity.Object.Actor + " Follow " + activity.Actor.Id
 	}
 
 	_, err := db.Exec(query, activity.Actor.Id, activity.Object.Actor)
@@ -181,7 +204,7 @@ func SetActorFollowerDB(db *sql.DB, activity Activity) Activity {
 	if CheckError(err, "error with follower db insert/delete") != nil {
 		activity.Type = "Reject"
 		return activity
-	}	
+	}				
 
 	activity.Type = "Accept"	
 	return activity
@@ -204,7 +227,7 @@ func SetActorFollowingDB(db *sql.DB, activity Activity) Activity {
 		if !IsActorLocal(db, activity.Actor.Id) {
 			go DeleteActorCache(db, activity.Actor.Id)			
 		}		
-	} else {		
+	} else {
 		query = `insert into following (id, following) values ($1, $2)`
 		activity.Summary = activity.Object.Actor + " Following " + activity.Actor.Id
 		if !IsActorLocal(db, activity.Actor.Id) {
@@ -236,7 +259,7 @@ func AutoFollow(db *sql.DB, actor string) {
 			}
 		}
 
-		if !isFollowing && e.Id != Domain {
+		if !isFollowing && e.Id != Domain && e.Id != actor {
 			followActivity := MakeFollowActivity(db, actor, e.Id)	
 
 			if FingerActor(e.Id).Id != "" {

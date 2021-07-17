@@ -515,7 +515,7 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		nActor := FingerActor(activity.Actor.Id)
 		activity.Actor = &nActor
 	}
-	
+
 	if !VerifyHeaderSignature(r, *activity.Actor) {
 		response := RejectActivity(activity)
 		MakeActivityRequest(db, response)				
@@ -564,7 +564,7 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 					if e.Id == activity.Actor.Id {
 						alreadyFollow = true
 					}
-				}				
+				}
 
 				if autoSub && !alreadyFollow {
 					followActivity := MakeFollowActivity(db, response.Actor.Id, response.Object.Actor)	

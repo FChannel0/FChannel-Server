@@ -528,18 +528,17 @@ func main() {
 					return
 				}
 
-				if FingerActor(follow).Id != "" {
-					MakeActivityRequestOutbox(db, followActivity)
+				if FingerActor(follow).Id != ""{
+					MakeActivityRequestOutbox(db, followActivity)						
 				}
-			}
 
-			var redirect string
-			if(actor.Name != "main") {
-				redirect = "/" + actor.Name
+				var redirect string
+				if(actor.Name != "main") {
+					redirect = "/" + actor.Name
+				}
+				
+				http.Redirect(w, r, "/" + *Key + "/" + redirect, http.StatusSeeOther)														
 			}
-
-			http.Redirect(w, r, "/" + *Key + "/" + redirect, http.StatusSeeOther)							
-			
 		} else if manage && actor.Name != "" {
 			t := template.Must(template.New("").Funcs(template.FuncMap{
 				"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/manage.html"))
