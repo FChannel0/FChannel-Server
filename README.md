@@ -2,7 +2,7 @@
 
 FChannel is a [libre](https://en.wikipedia.org/wiki/Free_and_open-source_software), [self-hostable](https://en.wikipedia.org/wiki/Self-hosting_(web_services)), [federated](https://en.wikipedia.org/wiki/Federation_(information_technology)), [imageboard](https://en.wikipedia.org/wiki/Imageboard) platform that utilizes [ActivityPub](https://activitypub.rocks/).
 
-There are currently serveral instances federated with each other, for a full list see: https://fchan.xyz
+There are currently several instances federated with each other, for a full list see: https://fchan.xyz
 
 There is an anon testing FChannel instances on TOR/Loki/I2P. Find more information here: https://fchan.xyz/g/MORL0KUT
 It is a testing environment, so the instances might come and go.
@@ -69,7 +69,7 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
 
   `torproxy:127.0.0.1:9050`     Tor proxy route and port, leave blank if you do not want to support
 
-  `publicindex:true`     Add instance to the public instance index at https://fchan.xyz if you do not want to be added set this value to `false` If you are on the public index and want to be removed get in contact with FChan dev to be removed.
+  `publicindex:true`     Add instance to the public instance index at https://fchan.xyz, if you do not want to be added set this value to `false` If you are on the public index and want to be removed get in contact with the FChan dev to be removed.
 
   `instancesalt:put your salt string here` Used for secure tripcodes currently.
 
@@ -93,7 +93,7 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
 ### Managing the server
 
   To access the managment page to create new boards or subscribe to other boards, when you start the server the console will output the `Mod key` and `Admin Login`
-  Use the `Mod key` by appending it to your servers url, `https://fchan.xyz/[Mod key]` once there you will be prompted for the `Admin Login` credentials.
+  Use the `Mod key` by appending it to your server's url, `https://fchan.xyz/[Mod key]` once there you will be prompted for the `Admin Login` credentials.
   You can manage each board by appending the `Mod key` to the desired board url: `https://fchan.xyz/[Mod Key]/g`
   The `Mod key` is not static and is reset on server restart.
 
@@ -158,3 +158,4 @@ server {
 Any support is appreciated all funds go to hosting and development of the project
 
 XMR - 85ma5KYR8Jk8zhGospQ8DeMNUrY74rQqEgiiPHvKHbowa37TAa5MLUD8RBaupw5oAxWmpFDrSAxsDbeXcfoAwiZF69mq4CE
+
