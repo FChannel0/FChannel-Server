@@ -49,6 +49,8 @@ var activitystreams = "application/ld+json; profile=\"https://www.w3.org/ns/acti
 
 var MediaHashs = make(map[string]string)
 
+var ActorCache = make(map[string]Actor)
+
 func main() {
 
 	CreatedNeededDirectories()
@@ -1197,7 +1199,13 @@ func main() {
 			return
 		}
 
-		if !IsActorLocal(db, TP + "" + actorDomain[1] + "/" + actorDomain[0]) {
+		if actorDomain[0] == "main" {
+			actorDomain[0] = ""
+		} else {
+			actorDomain[0] = "/" + actorDomain[0]
+		}
+
+		if !IsActorLocal(db, TP + "" + actorDomain[1] + "" + actorDomain[0]) {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("actor not local"))		
 			return
@@ -1209,7 +1217,7 @@ func main() {
 		finger.Subject = "acct:" + actorDomain[0] + "@" + actorDomain[1]
 		link.Rel = "self"
 		link.Type = "application/activity+json"
-		link.Href = TP + "" + actorDomain[1] + "/" + actorDomain[0]
+		link.Href = TP + "" + actorDomain[1] + "" + actorDomain[0]
 
 		finger.Links = append(finger.Links, link)
 
@@ -1721,26 +1729,34 @@ func GetActor(id string) Actor {
 		return respActor
 	}
 
-	req, err := http.NewRequest("GET", id, nil)
+	actor, instance := GetActorInstance(id)
 
-	CheckError(err, "error with getting actor req")
+	if ActorCache[actor + "@" + instance].Id != "" {
+		respActor = ActorCache[actor + "@" + instance]
+	} else {
+		req, err := http.NewRequest("GET", id, nil)
 
-	req.Header.Set("Accept", activitystreams)
+		CheckError(err, "error with getting actor req")
 
-	resp, err := RouteProxy(req)
+		req.Header.Set("Accept", activitystreams)
 
-	if err != nil {
-		fmt.Println("error with getting actor resp " + id)
-		return respActor
+		resp, err := RouteProxy(req)
+
+		if err != nil {
+			fmt.Println("error with getting actor resp " + id)
+			return respActor
+		}
+
+		defer resp.Body.Close()
+
+		body, _ := ioutil.ReadAll(resp.Body)
+
+		err = json.Unmarshal(body, &respActor)
+
+		CheckError(err, "error getting actor from body")
+
+		ActorCache[actor + "@" + instance] = respActor
 	}
-
-	defer resp.Body.Close()
-
-	body, _ := ioutil.ReadAll(resp.Body)
-
-	err = json.Unmarshal(body, &respActor)
-
-	CheckError(err, "error getting actor from body")
 
 	return respActor
 }
@@ -2489,21 +2505,30 @@ func CreatedNeededDirectories() {
 //looks for actor with pattern of board@instance
 func FingerActor(path string) Actor{
 
-	actor, instance := GetActorInstance(path)
-
-	r := FingerRequest(actor, instance)
-
 	var nActor Actor
 
-	if r != nil && r.StatusCode == 200 {
-		defer r.Body.Close()
-		
-		body, _ := ioutil.ReadAll(r.Body)
+	actor, instance := GetActorInstance(path)
 
-		err := json.Unmarshal(body, &nActor)
+	if actor == "" && instance == "" {
+		return nActor
+	}
 
-		CheckError(err, "error getting fingerrequet resp from json body")
-	}	
+	if ActorCache[actor + "@" + instance].Id != "" {
+		nActor = ActorCache[actor + "@" + instance]
+	} else {
+		r := FingerRequest(actor, instance)		
+		if r != nil && r.StatusCode == 200 {
+			defer r.Body.Close()
+			
+			body, _ := ioutil.ReadAll(r.Body)
+
+			err := json.Unmarshal(body, &nActor)
+
+			CheckError(err, "error getting fingerrequet resp from json body")
+
+			ActorCache[actor + "@" + instance] = nActor
+		}	
+	}
 
 	return nActor
 }
@@ -2561,7 +2586,16 @@ func GetActorInstance(path string) (string, string) {
 		}
 	}
 
-	re = regexp.MustCompile(`(https?:\\)?(www)?([\w\d-_.:]+)\/([\w\d-_.]+)(\/([\w\d-_.]+))?`)
+	re = regexp.MustCompile(`(https?://)(www)?([\w\d-_.:]+)(/|\s+|\r|\r\n)?$`)
+	mainActor := re.MatchString(path)
+	if(mainActor) {
+		match := re.FindStringSubmatch(path)
+		if(len(match) > 2) {
+			return "main", match[3]
+		}
+	}     
+
+	re = regexp.MustCompile(`(https?://)?(www)?([\w\d-_.:]+)\/([\w\d-_.]+)(\/([\w\d-_.]+))?`)
 	httpFormat := re.MatchString(path)
 
 	if(httpFormat) {
