@@ -1,6 +1,9 @@
 package main
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"html/template"
+)
 
 type AtContextRaw struct {
 	Context json.RawMessage `json:"@context,omitempty"`
@@ -111,7 +114,8 @@ type ObjectBase struct {
 	TripCode string `json:"tripcode,omitempty"`	
 	Actor string `json:"actor,omitempty"`
 	Audience string `json:"audience,omitempty"`
-	Content string `json:"content,omitempty"`
+	ContentHTML template.HTML `json:"contenthtml,omitempty"`
+	Content string `json:"content,omitempty"`		
 	EndTime string `json:"endTime,omitempty"`
 	Generator string `json:"generator,omitempty"`
 	Icon string `json:"icon,omitempty"`
@@ -156,7 +160,8 @@ type NestedObjectBase struct {
 	TripCode string `json:"tripcode,omitempty"`		
 	Actor string `json:"actor,omitempty"`	
 	Audience string `json:"audience,omitempty"`
-	Content string `json:"content,omitempty"`
+	ContentHTML template.HTML `json:"contenthtml,omitempty"`
+	Content string `json:"content,omitempty"`	
 	EndTime string `json:"endTime,omitempty"`
 	Generator string `json:"generator,omitempty"`
 	Icon string `json:"icon,omitempty"`

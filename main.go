@@ -1640,8 +1640,8 @@ func CreateAttachmentObject(file multipart.File, header *multipart.FileHeader) (
 }
 
 func ParseCommentForReplies(comment string) []ObjectBase {
-	
-	re := regexp.MustCompile("(>>)(https://|http://)?(www\\.)?.+\\/\\w+")
+
+	re := regexp.MustCompile(`(>>https?:\/\/[A-z.:0-9]+\/[A-z0-9]+\/\w+)`)
 	match := re.FindAllStringSubmatch(comment, -1)
 
 	var links []string

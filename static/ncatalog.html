@@ -105,7 +105,7 @@
         document.getElementById("{{ .Id }}-anchor").href = "/{{ $board.Name }}/" + shortURL("{{$board.Actor.Id}}", "{{ .Id }}")        
       </script>                        
       {{ end }}
-      <a id="{{ .Id }}-link" href="/{{ $board.Name }}/">
+      <a id="{{ .Id }}-link" href="/{{ $board.Name }}/{{ short $board.Actor.Outbox .Id }}">
       <div>
         {{ $replies := .Replies }}
         {{ if $replies }}
@@ -121,9 +121,6 @@
       </div>
       </a>
   </div>
-  <script>
-    document.getElementById("{{ .Id }}-link").href = "/{{ $board.Name }}/" + shortURL("{{$board.Actor.Id}}", "{{ .Id }}")
-  </script>
   {{ end }}
 </div>
 <hr>

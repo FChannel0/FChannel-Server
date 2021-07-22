@@ -1,14 +1,17 @@
 package main
 
-import "net/http"
-import "html/template"
-import "database/sql"
-import _ "github.com/lib/pq"
-import "strings"
-import "strconv"
-import "sort"
-import "regexp"
-import "time"
+import (
+	"net/http"
+	"html/template"
+	"database/sql"
+	_ "github.com/lib/pq"
+	"strings"
+	"strconv"
+	"sort"
+	"regexp"
+	"time"
+	"fmt"
+)
 
 var Key *string = new(string)
 
@@ -116,6 +119,7 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	if(len(data.BoardRemainer) == 3){
 		data.BoardRemainer = make([]int, 0)
 	}
+	
 	data.InstanceIndex = GetCollectionFromReq("https://fchan.xyz/followers").Items
 	data.NewsItems = getNewsFromDB(db, 3)
 
@@ -184,6 +188,9 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 		"proxy": func(url string) string {
 			return MediaProxy(url)
 		},
+		"short": func(actorName string, url string) string {
+			return shortURL(actorName, url)
+		},		
 		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/nposts.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 
 
@@ -219,6 +226,14 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	returnData.Boards = Boards
 	returnData.Posts = collection.OrderedItems
 
+	for i, e := range returnData.Posts {
+		returnData.Posts[i].ContentHTML = ParseContent(db, returnData.Board.Actor, e.Id, e.Content, e)
+
+		for j, k := range e.Replies.OrderedItems {
+			returnData.Posts[i].Replies.OrderedItems[j].ContentHTML = ParseContent(db, returnData.Board.Actor, e.Id, k.Content, e)
+		}
+	}	
+
 	var offset = 8
 	var pages []int
 	pageLimit := (float64(collection.TotalItems) / float64(offset))
@@ -236,7 +251,10 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	t := template.Must(template.New("").Funcs(template.FuncMap{
 		"proxy": func(url string) string {
 			return MediaProxy(url)			
-		},		
+		},
+		"short": func(actorName string, url string) string {
+			return shortURL(actorName, url)
+		},						
 		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))			
 	actor := collection.Actor
 
@@ -273,7 +291,10 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 	t := template.Must(template.New("").Funcs(template.FuncMap{
 		"proxy": func(url string) string {
 			return MediaProxy(url)						
-		},		
+		},
+		"short": func(actorName string, url string) string {
+			return shortURL(actorName, url)
+		},				
 		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/npost.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 	
 	path := r.URL.Path
@@ -333,6 +354,14 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 
 	if len(returnData.Posts) > 0 {
 		returnData.PostId = shortURL(returnData.Board.To, returnData.Posts[0].Id)
+
+		for i, e := range returnData.Posts {
+			returnData.Posts[i].ContentHTML = ParseContent(db, returnData.Board.Actor, e.Id, e.Content, e)
+
+			for j, k := range e.Replies.OrderedItems {
+				returnData.Posts[i].Replies.OrderedItems[j].ContentHTML = ParseContent(db, returnData.Board.Actor, e.Id, k.Content, e)
+			}
+		}
 	}
 
 	t.ExecuteTemplate(w, "layout",  returnData)			
@@ -596,7 +625,80 @@ func MediaProxy(url string) string {
 	if re.MatchString(url) {
 		return url
 	}	
-	
+
+	fmt.Println("")
 	MediaHashs[HashMedia(url)] = url
 	return "/api/media?hash=" + HashMedia(url)
+}
+
+func ParseContent(db *sql.DB, board Actor, op string, content string, thread ObjectBase) template.HTML {
+	var nContent = content
+
+	re := regexp.MustCompile(`(>>https?:\/\/[A-Za-z0-9_.-~]+\/[A-Za-z0-9_.-~]+\/\w+)`)
+	match := re.FindAllStringSubmatch(nContent, -1)
+
+	//add url to each matched reply
+	for i, _ := range match {
+		link := strings.Replace(match[i][0], ">>", "", 1)
+		isOP := ""
+
+		if link == op {
+			isOP = " (OP)"
+		}
+
+		//formate the hover title text
+		var quoteTitle string
+
+		// if the quoted content is local get it
+		// else get it from the database
+		if thread.Id == link {
+			quoteTitle = thread.Content
+		} else {
+			for _, e := range thread.Replies.OrderedItems {
+				if e.Id == link {
+					quoteTitle = e.Content
+					break
+				}
+			}
+
+			if quoteTitle == "" {
+				obj := GetObjectFromDBFromID(db, link)
+				if len(obj.OrderedItems) > 0 {
+					quoteTitle = obj.OrderedItems[0].Content
+				}
+			}
+		}
+
+		quoteTitle = strings.ReplaceAll(quoteTitle, ">", `/\&lt;`)
+		quoteTitle = strings.ReplaceAll(quoteTitle, "\"", "")
+		quoteTitle = strings.ReplaceAll(quoteTitle, "'", "")		
+
+
+		var style string
+		if board.Restricted {
+			style = "color: #af0a0f;"
+		}
+
+		//replace link with quote format		
+		nContent = strings.Replace(nContent, match[i][0], "<a class=\"reply\" style=\"" + style + "\" title=\"" + quoteTitle +  "\" href=\"/" + board.Name + "/" + shortURL(board.Outbox, op)  +  "#" + shortURL(board.Outbox, link) + "\"> &gt;&gt;" + shortURL(board.Outbox, link)  + isOP + "</a>", -1)
+	}
+
+	// replace quotes
+	re = regexp.MustCompile(`((\r\n|^)>(.+)?[^\r\n])`)
+	match = re.FindAllStringSubmatch(nContent, -1)
+
+	for i, _ := range match {
+		quote := strings.Replace(match[i][0], ">", "&gt;", 1)		
+		line := re.ReplaceAllString(match[i][0], "<span class=\"quote\">" + quote + "</span>")
+		nContent = strings.Replace(nContent, match[i][0], line, 1)
+	}
+
+	//replace isolated greater than symboles
+	re  = regexp.MustCompile(`(\r\n)>`)
+
+	nContent = re.ReplaceAllString(nContent, "\r\n<span class=\"quote\">&gt;</span>")
+	
+	nContent = strings.ReplaceAll(nContent, `/\&lt;`, ">")
+
+	return template.HTML(nContent)
 }

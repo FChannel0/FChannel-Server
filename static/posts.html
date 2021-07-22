@@ -7,7 +7,7 @@
 <hr>
 {{ end }}
 <div style="overflow: auto;">
-  <div id="{{ .Id }}" style="overflow: visible; margin-bottom: 12px;">
+  <div id="{{ short $board.Actor.Outbox .Id }}" style="overflow: visible; margin-bottom: 12px;">
     {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}
     <a href="/delete?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Post]</a>
     {{ end }}        
@@ -22,7 +22,6 @@
     <div id="media-{{ .Id }}"></div>
     <script>
       media = document.getElementById("media-{{ .Id }}")
-
       if(({{ .Sensitive }} && {{ $board.Actor.Restricted }}) || (isOnion("{{ .Id }}") && !isOnion("{{ $board.Domain }}"))){
           sensitive = document.getElementById("sensitive-{{ .Id }}")
           hide = document.getElementById("hide-{{ .Id }}")
@@ -84,8 +83,8 @@
       }                    
     </script>
     {{ end }}
-    <span style="color: #0f0c5d;"><b>{{ .Name }}</b></span><span style="color: #117743;"><b>{{ if .AttributedTo }} {{.AttributedTo }} {{ else }} Anonymous {{ end }}</b></span><span class="tripcode"> {{ .TripCode }} </span><span>{{ .Published }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/">No.</a> <a id="{{ .Id }}-link" title="{{ .Id }}" href="javascript:quote('{{ $board.Actor.Id }}', '{{ $opId }}', '{{ .Id }}')">{{ .Id }}</a> {{ if ne .Type "Tombstone" }}<a href="javascript:report('{{ $board.Actor.Id }}', '{{ .Id }}')">[Report]</a>{{ end }}</span>
-    <p id="{{ .Id }}-content" style="white-space: pre-wrap; margin: 10px 30px 10px 30px;">{{.Content}}</p>
+    <span style="color: #0f0c5d;"><b>{{ .Name }}</b></span><span style="color: #117743;"><b>{{ if .AttributedTo }} {{.AttributedTo }} {{ else }} Anonymous {{ end }}</b></span><span class="tripcode"> {{ .TripCode }} </span><span>{{ .Published }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/{{ short $board.Actor.Outbox $opId }}#{{ short $board.Actor.Outbox .Id }}">No.</a> <a id="{{ .Id }}-link" title="{{ .Id }}" href="javascript:quote('{{ $board.Actor.Id }}', '{{ $opId }}', '{{ .Id }}')">{{ short $board.Actor.Outbox .Id }}</a> {{ if ne .Type "Tombstone" }}<a href="javascript:report('{{ $board.Actor.Id }}', '{{ .Id }}')">[Report]</a>{{ end }}</span>
+    <p id="{{ .Id }}-content" style="white-space: pre-wrap; margin: 10px 30px 10px 30px;">{{.ContentHTML}}</p>
     {{ if .Replies }}
     {{ $replies := .Replies }}
     {{ if gt $replies.TotalItems 5 }}
@@ -94,7 +93,7 @@
     {{ end }}
     {{ end }}
     {{ range $replies.OrderedItems }}
-    <div id="{{ .Id }}">
+    <div id="{{ short $board.Actor.Outbox .Id }}">
       <div  style="display: inline-block; overflow: auto;">
         <div style="float: left; display: block; margin-right: 5px;">>></div>
         <div class="post" style="overflow: auto; padding: 5px; margin-bottom: 2px;">
@@ -176,7 +175,7 @@
             }                    
           </script>              
           {{ end }}
-          <span style="color: #0f0c5d;"><b>{{ .Name }}</b></span><span style="color: #117743;"><b>{{ if .AttributedTo }} {{.AttributedTo }} {{ else }} Anonymous {{ end }}</b></span><span class="tripcode"> {{ .TripCode }} </span><span>{{ .Published }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/post/{{ $opId }}#{{ .Id }}">No. </a><a id="{{ .Id }}-link" title="{{ .Id }}" href="javascript:quote('{{ $board.Actor.Id }}', '{{ $opId }}', '{{ .Id }}')">{{ .Id }}</a> {{ if ne .Type "Tombstone" }}<a href="javascript:report('{{ $board.Actor.Id }}', '{{ .Id }}')">[Report]</a>{{ end }}</span>
+          <span style="color: #0f0c5d;"><b>{{ .Name }}</b></span><span style="color: #117743;"><b>{{ if .AttributedTo }} {{.AttributedTo }} {{ else }} Anonymous {{ end }}</b></span><span class="tripcode"> {{ .TripCode }} </span><span>{{ .Published }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/{{ short $board.Actor.Outbox $opId }}#{{ short $board.Actor.Outbox .Id }}">No. </a><a id="{{ .Id }}-link" title="{{ .Id }}" href="javascript:quote('{{ $board.Actor.Id }}', '{{ $opId }}', '{{ .Id }}')">{{ short $board.Actor.Outbox .Id }}</a> {{ if ne .Type "Tombstone" }}<a href="javascript:report('{{ $board.Actor.Id }}', '{{ .Id }}')">[Report]</a>{{ end }}</span>
           {{ $parentId := .Id }}
           {{ if .Replies.OrderedItems }}
           {{ range .Replies.OrderedItems }}
@@ -187,7 +186,7 @@
           </script>
           {{ end }}
           {{ end }}
-          <p id="{{ .Id }}-content" style="white-space: pre-wrap; margin: 10px 30px 10px 30px;">{{.Content}}</p>
+          <p id="{{ .Id }}-content" style="white-space: pre-wrap; margin: 10px 30px 10px 30px;">{{.ContentHTML}}</p>
         </div>
       </div>
     </div>
@@ -196,17 +195,6 @@
       document.getElementById("{{ .Id }}-size").innerText = " (" + convertSize({{ (index .Attachment 0).Size }}) + ")";
       document.getElementById("{{ .Id }}-img").innerText = shortImg("{{ (index .Attachment 0).Name }}");
       {{ end }}
-
-      document.getElementById("{{ .Id }}-link").innerText = shortURL("{{ $board.Actor.Id }}", "{{ .Id }}");
-
-      document.getElementById("{{ .Id }}-anchor").href = "/{{ $board.Name }}/" + shortURL("{{$board.Actor.Id}}", "{{ $opId }}") +
-    "#" + shortURL("{{$board.Actor.Id}}", "{{ .Id }}");                
-      document.getElementById("{{ .Id }}").setAttribute("id", shortURL("{{$board.Actor.Id}}", "{{ .Id }}"));
-
-      var content = document.getElementById("{{ .Id }}-content");
-
-      content.innerHTML = convertContent('{{$board.Actor.Id}}', content.innerText, '{{ $opId }}')        
-
     </script>      
     {{ end }}
     {{ end }}
@@ -217,17 +205,6 @@
   document.getElementById("{{ .Id }}-size").innerText = " (" + convertSize({{ (index .Attachment 0).Size }}) + ")";
   document.getElementById("{{ .Id }}-img").innerText = shortImg("{{ (index .Attachment 0).Name }}");
   {{ end }}
-
-  document.getElementById("{{ .Id }}-link").innerText = shortURL("{{ $board.Actor.Id }}", "{{ .Id }}");
-
-  document.getElementById("{{ .Id }}").setAttribute("id", shortURL("{{ $board.Actor.Id }}", "{{ .Id }}"));
-
-  document.getElementById("{{ .Id }}-anchor").href = "/{{ $board.Name }}/" + shortURL("{{$board.Actor.Id}}", "{{ $opId }}") +
-    "#" + shortURL("{{$board.Actor.Id}}", "{{ .Id }}");
-
-  var content = document.getElementById("{{ .Id }}-content");
-
-  content.innerHTML = convertContent('{{$board.Actor.Id}}', content.innerText, '{{ $opId }}')              
 </script>
 {{ end }}
 {{ end }}
