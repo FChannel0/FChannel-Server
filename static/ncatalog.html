@@ -37,8 +37,8 @@
     {{ end }}        
     <div id="hide-{{ .Id }}" style="display: none;">[Hide]</div>
     <div id="sensitive-{{ .Id }}" style="display: none;"><div style="position: relative; text-align: center;"><img id="sensitive-img-{{ .Id }}" style="float: left; margin-right: 10px; margin-bottom: 10px; max-width: 180px; max-height: 180px;" src="/static/sensitive.png"><div id="sensitive-text-{{ .Id }}" style="width: 170px; position: absolute; margin-top: 75px; padding: 5px; background-color: black; color: white; cursor: default; ">NSFW Content</div></div></div>    
-    <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/">      
-      <div id="media-{{ .Id }}" style="width:180px;"></div>
+    <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/{{ short $board.Actor.Outbox .Id}}">      
+      <div id="media-{{ .Id }}" style="width:180px;"> {{ parseAttachment . true }}</div>
     </a>
       <script>
         media = document.getElementById("media-{{ .Id }}")
@@ -61,48 +61,6 @@
             sensitive.style = "display: block"
             media.style = "display: none;"          
         }        
-        
-        if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "image"){
-            var img = document.createElement("img");
-            img.style = "max-width: 180px; max-height: 180px;"
-            img.setAttribute("id", "img")
-            img.setAttribute("main", "1")
-            img.setAttribute("enlarge", "0")
-            img.setAttribute("attachment", "{{ proxy (index .Attachment 0).Href }}")            
-            {{ if .Preview.Href }} 
-            img.setAttribute("src", "{{  proxy .Preview.Href }}")
-            img.setAttribute("preview", "{{ proxy .Preview.Href }}")          
-            {{ else }}
-            img.setAttribute("src", "{{  proxy (index .Attachment 0).Href }}")
-            img.setAttribute("preview", "{{ proxy (index .Attachment 0).Href }}")                    
-            {{ end }}            
-            media.appendChild(img)
-        }                                
-
-        if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "audio"){
-            var audio = document.createElement("audio")
-            audio.controls = 'controls'
-            audio.preload    = 'metadata'              
-            audio.src      = '{{ proxy (index .Attachment 0).Href }}'
-            audio.type     = '{{ (index .Attachment 0).MediaType }}'              
-            audio.style = "margin-right: 10px; margin-bottom: 10px; max-width: 180px; max-height: 180px;"
-            audio.innerText = 'Audio is not supported.'
-            media.appendChild(audio)                            
-        }
-
-        if(getMIMEType({{ (index .Attachment 0).MediaType }}) == "video"){
-            var video = document.createElement("video")
-            video.controls = 'controls'
-            video.preload    = 'metadata'                          
-            video.muted    = 'muted'              
-            video.src      = '{{ proxy (index .Attachment 0).Href }}'
-            video.type     = '{{ (index .Attachment 0).MediaType }}'              
-            video.style = "margin-right: 10px; margin-bottom: 10px; max-width: 180px; max-height: 180px;"
-            video.innerText = 'Video is not supported.'
-            media.appendChild(video)                                          
-        }
-        
-        document.getElementById("{{ .Id }}-anchor").href = "/{{ $board.Name }}/" + shortURL("{{$board.Actor.Id}}", "{{ .Id }}")        
       </script>                        
       {{ end }}
       <a id="{{ .Id }}-link" href="/{{ $board.Name }}/{{ short $board.Actor.Outbox .Id }}">

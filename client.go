@@ -190,7 +190,10 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 		},
 		"short": func(actorName string, url string) string {
 			return shortURL(actorName, url)
-		},		
+		},
+		"parseAttachment": func(obj ObjectBase, catalog bool) template.HTML {
+			return ParseAttachment(obj, catalog)
+		},						
 		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/nposts.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 
 
@@ -254,6 +257,9 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 		},
 		"short": func(actorName string, url string) string {
 			return shortURL(actorName, url)
+		},
+		"parseAttachment": func(obj ObjectBase, catalog bool) template.HTML {
+			return ParseAttachment(obj, catalog)
 		},						
 		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))			
 	actor := collection.Actor
@@ -294,6 +300,9 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 		},
 		"short": func(actorName string, url string) string {
 			return shortURL(actorName, url)
+		},
+		"parseAttachment": func(obj ObjectBase, catalog bool) template.HTML {
+			return ParseAttachment(obj, catalog)
 		},				
 		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/npost.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 	
@@ -701,4 +710,79 @@ func ParseContent(db *sql.DB, board Actor, op string, content string, thread Obj
 	nContent = strings.ReplaceAll(nContent, `/\&lt;`, ">")
 
 	return template.HTML(nContent)
+}
+
+func ParseAttachment(obj ObjectBase, catalog bool) template.HTML {
+
+	if len(obj.Attachment) < 1 {
+		return ""
+	}
+
+	var media string
+	if(regexp.MustCompile(`image\/`).MatchString(obj.Attachment[0].MediaType)){
+		media = "<img "
+		media += "id=\"img\" "
+		media += "main=\"1\" "
+		media += "enlarge=\"0\" "
+		media += "attachment=\"" + obj.Attachment[0].Href + "\""
+		if catalog {
+			media += "style=\"max-width: 180px; max-height: 180px;\" "
+		} else {
+			media += "style=\"float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;\""
+		}
+		if obj.Preview.Id != "" {
+			media += "src=\"" + MediaProxy(obj.Preview.Href) + "\""
+			media += "preview=\"" + MediaProxy(obj.Preview.Href) + "\""
+		} else {
+			media += "src=\"" + MediaProxy(obj.Attachment[0].Href) + "\""
+			media += "preview=\"" + MediaProxy(obj.Attachment[0].Href) + "\""			
+		}
+
+		media += ">"
+
+		return template.HTML(media)
+	}          
+
+	if(regexp.MustCompile(`audio\/`).MatchString(obj.Attachment[0].MediaType)){	
+		media = "<audio "
+		media += "controls=\"controls\" "
+		media += "preload=\"metadta\" "
+		if catalog {
+			media += "style=\"margin-right: 10px; margin-bottom: 10px; max-width: 180px; max-height: 180px;\" "
+		} else {
+			media += "style=\"float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;\" "
+		}
+		media += ">"
+		media += "<source "
+		media += "src=\"" + MediaProxy(obj.Attachment[0].Href) + "\" "
+		media += "type=\"" + obj.Attachment[0].MediaType + "\" "
+		media += ">"
+		media += "Audio is not supported."
+		media += "</audio>"
+	
+		return template.HTML(media)
+	}
+
+	if(regexp.MustCompile(`video\/`).MatchString(obj.Attachment[0].MediaType)){		
+		media = "<video "
+		media += "controls=\"controls\" "
+		media += "preload=\"metadta\" "
+		media += "muted=\"muted\" "
+		if catalog {
+			media += "style=\"margin-right: 10px; margin-bottom: 10px; max-width: 180px; max-height: 180px;\" "			
+		} else {
+			media += "style=\"float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;\" "
+		}
+		media += ">"
+		media += "<source "
+		media += "src=\"" + MediaProxy(obj.Attachment[0].Href) + "\" "
+		media += "type=\"" + obj.Attachment[0].MediaType + "\" "
+		media += ">"
+		media += "Video is not supported."
+		media += "</video>"
+		
+		return template.HTML(media)
+	}
+
+	return template.HTML(media)
 }
