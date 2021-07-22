@@ -10,7 +10,6 @@ import (
 	"sort"
 	"regexp"
 	"time"
-	"fmt"
 )
 
 var Key *string = new(string)
@@ -635,7 +634,6 @@ func MediaProxy(url string) string {
 		return url
 	}	
 
-	fmt.Println("")
 	MediaHashs[HashMedia(url)] = url
 	return "/api/media?hash=" + HashMedia(url)
 }
@@ -643,7 +641,7 @@ func MediaProxy(url string) string {
 func ParseContent(db *sql.DB, board Actor, op string, content string, thread ObjectBase) template.HTML {
 	var nContent = content
 
-	re := regexp.MustCompile(`(>>https?:\/\/[A-Za-z0-9_.-~]+\/[A-Za-z0-9_.-~]+\/\w+)`)
+	re := regexp.MustCompile(`(>>https?://[A-Za-z0-9_.\-~]+\/[A-Za-z0-9_.\-~]+\/\w+)`)
 	match := re.FindAllStringSubmatch(nContent, -1)
 
 	//add url to each matched reply
