@@ -272,7 +272,7 @@ func main() {
 
 			auth := CreateTripCode(verify.Code)
 			auth = CreateTripCode(auth)
-		
+			
 			if CreateTripCode(auth) == code {
 				w.WriteHeader(http.StatusOK)
 			} else {
@@ -336,8 +336,8 @@ func main() {
 		}
 
 		if(r.FormValue("inReplyTo") == "" && file == nil) {
-				w.Write([]byte("Media is required for new posts"))
-				return			
+			w.Write([]byte("Media is required for new posts"))
+			return			
 		}
 		
 
@@ -502,7 +502,7 @@ func main() {
 					}
 				}
 				
-			//follow all of boards followers
+				//follow all of boards followers
 			} else if followers.MatchString(follow){
 				followersActor := FingerActor(follow)
 				col := GetActorCollection(followersActor.Followers)
@@ -521,7 +521,7 @@ func main() {
 					}
 				}
 				
-		  //do a normal follow to a single board
+				//do a normal follow to a single board
 			} else {
 				followActivity := MakeFollowActivity(db, actorId, follow)
 
@@ -603,7 +603,7 @@ func main() {
 		} else if admin || actor.Id == Domain {
 			t := template.Must(template.New("").Funcs(template.FuncMap{
 				"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/nadmin.html"))						
-	
+			
 			actor := GetActor(Domain)
 			follow := GetActorCollection(actor.Following).Items
 			follower := GetActorCollection(actor.Followers).Items
@@ -771,7 +771,91 @@ func main() {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("404 no path"))			
 		}
-	})			
+	})
+
+	http.HandleFunc("/banmedia", func(w http.ResponseWriter, r *http.Request) {
+		id := r.URL.Query().Get("id")
+		board := r.URL.Query().Get("board")
+		
+		_, auth := GetPasswordFromSession(r)
+
+		if id == "" || auth == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(""))
+			return
+		}
+
+		col := GetCollectionFromID(id)
+
+		if len(col.OrderedItems) > 0 {
+			
+			actor := col.OrderedItems[0].Actor
+
+			if !HasAuth(db, auth, actor) {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(""))
+				return
+			}
+			
+			if len(col.OrderedItems[0].Attachment) > 0 {
+				re := regexp.MustCompile(Domain)
+				file := re.ReplaceAllString(col.OrderedItems[0].Attachment[0].Href, "")
+
+				f, err := os.Open("." + file)
+				CheckError(err, "could not open attachment for ban media")
+
+				defer f.Close()				
+				bytes, err := ioutil.ReadAll(f)
+				CheckError(err, "could not get  attachment bytes for ban media")								
+				
+				if !IsMediaBanned(db, f) {
+					query := `insert into bannedmedia (hash) values ($1)`
+
+					_, err := db.Exec(query, HashBytes(bytes))
+
+					CheckError(err, "error inserting banend media into db")
+
+				}
+
+				var obj ObjectBase
+				obj.Id = id
+				obj.Actor = actor
+				
+				isOP := CheckIfObjectOP(db, obj.Id)		
+
+				var OP string
+				if len(col.OrderedItems[0].InReplyTo) > 0 {
+					OP = col.OrderedItems[0].InReplyTo[0].Id
+				}
+
+				if !isOP {
+					TombstoneObject(db, id)
+				} else {
+					TombstoneObjectAndReplies(db, id)
+				}
+
+				if IsIDLocal(db, id){
+					go DeleteObjectRequest(db, id)
+				}
+
+
+				if !isOP {
+					if (!IsIDLocal(db, id)){
+						http.Redirect(w, r, "/" + board + "/" + remoteShort(OP), http.StatusSeeOther)
+						return
+					} else {
+						http.Redirect(w, r, OP, http.StatusSeeOther)
+						return
+					}
+				} else {
+					http.Redirect(w, r, "/" + board, http.StatusSeeOther)
+					return
+				}
+			}
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(""))				
+	})		
 
 	http.HandleFunc("/delete", func(w http.ResponseWriter, r *http.Request){
 		id := r.URL.Query().Get("id")
@@ -1377,7 +1461,6 @@ func CreateTripCode(input string) string {
 	return code[0]
 }
 
-
 func GetActorFromPath(db *sql.DB, location string, prefix string) Actor {
 	pattern := fmt.Sprintf("%s([^/\n]+)(/.+)?", prefix)
 	re := regexp.MustCompile(pattern)
@@ -1891,7 +1974,7 @@ func MakeCaptchas(db *sql.DB, total int) {
 }
 
 func GetFileContentType(out multipart.File) (string, error) {
-
+	
 	buffer := make([]byte, 512)
 
 	_, err := out.Read(buffer)
@@ -2694,6 +2777,12 @@ func GetCollectionFromReq(path string) Collection {
 func HashMedia(media string) string {
 	h:= sha256.New()
 	h.Write([]byte(media))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func HashBytes(media []byte) string {
+	h:= sha256.New()
+	h.Write(media)
 	return hex.EncodeToString(h.Sum(nil))
 }
 

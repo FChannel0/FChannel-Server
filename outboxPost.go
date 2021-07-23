@@ -7,6 +7,7 @@ import _ "github.com/lib/pq"
 import "encoding/json"
 import "reflect"
 import "io/ioutil"
+import "mime/multipart"
 import "os"
 import "regexp"
 import "strings"
@@ -24,10 +25,18 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		r.ParseMultipartForm(5 << 20)		
 		if(BoardHasAuthType(db, actor.Name, "captcha") && CheckCaptcha(db, r.FormValue("captcha"))) {		
 			f, header, _ := r.FormFile("file")
+			defer f.Close()
+			
 			if(header != nil) {
 				if(header.Size > (7 << 20)){
 					w.WriteHeader(http.StatusRequestEntityTooLarge)
 					w.Write([]byte("7MB max file size"))
+					return
+				}
+				
+				if(IsMediaBanned(db, f)) {
+					fmt.Println("media banned")
+					http.Redirect(w, r, Domain, http.StatusSeeOther)
 					return
 				}
 				
@@ -39,7 +48,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 					return
 				}
 			}
-
+			
 			var nObj = CreateObject("Note")
 			nObj = ObjectFromForm(r, db, nObj)
 			
@@ -339,7 +348,6 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 			err := cmd.Run()
 
 			CheckError(err, "error with removing exif data from image")
-
 		}
 
 		obj.Preview = CreatePreviewObject(obj.Attachment[0])
@@ -612,6 +620,35 @@ func MakeActivityFollowingReq(w http.ResponseWriter, r *http.Request, activity A
 	err = json.Unmarshal(body, &respActivity)
 
 	if respActivity.Type == "Accept" {
+		return true
+	}
+
+	return false
+}
+
+func IsMediaBanned(db *sql.DB, f multipart.File) bool {
+	f.Seek(0, 0)
+	
+	fileBytes, _ := ioutil.ReadAll(f)
+
+	hash := HashBytes(fileBytes)
+
+	f.Seek(0, 0)	
+
+	query := `select hash from bannedmedia where hash=$1`
+
+	rows, err := db.Query(query, hash)
+
+	CheckError(err, "could not get hash from banned media in db")
+
+	var h string
+
+	defer rows.Close()
+
+	rows.Next()
+	rows.Scan(&h)
+
+	if h == hash {
 		return true
 	}
 
