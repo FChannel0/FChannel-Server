@@ -25,9 +25,9 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		r.ParseMultipartForm(5 << 20)		
 		if(BoardHasAuthType(db, actor.Name, "captcha") && CheckCaptcha(db, r.FormValue("captcha"))) {		
 			f, header, _ := r.FormFile("file")
-			defer f.Close()
-			
+
 			if(header != nil) {
+				defer f.Close()			
 				if(header.Size > (7 << 20)){
 					w.WriteHeader(http.StatusRequestEntityTooLarge)
 					w.Write([]byte("7MB max file size"))
