@@ -381,7 +381,7 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 		}
 	}
 
-	replyingTo := ParseCommentForReplies(r.FormValue("comment"))
+	replyingTo := ParseCommentForReplies(db, r.FormValue("comment"), originalPost.Id)
 
 	for _, e := range replyingTo {
 

@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"regexp"
 	"time"
 	"html/template"	
 
@@ -558,7 +559,16 @@ func GetObjectFromDBFromID(db *sql.DB, id string) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
-	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where id=$1 and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where id=$1 and type='Note') as x order by x.updated`	
+	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where id like $1 and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where id like $1 and type='Note') as x order by x.updated`
+
+	re := regexp.MustCompile(`f(\w+)\-`)
+	match := re.FindStringSubmatch(id)
+
+	if len(match) > 0 {
+		re := regexp.MustCompile(`(.+)\-`)
+		id = re.ReplaceAllString(id, "")
+		id = "%" + match[1] + "/" + id
+	}	
 
 	rows, err := db.Query(query, id)	
 

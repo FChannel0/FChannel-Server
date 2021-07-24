@@ -638,78 +638,6 @@ func MediaProxy(url string) string {
 	return "/api/media?hash=" + HashMedia(url)
 }
 
-func ParseContent(db *sql.DB, board Actor, op string, content string, thread ObjectBase) template.HTML {
-	var nContent = content
-
-	re := regexp.MustCompile(`(>>https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/\w+)`)
-	match := re.FindAllStringSubmatch(nContent, -1)
-
-	//add url to each matched reply
-	for i, _ := range match {
-		link := strings.Replace(match[i][0], ">>", "", 1)
-		isOP := ""
-
-		if link == op {
-			isOP = " (OP)"
-		}
-
-		//formate the hover title text
-		var quoteTitle string
-
-		// if the quoted content is local get it
-		// else get it from the database
-		if thread.Id == link {
-			quoteTitle = thread.Content
-		} else {
-			for _, e := range thread.Replies.OrderedItems {
-				if e.Id == link {
-					quoteTitle = e.Content
-					break
-				}
-			}
-
-			if quoteTitle == "" {
-				obj := GetObjectFromDBFromID(db, link)
-				if len(obj.OrderedItems) > 0 {
-					quoteTitle = obj.OrderedItems[0].Content
-				}
-			}
-		}
-
-		quoteTitle = strings.ReplaceAll(quoteTitle, ">", `/\&lt;`)
-		quoteTitle = strings.ReplaceAll(quoteTitle, "\"", "")
-		quoteTitle = strings.ReplaceAll(quoteTitle, "'", "")		
-
-
-		var style string
-		if board.Restricted {
-			style = "color: #af0a0f;"
-		}
-
-		//replace link with quote format		
-		nContent = strings.Replace(nContent, match[i][0], "<a class=\"reply\" style=\"" + style + "\" title=\"" + quoteTitle +  "\" href=\"/" + board.Name + "/" + shortURL(board.Outbox, op)  +  "#" + shortURL(board.Outbox, link) + "\"> &gt;&gt;" + shortURL(board.Outbox, link)  + isOP + "</a>", -1)
-	}
-
-	// replace quotes
-	re = regexp.MustCompile(`((\r\n|^)>(.+)?[^\r\n])`)
-	match = re.FindAllStringSubmatch(nContent, -1)
-
-	for i, _ := range match {
-		quote := strings.Replace(match[i][0], ">", "&gt;", 1)		
-		line := re.ReplaceAllString(match[i][0], "<span class=\"quote\">" + quote + "</span>")
-		nContent = strings.Replace(nContent, match[i][0], line, 1)
-	}
-
-	//replace isolated greater than symboles
-	re  = regexp.MustCompile(`(\r\n)>`)
-
-	nContent = re.ReplaceAllString(nContent, "\r\n<span class=\"quote\">&gt;</span>")
-	
-	nContent = strings.ReplaceAll(nContent, `/\&lt;`, ">")
-
-	return template.HTML(nContent)
-}
-
 func ParseAttachment(obj ObjectBase, catalog bool) template.HTML {
 
 	if len(obj.Attachment) < 1 {
@@ -783,4 +711,141 @@ func ParseAttachment(obj ObjectBase, catalog bool) template.HTML {
 	}
 
 	return template.HTML(media)
+}
+
+func ParseContent(db *sql.DB, board Actor, op string, content string, thread ObjectBase) template.HTML {
+	
+	nContent := ParseLinkComments(db, board, op, content, thread)
+
+	nContent = ParseCommentQuotes(nContent)
+
+	nContent = strings.ReplaceAll(nContent, `/\&lt;`, ">")
+
+	return template.HTML(nContent)
+};
+
+func ParseLinkComments(db *sql.DB, board Actor, op string, content string, thread ObjectBase) string {
+	re := regexp.MustCompile(`(>>(https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/)(f[A-Za-z0-9_.\-~]+-)?([A-Za-z0-9_.\-~]+)?#?([A-Za-z0-9_.\-~]+)?)`)
+	match := re.FindAllStringSubmatch(content, -1)
+
+	//add url to each matched reply
+	for i, _ := range match {
+		link := strings.Replace(match[i][0], ">>", "", 1)
+		isOP := ""
+		
+		domain := match[i][2]
+
+		if link == op {
+			isOP = " (OP)"
+		}
+
+		parsedLink := ConvertHashLink(domain, link)
+
+		//formate the hover title text
+		var quoteTitle string
+
+		// if the quoted content is local get it
+		// else get it from the database
+		if thread.Id == link {
+			quoteTitle = thread.Content
+		} else {
+			for _, e := range thread.Replies.OrderedItems {
+				if e.Id == parsedLink {
+					quoteTitle = ParseLinkTitle(board.Outbox, op, e.Content)
+					break
+				}
+			}
+
+			if quoteTitle == "" {
+				obj := GetObjectFromDBFromID(db, parsedLink)
+				if len(obj.OrderedItems) > 0 {
+					quoteTitle = ParseLinkTitle(board.Outbox, op, obj.OrderedItems[0].Content)
+				} else {
+					quoteTitle = ParseLinkTitle(board.Outbox, op, parsedLink)
+				}
+			}
+		}
+		
+		var style string
+		if board.Restricted {
+			style = "color: #af0a0f;"
+		}
+
+		//replace link with quote format
+		replyID, isReply := IsReplyToOP(db, op, parsedLink)
+		if isReply {
+			id := shortURL(board.Outbox, replyID)
+			
+			content = strings.Replace(content, match[i][0], "<a class=\"reply\" style=\"" + style + "\" title=\"" + quoteTitle +  "\" href=\"/" + board.Name + "/" + shortURL(board.Outbox, op)  +  "#" + id + "\">&gt;&gt;" + id + ""  + isOP + "</a>", -1)
+
+		} else {
+			
+			//this is a cross post
+			parsedOP := GetReplyOP(db, parsedLink)
+
+			if parsedOP != "" {
+				link = parsedOP + "#" + shortURL(parsedOP, parsedLink)
+			}
+			
+			content = strings.Replace(content, match[i][0], "<a class=\"reply\" style=\"" + style + "\" title=\"" + quoteTitle +  "\" href=\"" + link + "\">&gt;&gt;" + shortURL(board.Outbox, parsedLink)  + isOP + " →</a>", -1)
+		}
+	}
+
+	return content
+}
+
+func ParseLinkTitle(actorName string, op string, content string) string {
+	re := regexp.MustCompile(`(>>(https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/)\w+(#.+)?)`)
+	match := re.FindAllStringSubmatch(content, -1)
+
+	for i, _ := range match {
+		link := strings.Replace(match[i][0], ">>", "", 1)
+		isOP := ""
+
+		domain := match[i][2]		
+		
+		if link == op {
+			isOP = " (OP)"
+		}
+
+		link = ConvertHashLink(domain, link)
+		content = strings.Replace(content, match[i][0], ">>" + shortURL(actorName, link)  + isOP , 1)
+	}
+
+	content = strings.ReplaceAll(content, "'", "")
+	content = strings.ReplaceAll(content, "\"", "")
+	content = strings.ReplaceAll(content, ">", `/\&lt;`)
+
+	return content
+}
+
+func ParseCommentQuotes(content string) string {
+	// replace quotes
+	re := regexp.MustCompile(`((\r\n|\r|\n|^)>(.+)?[^\r\n])`)
+	match := re.FindAllStringSubmatch(content, -1)
+	
+	for i, _ := range match {
+		quote := strings.Replace(match[i][0], ">", "&gt;", 1)		
+		line := re.ReplaceAllString(match[i][0], "<span class=\"quote\">" + quote + "</span>")
+		content = strings.Replace(content, match[i][0], line, 1)
+	}
+
+	//replace isolated greater than symboles
+	re = regexp.MustCompile(`(\r\n|\n|\r)>`)
+
+	return re.ReplaceAllString(content, "\r\n<span class=\"quote\">&gt;</span>")
+}
+
+func ConvertHashLink(domain string, link string) string {
+	re := regexp.MustCompile(`(#.+)`)
+	parsedLink := re.FindString(link)
+
+	if parsedLink != "" {
+		parsedLink = domain + "" + strings.Replace(parsedLink, "#", "", 1)
+		parsedLink = strings.Replace(parsedLink, "\r", "", -1)
+	} else {
+		parsedLink = link
+	}
+
+	return parsedLink
 }

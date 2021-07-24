@@ -101,10 +101,6 @@
           {{ if .Replies.OrderedItems }}
           {{ range .Replies.OrderedItems }}
           <span id="{{$parentId}}-replyto-{{.Id}}"></span>
-          <script>
-            var content = convertContentNoLink('{{$board.Actor.Id}}', '{{ .Content }}', '{{ $opId }}')                    
-            document.getElementById("{{ $parentId }}-replyto-{{.Id}}").innerHTML = "<a title='" + content  +"' href='/{{ $board.Name }}/" + shortURL("{{ $board.Actor.Id }}", "{{ $opId }}") + "#" + shortURL("{{ $board.Actor.Id }}", "{{ .Id }}") + "'>>>" + shortURL("{{ $board.Actor.Id }}", "{{ .Id }}") + "</a>";
-          </script>
           {{ end }}
           {{ end }}
           <p id="{{ .Id }}-content" style="white-space: pre-wrap; margin: 10px 30px 10px 30px;">{{.ContentHTML}}</p>

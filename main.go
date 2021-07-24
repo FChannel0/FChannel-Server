@@ -1730,7 +1730,7 @@ func CreateAttachmentObject(file multipart.File, header *multipart.FileHeader) (
 	return nAttachment, tempFile
 }
 
-func ParseCommentForReplies(comment string) []ObjectBase {
+func ParseCommentForReplies(db *sql.DB, comment string, op string) []ObjectBase {
 
 	re := regexp.MustCompile(`(>>https?://[A-Za-z0-9_.\-~]+\/[A-Za-z0-9_.\-~]+\/\w+)`)	
 	match := re.FindAllStringSubmatch(comment, -1)
@@ -1743,7 +1743,8 @@ func ParseCommentForReplies(comment string) []ObjectBase {
 		str = strings.Replace(str, "http://", "", 1)
 		str = strings.Replace(str, "https://", "", 1)		
 		str = TP + "" + str
-		if !IsInStringArray(links, str) {
+		_ , isReply := IsReplyToOP(db, op, str)		
+		if !IsInStringArray(links, str) &&  isReply {
 			links = append(links, str)
 		}
 	}
@@ -1863,7 +1864,6 @@ func GetActorCollection(collection string) Collection {
 		fmt.Println("error with getting actor collection resp " + collection)		
 		return nCollection
 	}
-
 
 	defer resp.Body.Close()
 
@@ -2405,7 +2405,7 @@ func ParseCommentForReply(comment string) string {
 	
 	re := regexp.MustCompile("(>>)(https://|http://)?(www\\.)?.+\\/\\w+")	
 	match := re.FindAllStringSubmatch(comment, -1)
-
+	
 	var links []string
 
 	for i:= 0; i < len(match); i++ {
@@ -2414,7 +2414,7 @@ func ParseCommentForReply(comment string) string {
 	}
 
 	if(len(links) > 0){
-		_, isValid := CheckValidActivity(links[0])
+		_, isValid := CheckValidActivity(strings.ReplaceAll(links[0], ">", ""))
 
 		if(isValid) {
 			return links[0]
@@ -2842,4 +2842,55 @@ func HasValidation(w http.ResponseWriter, r *http.Request, actor Actor) bool {
 		}
 
 	return true
+}
+
+func IsReplyToOP(db *sql.DB, op string, link string) (string, bool) {
+
+	if op == link {
+		return link, true
+	}
+
+	re := regexp.MustCompile(`f(\w+)\-`)
+	match := re.FindStringSubmatch(link)
+
+	if len(match) > 0 {
+		re := regexp.MustCompile(`(.+)\-`)
+		link = re.ReplaceAllString(link, "")
+		link = "%" + match[1] + "/" + link
+	}
+	
+	query := `select id from replies where id like $1 and inreplyto=$2`
+
+	rows, err := db.Query(query, link, op)
+
+	CheckError(err, "error selecting in reply to op from db")
+
+	var id string 
+	defer rows.Close()
+	rows.Next()
+	rows.Scan(&id)
+
+	if id != "" {
+		
+		return id, true
+	}
+
+	return "", false
+}
+
+func GetReplyOP(db *sql.DB, link string) string {
+
+	query := `select id from replies where id in (select inreplyto from replies where id=$1) and inreplyto=''`
+
+	rows, err := db.Query(query, link)
+
+	CheckError(err, "could not get reply OP from db ")
+
+	var id string
+
+	defer rows.Close()
+	rows.Next()
+	rows.Scan(&id)
+
+	return id
 }
