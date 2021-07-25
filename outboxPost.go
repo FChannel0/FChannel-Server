@@ -101,7 +101,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				var rActivity Activity
 				if validActor && validLocalActor {
 					rActivity = AcceptFollow(activity)
-					SetActorFollowingDB(db, rActivity)
+					rActivity = SetActorFollowingDB(db, rActivity)
 					MakeActivityRequest(db, activity)
 				}
 
@@ -565,16 +565,26 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				MakeActivityRequest(db, response)
 
 				alreadyFollow := false
+				alreadyFollowing := false
 				autoSub := GetActorAutoSubscribeDB(db, response.Actor.Id)
 				following := GetActorFollowingDB(db, response.Actor.Id)
 
 				for _, e := range following {
-					if e.Id == activity.Actor.Id {
+					if e.Id == response.Object.Id {
 						alreadyFollow = true
 					}
 				}
 
-				if autoSub && !alreadyFollow {
+				actor := FingerActor(response.Object.Actor)				
+				remoteActorFollowingCol := GetCollectionFromReq(actor.Following)
+				
+				for _, e := range remoteActorFollowingCol.Items {
+					if e.Id == response.Actor.Id {
+						alreadyFollowing = true
+					}
+				}
+				
+				if autoSub && !alreadyFollow && alreadyFollowing {
 					followActivity := MakeFollowActivity(db, response.Actor.Id, response.Object.Actor)	
 					
 					if FingerActor(response.Object.Actor).Id != "" {
@@ -597,7 +607,6 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		}
 		break		
 	}
-
 }
 
 func MakeActivityFollowingReq(w http.ResponseWriter, r *http.Request, activity Activity) bool {

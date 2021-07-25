@@ -2175,7 +2175,9 @@ func MakeActivityRequest(db *sql.DB, activity Activity) {
 
 					_, err = RouteProxy(req)
 
-					CheckError(err, "error with sending activity resp to")
+					if err != nil {
+						fmt.Println("error with sending activity resp to actor " + instance)
+					}
 				}				
 			}
 		}
