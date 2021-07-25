@@ -637,8 +637,13 @@ func MakeActivityFollowingReq(w http.ResponseWriter, r *http.Request, activity A
 
 func IsMediaBanned(db *sql.DB, f multipart.File) bool {
 	f.Seek(0, 0)
-	
-	fileBytes, _ := ioutil.ReadAll(f)
+
+	fileBytes := make([]byte, 2048)
+
+	_, err := f.Read(fileBytes)
+	if err != nil {
+		fmt.Println("error readin bytes for media ban")
+	}
 
 	hash := HashBytes(fileBytes)
 

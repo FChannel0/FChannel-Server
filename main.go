@@ -804,9 +804,14 @@ func main() {
 				f, err := os.Open("." + file)
 				CheckError(err, "could not open attachment for ban media")
 
-				defer f.Close()				
-				bytes, err := ioutil.ReadAll(f)
-				CheckError(err, "could not get  attachment bytes for ban media")								
+				defer f.Close()
+
+				bytes := make([]byte, 2048)
+
+				_, err = f.Read(bytes)
+				if err != nil {
+					fmt.Println("error readin bytes for setting media ban")
+				}
 				
 				if !IsMediaBanned(db, f) {
 					query := `insert into bannedmedia (hash) values ($1)`
@@ -1974,7 +1979,7 @@ func MakeCaptchas(db *sql.DB, total int) {
 }
 
 func GetFileContentType(out multipart.File) (string, error) {
-	
+
 	buffer := make([]byte, 512)
 
 	_, err := out.Read(buffer)
