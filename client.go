@@ -747,7 +747,7 @@ func ParseLinkComments(db *sql.DB, board Actor, op string, content string, threa
 		// if the quoted content is local get it
 		// else get it from the database
 		if thread.Id == link {
-			quoteTitle = thread.Content
+			quoteTitle = ParseLinkTitle(board.Outbox, op, thread.Content)
 		} else {
 			for _, e := range thread.Replies.OrderedItems {
 				if e.Id == parsedLink {
@@ -765,7 +765,7 @@ func ParseLinkComments(db *sql.DB, board Actor, op string, content string, threa
 				}
 			}
 		}
-		
+
 		var style string
 		if board.Restricted {
 			style = "color: #af0a0f;"
