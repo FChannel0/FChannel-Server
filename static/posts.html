@@ -54,7 +54,7 @@
     {{ end }}
     {{ end }}
     {{ range $replies.OrderedItems }}
-    <div id="{{ short $board.Actor.Outbox .Id }}">
+    <div id="{{ .Id }}">
       <div  style="display: inline-block; overflow: auto;">
         <div style="float: left; display: block; margin-right: 5px;">>></div>
         <div class="post" style="overflow: auto; padding: 5px; margin-bottom: 2px;">

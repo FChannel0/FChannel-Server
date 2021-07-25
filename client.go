@@ -714,8 +714,10 @@ func ParseAttachment(obj ObjectBase, catalog bool) template.HTML {
 }
 
 func ParseContent(db *sql.DB, board Actor, op string, content string, thread ObjectBase) template.HTML {
+
+	nContent := strings.ReplaceAll(content, `<`, "&lt;")		
 	
-	nContent := ParseLinkComments(db, board, op, content, thread)
+	nContent = ParseLinkComments(db, board, op, nContent, thread)
 
 	nContent = ParseCommentQuotes(nContent)
 
