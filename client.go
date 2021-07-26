@@ -183,6 +183,7 @@ func AllNewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 }
 
 func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection){
+
 	t := template.Must(template.New("").Funcs(template.FuncMap{
 		"proxy": func(url string) string {
 			return MediaProxy(url)
@@ -192,7 +193,13 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 		},
 		"parseAttachment": func(obj ObjectBase, catalog bool) template.HTML {
 			return ParseAttachment(obj, catalog)
-		},						
+		},
+		"parseReplyLink": func(actorId string, op string, id string, content string) template.HTML {
+			actor := FingerActor(actorId)
+			title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
+			link := "<a href=\"" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id)  + "\" title=\"" + title + "\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
+			return template.HTML(link)
+		},								
 		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/nposts.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 
 
@@ -300,9 +307,16 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 		"short": func(actorName string, url string) string {
 			return shortURL(actorName, url)
 		},
+
 		"parseAttachment": func(obj ObjectBase, catalog bool) template.HTML {
 			return ParseAttachment(obj, catalog)
-		},				
+		},
+		"parseReplyLink": func(actorId string, op string, id string, content string) template.HTML {
+			actor := FingerActor(actorId)
+			title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
+			link := "<a href=\"" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id)  + "\" title=\"" + title + "\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
+			return template.HTML(link)
+		},										
 		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/npost.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 	
 	path := r.URL.Path

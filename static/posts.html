@@ -54,7 +54,7 @@
     {{ end }}
     {{ end }}
     {{ range $replies.OrderedItems }}
-    <div id="{{ .Id }}">
+    <div id="{{ short $board.Actor.Outbox .Id }}">    
       <div  style="display: inline-block; overflow: auto;">
         <div style="float: left; display: block; margin-right: 5px;">>></div>
         <div class="post" style="overflow: auto; padding: 5px; margin-bottom: 2px;">
@@ -100,7 +100,7 @@
           {{ $parentId := .Id }}
           {{ if .Replies.OrderedItems }}
           {{ range .Replies.OrderedItems }}
-          <span id="{{$parentId}}-replyto-{{.Id}}"></span>
+          <span id="{{$parentId}}-replyto-{{.Id}}">{{ parseReplyLink $board.Actor.Id $opId .Id .Content }}</span>
           {{ end }}
           {{ end }}
           <p id="{{ .Id }}-content" style="white-space: pre-wrap; margin: 10px 30px 10px 30px;">{{.ContentHTML}}</p>

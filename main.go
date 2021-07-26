@@ -1737,7 +1737,7 @@ func CreateAttachmentObject(file multipart.File, header *multipart.FileHeader) (
 
 func ParseCommentForReplies(db *sql.DB, comment string, op string) []ObjectBase {
 
-	re := regexp.MustCompile(`(>>https?://[A-Za-z0-9_.\-~]+\/[A-Za-z0-9_.\-~]+\/\w+)`)	
+	re := regexp.MustCompile(`(>>(https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/)(f[A-Za-z0-9_.\-~]+-)?([A-Za-z0-9_.\-~]+)?#?([A-Za-z0-9_.\-~]+)?)`)	
 	match := re.FindAllStringSubmatch(comment, -1)
 
 	var links []string
@@ -2410,9 +2410,9 @@ func UpdateObjectWithPreview(db *sql.DB, id string, preview string) {
 
 func ParseCommentForReply(comment string) string {
 	
-	re := regexp.MustCompile("(>>)(https://|http://)?(www\\.)?.+\\/\\w+")	
+	re := regexp.MustCompile(`(>>(https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/)(f[A-Za-z0-9_.\-~]+-)?([A-Za-z0-9_.\-~]+)?#?([A-Za-z0-9_.\-~]+)?)`)
 	match := re.FindAllStringSubmatch(comment, -1)
-	
+
 	var links []string
 
 	for i:= 0; i < len(match); i++ {

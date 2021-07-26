@@ -723,7 +723,7 @@ func GetObjectRepliesDBLimit(db *sql.DB, parent ObjectBase, limit int) (*Collect
 
 	rows, err := db.Query(query, parent.Id, limit)	
 
-	CheckError(err, "error with replies db query")	
+	CheckError(err, "error with replies db query")
 
 	var postCount int
 	var attachCount int
@@ -744,7 +744,8 @@ func GetObjectRepliesDBLimit(db *sql.DB, parent ObjectBase, limit int) (*Collect
 		post.Actor = actor.Id
 
 		var postCnt int
-		var imgCnt int		
+		var imgCnt int
+
 		post.Replies, postCnt, imgCnt = GetObjectRepliesRepliesDB(db, post)
 
 		post.Replies.TotalItems = postCnt
@@ -794,7 +795,8 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, in
 		post.Actor = actor.Id
 
 		var postCnt int
-		var imgCnt int		
+		var imgCnt int
+		
 		post.Replies, postCnt, imgCnt = GetObjectRepliesRepliesDB(db, post)
 
 		post.Replies.TotalItems = postCnt
@@ -857,7 +859,7 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 
 	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over(), x.id, x.name, x.content, x.type, x.published, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select * from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' union select * from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note') as x order by x.published asc`	
 
-	rows, err := db.Query(query, parent.Id)	
+	rows, err := db.Query(query, parent.Id)
 
 	CheckError(err, "error with replies replies db query")
 
