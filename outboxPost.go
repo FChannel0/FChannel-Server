@@ -7,6 +7,7 @@ import _ "github.com/lib/pq"
 import "encoding/json"
 import "reflect"
 import "io/ioutil"
+import "mime/multipart"
 import "os"
 import "regexp"
 import "strings"
@@ -24,10 +25,18 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		r.ParseMultipartForm(5 << 20)		
 		if(BoardHasAuthType(db, actor.Name, "captcha") && CheckCaptcha(db, r.FormValue("captcha"))) {		
 			f, header, _ := r.FormFile("file")
+
 			if(header != nil) {
+				defer f.Close()			
 				if(header.Size > (7 << 20)){
 					w.WriteHeader(http.StatusRequestEntityTooLarge)
 					w.Write([]byte("7MB max file size"))
+					return
+				}
+				
+				if(IsMediaBanned(db, f)) {
+					fmt.Println("media banned")
+					http.Redirect(w, r, Domain, http.StatusSeeOther)
 					return
 				}
 				
@@ -39,7 +48,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 					return
 				}
 			}
-
+			
 			var nObj = CreateObject("Note")
 			nObj = ObjectFromForm(r, db, nObj)
 			
@@ -92,7 +101,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				var rActivity Activity
 				if validActor && validLocalActor {
 					rActivity = AcceptFollow(activity)
-					SetActorFollowingDB(db, rActivity)
+					rActivity = SetActorFollowingDB(db, rActivity)
 					MakeActivityRequest(db, activity)
 				}
 
@@ -339,7 +348,6 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 			err := cmd.Run()
 
 			CheckError(err, "error with removing exif data from image")
-
 		}
 
 		obj.Preview = CreatePreviewObject(obj.Attachment[0])
@@ -373,7 +381,7 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 		}
 	}
 
-	replyingTo := ParseCommentForReplies(r.FormValue("comment"))
+	replyingTo := ParseCommentForReplies(db, r.FormValue("comment"), originalPost.Id)
 
 	for _, e := range replyingTo {
 
@@ -557,16 +565,26 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				MakeActivityRequest(db, response)
 
 				alreadyFollow := false
+				alreadyFollowing := false
 				autoSub := GetActorAutoSubscribeDB(db, response.Actor.Id)
 				following := GetActorFollowingDB(db, response.Actor.Id)
 
 				for _, e := range following {
-					if e.Id == activity.Actor.Id {
+					if e.Id == response.Object.Id {
 						alreadyFollow = true
 					}
 				}
 
-				if autoSub && !alreadyFollow {
+				actor := FingerActor(response.Object.Actor)				
+				remoteActorFollowingCol := GetCollectionFromReq(actor.Following)
+				
+				for _, e := range remoteActorFollowingCol.Items {
+					if e.Id == response.Actor.Id {
+						alreadyFollowing = true
+					}
+				}
+				
+				if autoSub && !alreadyFollow && alreadyFollowing {
 					followActivity := MakeFollowActivity(db, response.Actor.Id, response.Object.Actor)	
 					
 					if FingerActor(response.Object.Actor).Id != "" {
@@ -589,7 +607,6 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		}
 		break		
 	}
-
 }
 
 func MakeActivityFollowingReq(w http.ResponseWriter, r *http.Request, activity Activity) bool {
@@ -612,6 +629,40 @@ func MakeActivityFollowingReq(w http.ResponseWriter, r *http.Request, activity A
 	err = json.Unmarshal(body, &respActivity)
 
 	if respActivity.Type == "Accept" {
+		return true
+	}
+
+	return false
+}
+
+func IsMediaBanned(db *sql.DB, f multipart.File) bool {
+	f.Seek(0, 0)
+
+	fileBytes := make([]byte, 2048)
+
+	_, err := f.Read(fileBytes)
+	if err != nil {
+		fmt.Println("error readin bytes for media ban")
+	}
+
+	hash := HashBytes(fileBytes)
+
+	f.Seek(0, 0)	
+
+	query := `select hash from bannedmedia where hash=$1`
+
+	rows, err := db.Query(query, hash)
+
+	CheckError(err, "could not get hash from banned media in db")
+
+	var h string
+
+	defer rows.Close()
+
+	rows.Next()
+	rows.Scan(&h)
+
+	if h == hash {
 		return true
 	}
 

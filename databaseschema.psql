@@ -233,3 +233,8 @@ regex varchar(200)
 );
 
 ALTER TABLE actor ADD COLUMN IF NOT EXISTS autosubscribe boolean default false;
+
+CREATE TABLE IF NOT EXISTS bannedmedia(
+id serial primary key,
+hash varchar(200)
+);

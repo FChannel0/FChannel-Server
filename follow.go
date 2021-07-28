@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	_ "github.com/lib/pq"
-
 )
 
 func GetActorFollowing(w http.ResponseWriter, db *sql.DB, id string) {
@@ -180,69 +179,111 @@ func IsAlreadyFollower(db *sql.DB, actor string, follow string) bool {
 	return false;
 }	
 
-func SetActorFollowerDB(db *sql.DB, activity Activity) Activity {
+func SetActorFollowerDB(db *sql.DB, activity Activity) Activity { 
 	var query string
 	alreadyFollow := IsAlreadyFollower(db, activity.Actor.Id, activity.Object.Actor)
 
+	activity.Type = "Reject"		
+	if activity.Actor.Id == activity.Object.Actor {
+		return activity
+	}	
+	
 	if alreadyFollow {
 		query = `delete from follower where id=$1 and follower=$2`
 		activity.Summary = activity.Object.Actor + " Unfollow " + activity.Actor.Id
 
 		_, err := db.Exec(query, activity.Actor.Id, activity.Object.Actor)
 
-		if CheckError(err, "error with follower db insert/delete") != nil {
+		if CheckError(err, "error with follower db delete") != nil {
 			activity.Type = "Reject"
 			return activity
-		}						
+		}
+
+		activity.Type = "Accept"	
+		return activity				
 	} else {
 			query = `insert into follower (id, follower) values ($1, $2)`
-			activity.Summary = activity.Object.Actor + " Follow " + activity.Actor.Id
+		activity.Summary = activity.Object.Actor + " Follow " + activity.Actor.Id
+
+		_, err := db.Exec(query, activity.Actor.Id, activity.Object.Actor)
+
+		if CheckError(err, "error with follower db insert") != nil {
+			activity.Type = "Reject"
+			return activity
+		}
+
+		activity.Type = "Accept"	
+		return activity		
 	}
 
-	_, err := db.Exec(query, activity.Actor.Id, activity.Object.Actor)
 
-	if CheckError(err, "error with follower db insert/delete") != nil {
-		activity.Type = "Reject"
-		return activity
-	}				
-
-	activity.Type = "Accept"	
 	return activity
 }
 
 func SetActorFollowingDB(db *sql.DB, activity Activity) Activity {
 	var query string
-	alreadyFollow := false
+	alreadyFollowing := false
+	alreadyFollower := false
 	following := GetActorFollowingDB(db, activity.Object.Actor)
+
+	actor := FingerActor(activity.Actor.Id)
+
+	remoteActorFollowerCol := GetCollectionFromReq(actor.Followers)
 
 	for _, e := range following {
 		if e.Id == activity.Actor.Id {
-			alreadyFollow = true
+			alreadyFollowing = true
 		}
 	}
+
+	for _, e := range remoteActorFollowerCol.Items {
+		if e.Id == activity.Object.Actor {
+			alreadyFollower = true
+		}
+	}
+
+	activity.Type = "Reject"
+
+	if activity.Actor.Id == activity.Object.Actor {
+		return activity
+	}
 	
-	if alreadyFollow {
+	if alreadyFollowing && alreadyFollower {
 		query = `delete from following where id=$1 and following=$2`
 		activity.Summary = activity.Object.Actor + " Unfollowing " + activity.Actor.Id
 		if !IsActorLocal(db, activity.Actor.Id) {
 			go DeleteActorCache(db, activity.Actor.Id)			
-		}		
-	} else {
+		}
+		_, err := db.Exec(query, activity.Object.Actor, activity.Actor.Id)
+
+		if CheckError(err, "error with following db delete") != nil {
+			activity.Type = "Reject"
+			return activity
+		}
+
+		activity.Type = "Accept"
+		return activity
+	}
+	
+	if !alreadyFollowing && !alreadyFollower {
+
 		query = `insert into following (id, following) values ($1, $2)`
 		activity.Summary = activity.Object.Actor + " Following " + activity.Actor.Id
 		if !IsActorLocal(db, activity.Actor.Id) {
 			go WriteActorToCache(db, activity.Actor.Id)
 		}
-	}
-	
-	_, err := db.Exec(query, activity.Object.Actor, activity.Actor.Id)
+		_, err := db.Exec(query, activity.Object.Actor, activity.Actor.Id)
 
-	if CheckError(err, "error with following db insert/delete") != nil {
-		activity.Type = "Reject"
+		if CheckError(err, "error with following db insert") != nil {
+			activity.Type = "Reject"
+			return activity
+		}
+		
+		activity.Type = "Accept"
 		return activity
-	}
+	}	
+
 	
-	activity.Type = "Accept"
 	return	activity
 }
 
@@ -260,9 +301,11 @@ func AutoFollow(db *sql.DB, actor string) {
 		}
 
 		if !isFollowing && e.Id != Domain && e.Id != actor {
-			followActivity := MakeFollowActivity(db, actor, e.Id)	
+			followActivity := MakeFollowActivity(db, actor, e.Id)
 
-			if FingerActor(e.Id).Id != "" {
+			nActor := FingerActor(e.Id)
+
+			if nActor.Id != "" {
 				MakeActivityRequestOutbox(db, followActivity)
 			}	
 		}

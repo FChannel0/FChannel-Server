@@ -22,7 +22,7 @@
 {{ if .IsLocal }}
 <div id="following" class="popup-box" style="margin-bottom: 25px; margin-top: 5px; padding: 12px;">
   <h4 style="margin: 0; margin-bottom: 5px;">Following</h4>
-  <a href="/autosubscribe?board={{ .Board.Name }}">{{ if .AutoSubscribe }}[Auto Follow On]{{ else }}[Auto Follow Off]{{ end }}</a>
+  {{ if .AutoSubscribe }}<a title="Auto Follow is On" href="/autosubscribe?board={{ .Board.Name }}">[Toggle Auto Follow Off]{{ else }}<a title="Auto Follow is Off" href="/autosubscribe?board={{ .Board.Name }}">[Toggle Auto Follow On]{{ end }}</a>
   <form id="follow-form" action="/{{ .Key }}/{{ .Board.Name }}/follow" method="post" enctype="application/x-www-form-urlencoded" style="margin-top: 5px;">  
     <input id="follow" name="follow" style="margin-bottom: 5px;" size="35" placeholder="https://fchan.xyz/g"></input>
     <input type="submit" value="Follow"><br>

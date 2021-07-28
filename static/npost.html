@@ -17,7 +17,6 @@
 {{ end }}
 
 <script src="/static/js/posts.js"></script>
-<script src="/static/js/timer.js"></script>
 {{ end }}
 
 {{ define "content" }}
@@ -52,6 +51,7 @@
 
 {{ define "script" }}
 <script src="/static/js/footerscript.js"></script>
+<script src="/static/js/timer.js"></script>
 <script>
   viewLink("{{ .Board.Name }}", "{{ .Board.Actor.Id }}")
 </script>    

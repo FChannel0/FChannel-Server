@@ -49,6 +49,8 @@ var activitystreams = "application/ld+json; profile=\"https://www.w3.org/ns/acti
 
 var MediaHashs = make(map[string]string)
 
+var ActorCache = make(map[string]Actor)
+
 func main() {
 
 	CreatedNeededDirectories()
@@ -270,7 +272,7 @@ func main() {
 
 			auth := CreateTripCode(verify.Code)
 			auth = CreateTripCode(auth)
-		
+			
 			if CreateTripCode(auth) == code {
 				w.WriteHeader(http.StatusOK)
 			} else {
@@ -334,8 +336,8 @@ func main() {
 		}
 
 		if(r.FormValue("inReplyTo") == "" && file == nil) {
-				w.Write([]byte("Media is required for new posts"))
-				return			
+			w.Write([]byte("Media is required for new posts"))
+			return			
 		}
 		
 
@@ -500,7 +502,7 @@ func main() {
 					}
 				}
 				
-			//follow all of boards followers
+				//follow all of boards followers
 			} else if followers.MatchString(follow){
 				followersActor := FingerActor(follow)
 				col := GetActorCollection(followersActor.Followers)
@@ -519,7 +521,7 @@ func main() {
 					}
 				}
 				
-		  //do a normal follow to a single board
+				//do a normal follow to a single board
 			} else {
 				followActivity := MakeFollowActivity(db, actorId, follow)
 
@@ -601,7 +603,7 @@ func main() {
 		} else if admin || actor.Id == Domain {
 			t := template.Must(template.New("").Funcs(template.FuncMap{
 				"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/nadmin.html"))						
-	
+			
 			actor := GetActor(Domain)
 			follow := GetActorCollection(actor.Following).Items
 			follower := GetActorCollection(actor.Followers).Items
@@ -769,7 +771,96 @@ func main() {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("404 no path"))			
 		}
-	})			
+	})
+
+	http.HandleFunc("/banmedia", func(w http.ResponseWriter, r *http.Request) {
+		id := r.URL.Query().Get("id")
+		board := r.URL.Query().Get("board")
+		
+		_, auth := GetPasswordFromSession(r)
+
+		if id == "" || auth == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(""))
+			return
+		}
+
+		col := GetCollectionFromID(id)
+
+		if len(col.OrderedItems) > 0 {
+			
+			actor := col.OrderedItems[0].Actor
+
+			if !HasAuth(db, auth, actor) {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(""))
+				return
+			}
+			
+			if len(col.OrderedItems[0].Attachment) > 0 {
+				re := regexp.MustCompile(Domain)
+				file := re.ReplaceAllString(col.OrderedItems[0].Attachment[0].Href, "")
+
+				f, err := os.Open("." + file)
+				CheckError(err, "could not open attachment for ban media")
+
+				defer f.Close()
+
+				bytes := make([]byte, 2048)
+
+				_, err = f.Read(bytes)
+				if err != nil {
+					fmt.Println("error readin bytes for setting media ban")
+				}
+				
+				if !IsMediaBanned(db, f) {
+					query := `insert into bannedmedia (hash) values ($1)`
+
+					_, err := db.Exec(query, HashBytes(bytes))
+
+					CheckError(err, "error inserting banend media into db")
+
+				}
+
+				var obj ObjectBase
+				obj.Id = id
+				obj.Actor = actor
+				
+				isOP := CheckIfObjectOP(db, obj.Id)		
+
+				var OP string
+				if len(col.OrderedItems[0].InReplyTo) > 0 {
+					OP = col.OrderedItems[0].InReplyTo[0].Id
+				}
+
+				if !isOP {
+					TombstoneObject(db, id)
+				} else {
+					TombstoneObjectAndReplies(db, id)
+				}
+
+				if IsIDLocal(db, id){
+					go DeleteObjectRequest(db, id)
+				}
+
+
+				if !isOP {
+					if (!IsIDLocal(db, id)){
+						http.Redirect(w, r, "/" + board + "/" + remoteShort(OP), http.StatusSeeOther)
+						return
+					} else {
+						http.Redirect(w, r, OP, http.StatusSeeOther)
+						return
+					}
+				} else {
+					http.Redirect(w, r, "/" + board, http.StatusSeeOther)
+					return
+				}
+			}
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(""))				
+	})		
 
 	http.HandleFunc("/delete", func(w http.ResponseWriter, r *http.Request){
 		id := r.URL.Query().Get("id")
@@ -1197,7 +1288,13 @@ func main() {
 			return
 		}
 
-		if !IsActorLocal(db, TP + "" + actorDomain[1] + "/" + actorDomain[0]) {
+		if actorDomain[0] == "main" {
+			actorDomain[0] = ""
+		} else {
+			actorDomain[0] = "/" + actorDomain[0]
+		}
+
+		if !IsActorLocal(db, TP + "" + actorDomain[1] + "" + actorDomain[0]) {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("actor not local"))		
 			return
@@ -1209,7 +1306,7 @@ func main() {
 		finger.Subject = "acct:" + actorDomain[0] + "@" + actorDomain[1]
 		link.Rel = "self"
 		link.Type = "application/activity+json"
-		link.Href = TP + "" + actorDomain[1] + "/" + actorDomain[0]
+		link.Href = TP + "" + actorDomain[1] + "" + actorDomain[0]
 
 		finger.Links = append(finger.Links, link)
 
@@ -1368,7 +1465,6 @@ func CreateTripCode(input string) string {
 
 	return code[0]
 }
-
 
 func GetActorFromPath(db *sql.DB, location string, prefix string) Actor {
 	pattern := fmt.Sprintf("%s([^/\n]+)(/.+)?", prefix)
@@ -1639,9 +1735,9 @@ func CreateAttachmentObject(file multipart.File, header *multipart.FileHeader) (
 	return nAttachment, tempFile
 }
 
-func ParseCommentForReplies(comment string) []ObjectBase {
-	
-	re := regexp.MustCompile("(>>)(https://|http://)?(www\\.)?.+\\/\\w+")
+func ParseCommentForReplies(db *sql.DB, comment string, op string) []ObjectBase {
+
+	re := regexp.MustCompile(`(>>(https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/)(f[A-Za-z0-9_.\-~]+-)?([A-Za-z0-9_.\-~]+)?#?([A-Za-z0-9_.\-~]+)?)`)	
 	match := re.FindAllStringSubmatch(comment, -1)
 
 	var links []string
@@ -1652,7 +1748,8 @@ func ParseCommentForReplies(comment string) []ObjectBase {
 		str = strings.Replace(str, "http://", "", 1)
 		str = strings.Replace(str, "https://", "", 1)		
 		str = TP + "" + str
-		if !IsInStringArray(links, str) {
+		_ , isReply := IsReplyToOP(db, op, str)		
+		if !IsInStringArray(links, str) &&  isReply {
 			links = append(links, str)
 		}
 	}
@@ -1721,26 +1818,34 @@ func GetActor(id string) Actor {
 		return respActor
 	}
 
-	req, err := http.NewRequest("GET", id, nil)
+	actor, instance := GetActorInstance(id)
 
-	CheckError(err, "error with getting actor req")
+	if ActorCache[actor + "@" + instance].Id != "" {
+		respActor = ActorCache[actor + "@" + instance]
+	} else {
+		req, err := http.NewRequest("GET", id, nil)
 
-	req.Header.Set("Accept", activitystreams)
+		CheckError(err, "error with getting actor req")
 
-	resp, err := RouteProxy(req)
+		req.Header.Set("Accept", activitystreams)
 
-	if err != nil {
-		fmt.Println("error with getting actor resp " + id)
-		return respActor
+		resp, err := RouteProxy(req)
+
+		if err != nil {
+			fmt.Println("error with getting actor resp " + id)
+			return respActor
+		}
+
+		defer resp.Body.Close()
+
+		body, _ := ioutil.ReadAll(resp.Body)
+
+		err = json.Unmarshal(body, &respActor)
+
+		CheckError(err, "error getting actor from body")
+
+		ActorCache[actor + "@" + instance] = respActor
 	}
-
-	defer resp.Body.Close()
-
-	body, _ := ioutil.ReadAll(resp.Body)
-
-	err = json.Unmarshal(body, &respActor)
-
-	CheckError(err, "error getting actor from body")
 
 	return respActor
 }
@@ -1764,7 +1869,6 @@ func GetActorCollection(collection string) Collection {
 		fmt.Println("error with getting actor collection resp " + collection)		
 		return nCollection
 	}
-
 
 	defer resp.Body.Close()
 
@@ -2076,7 +2180,9 @@ func MakeActivityRequest(db *sql.DB, activity Activity) {
 
 					_, err = RouteProxy(req)
 
-					CheckError(err, "error with sending activity resp to")
+					if err != nil {
+						fmt.Println("error with sending activity resp to actor " + instance)
+					}
 				}				
 			}
 		}
@@ -2304,7 +2410,7 @@ func UpdateObjectWithPreview(db *sql.DB, id string, preview string) {
 
 func ParseCommentForReply(comment string) string {
 	
-	re := regexp.MustCompile("(>>)(https://|http://)?(www\\.)?.+\\/\\w+")	
+	re := regexp.MustCompile(`(>>(https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/)(f[A-Za-z0-9_.\-~]+-)?([A-Za-z0-9_.\-~]+)?#?([A-Za-z0-9_.\-~]+)?)`)
 	match := re.FindAllStringSubmatch(comment, -1)
 
 	var links []string
@@ -2315,7 +2421,7 @@ func ParseCommentForReply(comment string) string {
 	}
 
 	if(len(links) > 0){
-		_, isValid := CheckValidActivity(links[0])
+		_, isValid := CheckValidActivity(strings.ReplaceAll(links[0], ">", ""))
 
 		if(isValid) {
 			return links[0]
@@ -2489,21 +2595,30 @@ func CreatedNeededDirectories() {
 //looks for actor with pattern of board@instance
 func FingerActor(path string) Actor{
 
-	actor, instance := GetActorInstance(path)
-
-	r := FingerRequest(actor, instance)
-
 	var nActor Actor
 
-	if r != nil && r.StatusCode == 200 {
-		defer r.Body.Close()
-		
-		body, _ := ioutil.ReadAll(r.Body)
+	actor, instance := GetActorInstance(path)
 
-		err := json.Unmarshal(body, &nActor)
+	if actor == "" && instance == "" {
+		return nActor
+	}
 
-		CheckError(err, "error getting fingerrequet resp from json body")
-	}	
+	if ActorCache[actor + "@" + instance].Id != "" {
+		nActor = ActorCache[actor + "@" + instance]
+	} else {
+		r := FingerRequest(actor, instance)		
+		if r != nil && r.StatusCode == 200 {
+			defer r.Body.Close()
+			
+			body, _ := ioutil.ReadAll(r.Body)
+
+			err := json.Unmarshal(body, &nActor)
+
+			CheckError(err, "error getting fingerrequet resp from json body")
+
+			ActorCache[actor + "@" + instance] = nActor
+		}	
+	}
 
 	return nActor
 }
@@ -2561,7 +2676,16 @@ func GetActorInstance(path string) (string, string) {
 		}
 	}
 
-	re = regexp.MustCompile(`(https?:\\)?(www)?([\w\d-_.:]+)\/([\w\d-_.]+)(\/([\w\d-_.]+))?`)
+	re = regexp.MustCompile(`(https?://)(www)?([\w\d-_.:]+)(/|\s+|\r|\r\n)?$`)
+	mainActor := re.MatchString(path)
+	if(mainActor) {
+		match := re.FindStringSubmatch(path)
+		if(len(match) > 2) {
+			return "main", match[3]
+		}
+	}     
+
+	re = regexp.MustCompile(`(https?://)?(www)?([\w\d-_.:]+)\/([\w\d-_.]+)(\/([\w\d-_.]+))?`)
 	httpFormat := re.MatchString(path)
 
 	if(httpFormat) {
@@ -2663,6 +2787,12 @@ func HashMedia(media string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
+func HashBytes(media []byte) string {
+	h:= sha256.New()
+	h.Write(media)
+	return hex.EncodeToString(h.Sum(nil))
+}
+
 func RouteImages(w http.ResponseWriter, media string) {
 
 	req, err := http.NewRequest("GET", MediaHashs[media], nil)
@@ -2719,4 +2849,55 @@ func HasValidation(w http.ResponseWriter, r *http.Request, actor Actor) bool {
 		}
 
 	return true
+}
+
+func IsReplyToOP(db *sql.DB, op string, link string) (string, bool) {
+
+	if op == link {
+		return link, true
+	}
+
+	re := regexp.MustCompile(`f(\w+)\-`)
+	match := re.FindStringSubmatch(link)
+
+	if len(match) > 0 {
+		re := regexp.MustCompile(`(.+)\-`)
+		link = re.ReplaceAllString(link, "")
+		link = "%" + match[1] + "/" + link
+	}
+	
+	query := `select id from replies where id like $1 and inreplyto=$2`
+
+	rows, err := db.Query(query, link, op)
+
+	CheckError(err, "error selecting in reply to op from db")
+
+	var id string 
+	defer rows.Close()
+	rows.Next()
+	rows.Scan(&id)
+
+	if id != "" {
+		
+		return id, true
+	}
+
+	return "", false
+}
+
+func GetReplyOP(db *sql.DB, link string) string {
+
+	query := `select id from replies where id in (select inreplyto from replies where id=$1) and inreplyto=''`
+
+	rows, err := db.Query(query, link)
+
+	CheckError(err, "could not get reply OP from db ")
+
+	var id string
+
+	defer rows.Close()
+	rows.Next()
+	rows.Scan(&id)
+
+	return id
 }

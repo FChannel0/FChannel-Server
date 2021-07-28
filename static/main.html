@@ -53,14 +53,6 @@
           color: #789922;
       }
 
-      .reply {
-          {{ if .Board.Restricted }}
-          color:#af0a0f;
-          {{ else }}
-          color:#000080;
-          {{ end }}
-      }
-
       .post {
           {{ if .Board.Restricted }}
           background-color: #d5daf0;
@@ -85,6 +77,7 @@
   <body>
     <ul style="display: inline; padding:0;">
       {{ $l := len .Boards }}
+      <li style="display: inline;">[<a href="/">Home</a>]</li>            
       {{range $i, $e := .Boards}}
       {{ if eq (sub $l 1) 0 }}
       <li style="display: inline;">[ <a href="{{.Location}}">{{$e.Name}} </a>]</li>      

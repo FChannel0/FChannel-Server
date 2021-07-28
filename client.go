@@ -1,14 +1,16 @@
 package main
 
-import "net/http"
-import "html/template"
-import "database/sql"
-import _ "github.com/lib/pq"
-import "strings"
-import "strconv"
-import "sort"
-import "regexp"
-import "time"
+import (
+	"net/http"
+	"html/template"
+	"database/sql"
+	_ "github.com/lib/pq"
+	"strings"
+	"strconv"
+	"sort"
+	"regexp"
+	"time"
+)
 
 var Key *string = new(string)
 
@@ -116,6 +118,7 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	if(len(data.BoardRemainer) == 3){
 		data.BoardRemainer = make([]int, 0)
 	}
+	
 	data.InstanceIndex = GetCollectionFromReq("https://fchan.xyz/followers").Items
 	data.NewsItems = getNewsFromDB(db, 3)
 
@@ -180,10 +183,23 @@ func AllNewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 }
 
 func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection){
+
 	t := template.Must(template.New("").Funcs(template.FuncMap{
 		"proxy": func(url string) string {
 			return MediaProxy(url)
 		},
+		"short": func(actorName string, url string) string {
+			return shortURL(actorName, url)
+		},
+		"parseAttachment": func(obj ObjectBase, catalog bool) template.HTML {
+			return ParseAttachment(obj, catalog)
+		},
+		"parseReplyLink": func(actorId string, op string, id string, content string) template.HTML {
+			actor := FingerActor(actorId)
+			title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
+			link := "<a href=\"" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id)  + "\" title=\"" + title + "\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
+			return template.HTML(link)
+		},								
 		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/nposts.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 
 
@@ -219,6 +235,14 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	returnData.Boards = Boards
 	returnData.Posts = collection.OrderedItems
 
+	for i, e := range returnData.Posts {
+		returnData.Posts[i].ContentHTML = ParseContent(db, returnData.Board.Actor, e.Id, e.Content, e)
+
+		for j, k := range e.Replies.OrderedItems {
+			returnData.Posts[i].Replies.OrderedItems[j].ContentHTML = ParseContent(db, returnData.Board.Actor, e.Id, k.Content, e)
+		}
+	}	
+
 	var offset = 8
 	var pages []int
 	pageLimit := (float64(collection.TotalItems) / float64(offset))
@@ -236,7 +260,13 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	t := template.Must(template.New("").Funcs(template.FuncMap{
 		"proxy": func(url string) string {
 			return MediaProxy(url)			
-		},		
+		},
+		"short": func(actorName string, url string) string {
+			return shortURL(actorName, url)
+		},
+		"parseAttachment": func(obj ObjectBase, catalog bool) template.HTML {
+			return ParseAttachment(obj, catalog)
+		},						
 		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))			
 	actor := collection.Actor
 
@@ -273,7 +303,20 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 	t := template.Must(template.New("").Funcs(template.FuncMap{
 		"proxy": func(url string) string {
 			return MediaProxy(url)						
-		},		
+		},
+		"short": func(actorName string, url string) string {
+			return shortURL(actorName, url)
+		},
+
+		"parseAttachment": func(obj ObjectBase, catalog bool) template.HTML {
+			return ParseAttachment(obj, catalog)
+		},
+		"parseReplyLink": func(actorId string, op string, id string, content string) template.HTML {
+			actor := FingerActor(actorId)
+			title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
+			link := "<a href=\"" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id)  + "\" title=\"" + title + "\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
+			return template.HTML(link)
+		},										
 		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/npost.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 	
 	path := r.URL.Path
@@ -333,6 +376,14 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 
 	if len(returnData.Posts) > 0 {
 		returnData.PostId = shortURL(returnData.Board.To, returnData.Posts[0].Id)
+
+		for i, e := range returnData.Posts {
+			returnData.Posts[i].ContentHTML = ParseContent(db, returnData.Board.Actor, e.Id, e.Content, e)
+
+			for j, k := range e.Replies.OrderedItems {
+				returnData.Posts[i].Replies.OrderedItems[j].ContentHTML = ParseContent(db, returnData.Board.Actor, e.Id, k.Content, e)
+			}
+		}
 	}
 
 	t.ExecuteTemplate(w, "layout",  returnData)			
@@ -596,7 +647,221 @@ func MediaProxy(url string) string {
 	if re.MatchString(url) {
 		return url
 	}	
-	
+
 	MediaHashs[HashMedia(url)] = url
 	return "/api/media?hash=" + HashMedia(url)
+}
+
+func ParseAttachment(obj ObjectBase, catalog bool) template.HTML {
+
+	if len(obj.Attachment) < 1 {
+		return ""
+	}
+
+	var media string
+	if(regexp.MustCompile(`image\/`).MatchString(obj.Attachment[0].MediaType)){
+		media = "<img "
+		media += "id=\"img\" "
+		media += "main=\"1\" "
+		media += "enlarge=\"0\" "
+		media += "attachment=\"" + obj.Attachment[0].Href + "\""
+		if catalog {
+			media += "style=\"max-width: 180px; max-height: 180px;\" "
+		} else {
+			media += "style=\"float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;\""
+		}
+		if obj.Preview.Id != "" {
+			media += "src=\"" + MediaProxy(obj.Preview.Href) + "\""
+			media += "preview=\"" + MediaProxy(obj.Preview.Href) + "\""
+		} else {
+			media += "src=\"" + MediaProxy(obj.Attachment[0].Href) + "\""
+			media += "preview=\"" + MediaProxy(obj.Attachment[0].Href) + "\""			
+		}
+
+		media += ">"
+
+		return template.HTML(media)
+	}          
+
+	if(regexp.MustCompile(`audio\/`).MatchString(obj.Attachment[0].MediaType)){	
+		media = "<audio "
+		media += "controls=\"controls\" "
+		media += "preload=\"metadta\" "
+		if catalog {
+			media += "style=\"margin-right: 10px; margin-bottom: 10px; max-width: 180px; max-height: 180px;\" "
+		} else {
+			media += "style=\"float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;\" "
+		}
+		media += ">"
+		media += "<source "
+		media += "src=\"" + MediaProxy(obj.Attachment[0].Href) + "\" "
+		media += "type=\"" + obj.Attachment[0].MediaType + "\" "
+		media += ">"
+		media += "Audio is not supported."
+		media += "</audio>"
+	
+		return template.HTML(media)
+	}
+
+	if(regexp.MustCompile(`video\/`).MatchString(obj.Attachment[0].MediaType)){		
+		media = "<video "
+		media += "controls=\"controls\" "
+		media += "preload=\"metadta\" "
+		media += "muted=\"muted\" "
+		if catalog {
+			media += "style=\"margin-right: 10px; margin-bottom: 10px; max-width: 180px; max-height: 180px;\" "			
+		} else {
+			media += "style=\"float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;\" "
+		}
+		media += ">"
+		media += "<source "
+		media += "src=\"" + MediaProxy(obj.Attachment[0].Href) + "\" "
+		media += "type=\"" + obj.Attachment[0].MediaType + "\" "
+		media += ">"
+		media += "Video is not supported."
+		media += "</video>"
+		
+		return template.HTML(media)
+	}
+
+	return template.HTML(media)
+}
+
+func ParseContent(db *sql.DB, board Actor, op string, content string, thread ObjectBase) template.HTML {
+
+	nContent := strings.ReplaceAll(content, `<`, "&lt;")		
+	
+	nContent = ParseLinkComments(db, board, op, nContent, thread)
+
+	nContent = ParseCommentQuotes(nContent)
+
+	nContent = strings.ReplaceAll(nContent, `/\&lt;`, ">")
+
+	return template.HTML(nContent)
+};
+
+func ParseLinkComments(db *sql.DB, board Actor, op string, content string, thread ObjectBase) string {
+	re := regexp.MustCompile(`(>>(https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/)(f[A-Za-z0-9_.\-~]+-)?([A-Za-z0-9_.\-~]+)?#?([A-Za-z0-9_.\-~]+)?)`)
+	match := re.FindAllStringSubmatch(content, -1)
+
+	//add url to each matched reply
+	for i, _ := range match {
+		link := strings.Replace(match[i][0], ">>", "", 1)
+		isOP := ""
+		
+		domain := match[i][2]
+
+		if link == op {
+			isOP = " (OP)"
+		}
+
+		parsedLink := ConvertHashLink(domain, link)
+
+		//formate the hover title text
+		var quoteTitle string
+
+		// if the quoted content is local get it
+		// else get it from the database
+		if thread.Id == link {
+			quoteTitle = ParseLinkTitle(board.Outbox, op, thread.Content)
+		} else {
+			for _, e := range thread.Replies.OrderedItems {
+				if e.Id == parsedLink {
+					quoteTitle = ParseLinkTitle(board.Outbox, op, e.Content)
+					break
+				}
+			}
+
+			if quoteTitle == "" {
+				obj := GetObjectFromDBFromID(db, parsedLink)
+				if len(obj.OrderedItems) > 0 {
+					quoteTitle = ParseLinkTitle(board.Outbox, op, obj.OrderedItems[0].Content)
+				} else {
+					quoteTitle = ParseLinkTitle(board.Outbox, op, parsedLink)
+				}
+			}
+		}
+
+		var style string
+		if board.Restricted {
+			style = "color: #af0a0f;"
+		}
+
+		//replace link with quote format
+		replyID, isReply := IsReplyToOP(db, op, parsedLink)
+		if isReply {
+			id := shortURL(board.Outbox, replyID)
+			
+			content = strings.Replace(content, match[i][0], "<a class=\"reply\" style=\"" + style + "\" title=\"" + quoteTitle +  "\" href=\"/" + board.Name + "/" + shortURL(board.Outbox, op)  +  "#" + id + "\">&gt;&gt;" + id + ""  + isOP + "</a>", -1)
+
+		} else {
+			
+			//this is a cross post
+			parsedOP := GetReplyOP(db, parsedLink)
+
+			if parsedOP != "" {
+				link = parsedOP + "#" + shortURL(parsedOP, parsedLink)
+			}
+			
+			content = strings.Replace(content, match[i][0], "<a class=\"reply\" style=\"" + style + "\" title=\"" + quoteTitle +  "\" href=\"" + link + "\">&gt;&gt;" + shortURL(board.Outbox, parsedLink)  + isOP + " →</a>", -1)
+		}
+	}
+
+	return content
+}
+
+func ParseLinkTitle(actorName string, op string, content string) string {
+	re := regexp.MustCompile(`(>>(https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/)\w+(#.+)?)`)
+	match := re.FindAllStringSubmatch(content, -1)
+
+	for i, _ := range match {
+		link := strings.Replace(match[i][0], ">>", "", 1)
+		isOP := ""
+
+		domain := match[i][2]		
+		
+		if link == op {
+			isOP = " (OP)"
+		}
+
+		link = ConvertHashLink(domain, link)
+		content = strings.Replace(content, match[i][0], ">>" + shortURL(actorName, link)  + isOP , 1)
+	}
+
+	content = strings.ReplaceAll(content, "'", "")
+	content = strings.ReplaceAll(content, "\"", "")
+	content = strings.ReplaceAll(content, ">", `/\&lt;`)
+
+	return content
+}
+
+func ParseCommentQuotes(content string) string {
+	// replace quotes
+	re := regexp.MustCompile(`((\r\n|\r|\n|^)>(.+)?[^\r\n])`)
+	match := re.FindAllStringSubmatch(content, -1)
+	
+	for i, _ := range match {
+		quote := strings.Replace(match[i][0], ">", "&gt;", 1)		
+		line := re.ReplaceAllString(match[i][0], "<span class=\"quote\">" + quote + "</span>")
+		content = strings.Replace(content, match[i][0], line, 1)
+	}
+
+	//replace isolated greater than symboles
+	re = regexp.MustCompile(`(\r\n|\n|\r)>`)
+
+	return re.ReplaceAllString(content, "\r\n<span class=\"quote\">&gt;</span>")
+}
+
+func ConvertHashLink(domain string, link string) string {
+	re := regexp.MustCompile(`(#.+)`)
+	parsedLink := re.FindString(link)
+
+	if parsedLink != "" {
+		parsedLink = domain + "" + strings.Replace(parsedLink, "#", "", 1)
+		parsedLink = strings.Replace(parsedLink, "\r", "", -1)
+	} else {
+		parsedLink = link
+	}
+
+	return parsedLink
 }

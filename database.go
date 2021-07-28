@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"regexp"
 	"time"
 	"html/template"	
 
@@ -554,6 +555,57 @@ func GetObjectFromDB(db *sql.DB, id string) Collection {
 	return nColl	
 }
 
+func GetObjectFromDBFromID(db *sql.DB, id string) Collection {
+	var nColl Collection
+	var result []ObjectBase
+
+	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where id like $1 and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where id like $1 and type='Note') as x order by x.updated`
+
+	re := regexp.MustCompile(`f(\w+)\-`)
+	match := re.FindStringSubmatch(id)
+
+	if len(match) > 0 {
+		re := regexp.MustCompile(`(.+)\-`)
+		id = re.ReplaceAllString(id, "")
+		id = "%" + match[1] + "/" + id
+	}	
+
+	rows, err := db.Query(query, id)	
+
+	CheckError(err, "error query object from db")
+	
+	defer rows.Close()
+	for rows.Next(){
+		var post ObjectBase
+		var actor Actor
+		var attachID string
+		var previewID string		
+		
+		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
+		
+		CheckError(err, "error scan object into post struct")
+
+		post.Actor = actor.Id
+
+		var postCnt int
+		var imgCnt int		
+		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
+
+		post.Replies.TotalItems = postCnt
+		post.Replies.TotalImgs = imgCnt		
+
+		post.Attachment = GetObjectAttachment(db, attachID)
+
+		post.Preview = GetObjectPreview(db, previewID)
+
+		result = append(result, post)
+	}
+
+	nColl.OrderedItems = result
+
+	return nColl	
+}
+
 func GetObjectFromDBCatalog(db *sql.DB, id string) Collection {
 	var nColl Collection
 	var result []ObjectBase
@@ -671,7 +723,7 @@ func GetObjectRepliesDBLimit(db *sql.DB, parent ObjectBase, limit int) (*Collect
 
 	rows, err := db.Query(query, parent.Id, limit)	
 
-	CheckError(err, "error with replies db query")	
+	CheckError(err, "error with replies db query")
 
 	var postCount int
 	var attachCount int
@@ -692,7 +744,8 @@ func GetObjectRepliesDBLimit(db *sql.DB, parent ObjectBase, limit int) (*Collect
 		post.Actor = actor.Id
 
 		var postCnt int
-		var imgCnt int		
+		var imgCnt int
+
 		post.Replies, postCnt, imgCnt = GetObjectRepliesRepliesDB(db, post)
 
 		post.Replies.TotalItems = postCnt
@@ -742,7 +795,8 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, in
 		post.Actor = actor.Id
 
 		var postCnt int
-		var imgCnt int		
+		var imgCnt int
+		
 		post.Replies, postCnt, imgCnt = GetObjectRepliesRepliesDB(db, post)
 
 		post.Replies.TotalItems = postCnt
@@ -805,7 +859,7 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 
 	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over(), x.id, x.name, x.content, x.type, x.published, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select * from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' union select * from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note') as x order by x.published asc`	
 
-	rows, err := db.Query(query, parent.Id)	
+	rows, err := db.Query(query, parent.Id)
 
 	CheckError(err, "error with replies replies db query")
 
