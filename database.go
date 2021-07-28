@@ -8,15 +8,15 @@ import (
 	"strings"
 	"regexp"
 	"time"
-	"html/template"	
+	"html/template"
 
 	_ "github.com/lib/pq"
 )
 
 func GetActorFromDB(db *sql.DB, id string) Actor {
-       var nActor Actor
+			 var nActor Actor
 
-       query :=`select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary, publickeypem from actor where id=$1`
+			 query :=`select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary, publickeypem from actor where id=$1`
 
 	rows, err := db.Query(query, id)
 
@@ -37,7 +37,7 @@ func GetActorFromDB(db *sql.DB, id string) Actor {
 		CheckError(err, "error creating public key from private")
 	}
 
-	return nActor	
+	return nActor
 }
 
 func GetActorByNameFromDB(db *sql.DB, name string) Actor {
@@ -51,8 +51,8 @@ func GetActorByNameFromDB(db *sql.DB, name string) Actor {
 		return nActor
 	}
 
-	var publicKeyPem string	
-	defer rows.Close()	
+	var publicKeyPem string
+	defer rows.Close()
 	for rows.Next() {
 		err = rows.Scan(&nActor.Type, &nActor.Id, &nActor.Name, &nActor.PreferredUsername, &nActor.Inbox, &nActor.Outbox, &nActor.Following, &nActor.Followers, &nActor.Restricted, &nActor.Summary, &publicKeyPem)
 		CheckError(err, "error with actor from db scan ")
@@ -63,7 +63,7 @@ func GetActorByNameFromDB(db *sql.DB, name string) Actor {
 		CheckError(err, "error creating public key from private")
 	}
 
-	return nActor	
+	return nActor
 }
 
 func CreateNewBoardDB(db *sql.DB, actor Actor) Actor{
@@ -100,7 +100,7 @@ func CreateNewBoardDB(db *sql.DB, actor Actor) Actor{
 		verify.Code  = CreateKey(50)
 		verify.Type  = "post"
 
-		CreateVerification(db, verify)		
+		CreateVerification(db, verify)
 
 		var nverify Verify
 		nverify.Board = actor.Id
@@ -119,7 +119,7 @@ func CreateNewBoardDB(db *sql.DB, actor Actor) Actor{
 		CreateBoardMod(db, nverify)
 
 		CreatePem(db, actor)
-		
+
 		if actor.Name != "main" {
 			var nObject ObjectBase
 			var nActivity Activity
@@ -149,17 +149,17 @@ func GetBoards(db *sql.DB) []Actor {
 	var board []Actor
 
 	query := `select type, id, name, preferedusername, inbox, outbox, following, followers FROM actor`
-	
+
 	rows, err := db.Query(query)
 
 	CheckError(err, "could not get boards from db query")
 
-	defer rows.Close()	
+	defer rows.Close()
 	for rows.Next(){
 		var actor = new(Actor)
-		
+
 		err = rows.Scan(&actor.Type, &actor.Id, &actor.Name, &actor.PreferredUsername, &actor.Inbox, &actor.Outbox, &actor.Following, &actor.Followers)
-		
+
 		if err !=nil{
 			panic(err)
 		}
@@ -180,9 +180,9 @@ func WriteObjectToDB(db *sql.DB, obj ObjectBase) ObjectBase {
 			obj.Preview.AttributedTo = obj.Id
 			WritePreviewToDB(db, *obj.Preview)
 		}
-		
+
 		for i, _ := range obj.Attachment {
-			obj.Attachment[i].Id = fmt.Sprintf("%s/%s", obj.Actor, CreateUniqueID(db, obj.Actor))			
+			obj.Attachment[i].Id = fmt.Sprintf("%s/%s", obj.Actor, CreateUniqueID(db, obj.Actor))
 			obj.Attachment[i].Published = time.Now().UTC().Format(time.RFC3339)
 			obj.Attachment[i].Updated = time.Now().UTC().Format(time.RFC3339)
 			obj.Attachment[i].AttributedTo = obj.Id
@@ -202,22 +202,22 @@ func WriteObjectToDB(db *sql.DB, obj ObjectBase) ObjectBase {
 
 func WriteObjectUpdatesToDB(db *sql.DB, obj ObjectBase) {
 	query := `update activitystream set updated=$1 where id=$2`
-	
+
 	_, e := db.Exec(query, time.Now().UTC().Format(time.RFC3339), obj.Id)
-	
+
 	if e != nil{
 		fmt.Println("error inserting updating inreplyto")
-		panic(e)			
+		panic(e)
 	}
 
 	query = `update cacheactivitystream set updated=$1 where id=$2`
-	
+
 	_, e = db.Exec(query, time.Now().UTC().Format(time.RFC3339), obj.Id)
-	
+
 	if e != nil{
 		fmt.Println("error inserting updating cache inreplyto")
-		panic(e)			
-	}			
+		panic(e)
+	}
 }
 
 func WriteObjectReplyToLocalDB(db *sql.DB, id string, replyto string) {
@@ -263,13 +263,13 @@ func WriteObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 		rows.Next()
 		rows.Scan(&id)
 
-		if id == "" {		
+		if id == "" {
 			query := `insert into replies (id, inreplyto) values ($1, $2)`
 
-			_, err := db.Exec(query, obj.Id, e.Id)			
+			_, err := db.Exec(query, obj.Id, e.Id)
 
 
-			CheckError(err, "error inserting replies db")			
+			CheckError(err, "error inserting replies db")
 		}
 
 		update := true
@@ -279,10 +279,10 @@ func WriteObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 				break
 			}
 		}
-		
+
 		if update {
 			WriteObjectUpdatesToDB(db, e)
-		}			
+		}
 	}
 
 	if len(obj.InReplyTo) < 1 {
@@ -301,7 +301,7 @@ func WriteObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 		if id == "" {
 			query := `insert into replies (id, inreplyto) values ($1, $2)`
 
-			_, err := db.Exec(query, obj.Id, "")			
+			_, err := db.Exec(query, obj.Id, "")
 
 			CheckError(err, "error inserting replies db")
 		}
@@ -322,13 +322,13 @@ func WriteActorObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 		rows.Next()
 		rows.Scan(&id)
 
-		if id == "" {		
+		if id == "" {
 			query := `insert into replies (id, inreplyto) values ($1, $2)`
 
-			_, err := db.Exec(query, obj.Id, e.Id)			
+			_, err := db.Exec(query, obj.Id, e.Id)
 
 
-			CheckError(err, "error inserting replies db")			
+			CheckError(err, "error inserting replies db")
 		}
 	}
 
@@ -348,7 +348,7 @@ func WriteActorObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 		if id == "" {
 			query := `insert into replies (id, inreplyto) values ($1, $2)`
 
-			_, err := db.Exec(query, obj.Id, "")			
+			_, err := db.Exec(query, obj.Id, "")
 
 			CheckError(err, "error inserting replies db")
 		}
@@ -356,18 +356,18 @@ func WriteActorObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 }
 
 func WriteWalletToDB(db *sql.DB, obj ObjectBase) {
-	for _, e := range obj.Option { 	
+	for _, e := range obj.Option {
 		if e == "wallet" {
 			for _, e := range obj.Wallet {
 				query := `insert into wallet (id, type, address) values ($1, $2, $3)`
 
-				_, err := db.Exec(query, obj.Id ,e.Type, e.Address)			
+				_, err := db.Exec(query, obj.Id ,e.Type, e.Address)
 
 				CheckError(err, "error with write wallet query")
 			}
-			return 
+			return
 		}
-	}	
+	}
 }
 
 func WriteActivitytoDB(db *sql.DB, obj ObjectBase) {
@@ -378,49 +378,49 @@ func WriteActivitytoDB(db *sql.DB, obj ObjectBase) {
 
 	query := `insert into activitystream (id, type, name, content, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)	
-	
+	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)
+
 	if e != nil{
 		fmt.Println("error inserting new activity")
-		panic(e)			
-	}	
+		panic(e)
+	}
 }
 
 func WriteActivitytoDBWithAttachment(db *sql.DB, obj ObjectBase, attachment ObjectBase, preview NestedObjectBase) {
-	
+
 	obj.Name = EscapeString(obj.Name)
 	obj.Content = EscapeString(obj.Content)
 	obj.AttributedTo = EscapeString(obj.AttributedTo)
 
 	query := `insert into activitystream (id, type, name, content, attachment, preview, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, attachment.Id, preview.Id, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)	
-	
+	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, attachment.Id, preview.Id, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)
+
 	if e != nil{
 		fmt.Println("error inserting new activity with attachment")
-		panic(e)			
-	}	
+		panic(e)
+	}
 }
 
 func WriteAttachmentToDB(db *sql.DB, obj ObjectBase) {
 	query := `insert into activitystream (id, type, name, href, published, updated, attributedTo, mediatype, size) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-	
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)	
-	
+
+	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)
+
 	if e != nil{
 		fmt.Println("error inserting new attachment")
-		panic(e)			
+		panic(e)
 	}
 }
 
 func WritePreviewToDB(db *sql.DB, obj NestedObjectBase) {
 	query := `insert into activitystream (id, type, name, href, published, updated, attributedTo, mediatype, size) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-	
+
 	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)
-	
+
 	if e != nil{
 		fmt.Println("error inserting new attachment")
-		panic(e)			
+		panic(e)
 	}
 }
 
@@ -433,22 +433,22 @@ func GetActivityFromDB(db *sql.DB, id string) Collection {
 
 	query := `select  actor, id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from  activitystream where id=$1 order by updated asc`
 
-	rows, err := db.Query(query, id)	
+	rows, err := db.Query(query, id)
 
 	CheckError(err, "error query object from db")
-	
+
 	defer rows.Close()
 	for rows.Next(){
 		var post ObjectBase
 		var actor Actor
-		var attachID string	
+		var attachID string
 		var previewID	string
-		
+
 		err = rows.Scan(&nColl.Actor.Id, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
-		
+
 		CheckError(err, "error scan object into post struct")
 
-		post.Actor = actor.Id		
+		post.Actor = actor.Id
 
 		var postCnt int
 		var imgCnt int
@@ -459,23 +459,23 @@ func GetActivityFromDB(db *sql.DB, id string) Collection {
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 
-		post.Preview = GetObjectPreview(db, previewID)		
+		post.Preview = GetObjectPreview(db, previewID)
 
 		result = append(result, post)
 	}
 
 	nColl.OrderedItems = result
 
-	return nColl	
+	return nColl
 }
 
 func GetObjectFromDBPage(db *sql.DB, id string, page int) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
-	query := `select count (x.id) over(), x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc limit 8 offset $2`
+	query := `select count (x.id) over(), x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc limit 15 offset $2`
 
-	rows, err := db.Query(query, id, page * 8)	
+	rows, err := db.Query(query, id, page * 15)
 
 	CheckError(err, "error query object from db")
 
@@ -485,20 +485,20 @@ func GetObjectFromDBPage(db *sql.DB, id string, page int) Collection {
 		var post ObjectBase
 		var actor Actor
 		var attachID string
-		var previewID string		
-		
+		var previewID string
+
 		err = rows.Scan(&count, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
-		
+
 		CheckError(err, "error scan object into post struct")
 
 		post.Actor = actor.Id
 
 		var postCnt int
-		var imgCnt int		
+		var imgCnt int
 		post.Replies, postCnt, imgCnt = GetObjectRepliesDBLimit(db, post, 5)
 
 		post.Replies.TotalItems = postCnt
-		post.Replies.TotalImgs = imgCnt		
+		post.Replies.TotalImgs = imgCnt
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 
@@ -510,7 +510,7 @@ func GetObjectFromDBPage(db *sql.DB, id string, page int) Collection {
 	nColl.TotalItems = count
 	nColl.OrderedItems = result
 
-	return nColl	
+	return nColl
 }
 
 func GetObjectFromDB(db *sql.DB, id string) Collection {
@@ -519,29 +519,29 @@ func GetObjectFromDB(db *sql.DB, id string) Collection {
 
 	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' order by updated desc`
 
-	rows, err := db.Query(query, id)	
+	rows, err := db.Query(query, id)
 
 	CheckError(err, "error query object from db")
-	
+
 	defer rows.Close()
 	for rows.Next(){
 		var post ObjectBase
 		var actor Actor
 		var attachID string
-		var previewID string		
-		
+		var previewID string
+
 		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
-		
+
 		CheckError(err, "error scan object into post struct")
 
 		post.Actor = actor.Id
 
 		var postCnt int
-		var imgCnt int		
+		var imgCnt int
 		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
 
 		post.Replies.TotalItems = postCnt
-		post.Replies.TotalImgs = imgCnt		
+		post.Replies.TotalImgs = imgCnt
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 
@@ -552,7 +552,7 @@ func GetObjectFromDB(db *sql.DB, id string) Collection {
 
 	nColl.OrderedItems = result
 
-	return nColl	
+	return nColl
 }
 
 func GetObjectFromDBFromID(db *sql.DB, id string) Collection {
@@ -568,31 +568,31 @@ func GetObjectFromDBFromID(db *sql.DB, id string) Collection {
 		re := regexp.MustCompile(`(.+)\-`)
 		id = re.ReplaceAllString(id, "")
 		id = "%" + match[1] + "/" + id
-	}	
+	}
 
-	rows, err := db.Query(query, id)	
+	rows, err := db.Query(query, id)
 
 	CheckError(err, "error query object from db")
-	
+
 	defer rows.Close()
 	for rows.Next(){
 		var post ObjectBase
 		var actor Actor
 		var attachID string
-		var previewID string		
-		
+		var previewID string
+
 		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
-		
+
 		CheckError(err, "error scan object into post struct")
 
 		post.Actor = actor.Id
 
 		var postCnt int
-		var imgCnt int		
+		var imgCnt int
 		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
 
 		post.Replies.TotalItems = postCnt
-		post.Replies.TotalImgs = imgCnt		
+		post.Replies.TotalImgs = imgCnt
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 
@@ -603,28 +603,28 @@ func GetObjectFromDBFromID(db *sql.DB, id string) Collection {
 
 	nColl.OrderedItems = result
 
-	return nColl	
+	return nColl
 }
 
 func GetObjectFromDBCatalog(db *sql.DB, id string) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
-	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc`	
+	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc limit 165`
 
-	rows, err := db.Query(query, id)	
+	rows, err := db.Query(query, id)
 
 	CheckError(err, "error query object from db")
-	
+
 	defer rows.Close()
 	for rows.Next(){
 		var post ObjectBase
 		var actor Actor
 		var attachID string
-		var previewID string		
-		
+		var previewID string
+
 		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
-		
+
 		CheckError(err, "error scan object into post struct")
 
 		post.Actor = actor.Id
@@ -633,7 +633,7 @@ func GetObjectFromDBCatalog(db *sql.DB, id string) Collection {
 
 		post.Replies = &replies
 
-		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCount(db, post)		
+		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCount(db, post)
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 
@@ -644,7 +644,7 @@ func GetObjectFromDBCatalog(db *sql.DB, id string) Collection {
 
 	nColl.OrderedItems = result
 
-	return nColl	
+	return nColl
 }
 
 func GetObjectByIDFromDB(db *sql.DB, postID string) Collection {
@@ -653,33 +653,33 @@ func GetObjectByIDFromDB(db *sql.DB, postID string) Collection {
 
 	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where id=$1 and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where id=$1 and type='Note') as x`
 
-	rows, err := db.Query(query, postID)	
+	rows, err := db.Query(query, postID)
 
 	CheckError(err, "error query object from db")
-	
+
 	defer rows.Close()
 	for rows.Next(){
 		var post ObjectBase
 		var actor Actor
 		var attachID string
-		var previewID string		
-		
+		var previewID string
+
 		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
-		
+
 		CheckError(err, "error scan object into post struct")
 
 		actor = GetActorFromDB(db, actor.Id)
 
 		post.Actor = actor.Id
 
-		nColl.Actor = &actor		
+		nColl.Actor = &actor
 
 		var postCnt int
-		var imgCnt int		
+		var imgCnt int
 		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
 
 		post.Replies.TotalItems = postCnt
-		post.Replies.TotalImgs = imgCnt		
+		post.Replies.TotalImgs = imgCnt
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 
@@ -690,13 +690,13 @@ func GetObjectByIDFromDB(db *sql.DB, postID string) Collection {
 
 	nColl.OrderedItems = result
 
-	return nColl	
+	return nColl
 }
 
 func GetInReplyToDB(db *sql.DB, parent ObjectBase) []ObjectBase {
 	var result []ObjectBase
 
-	query := `select inreplyto from replies where id =$1` 
+	query := `select inreplyto from replies where id =$1`
 
 	rows, err := db.Query(query, parent.Id)
 
@@ -721,22 +721,22 @@ func GetObjectRepliesDBLimit(db *sql.DB, parent ObjectBase, limit int) (*Collect
 
 	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over(), x.id, x.name, x.content, x.type, x.published, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select * from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' union select * from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note') as x order by x.published desc limit $2`
 
-	rows, err := db.Query(query, parent.Id, limit)	
+	rows, err := db.Query(query, parent.Id, limit)
 
 	CheckError(err, "error with replies db query")
 
 	var postCount int
 	var attachCount int
-	
-	defer rows.Close()	
+
+	defer rows.Close()
 	for rows.Next() {
 		var post ObjectBase
 		var actor Actor
 		var attachID string
-		var previewID string		
+		var previewID string
 
 		post.InReplyTo = append(post.InReplyTo, parent)
-		
+
 		err = rows.Scan(&postCount, &attachCount, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
 
 		CheckError(err, "error with replies db scan")
@@ -753,14 +753,14 @@ func GetObjectRepliesDBLimit(db *sql.DB, parent ObjectBase, limit int) (*Collect
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 
-		post.Preview = GetObjectPreview(db, previewID)				
+		post.Preview = GetObjectPreview(db, previewID)
 
-		result = append(result, post)			
+		result = append(result, post)
 	}
 
 	nColl.OrderedItems = result
 
-	sort.Sort(ObjectBaseSortAsc(nColl.OrderedItems))			
+	sort.Sort(ObjectBaseSortAsc(nColl.OrderedItems))
 
 	return &nColl, postCount, attachCount
 }
@@ -770,24 +770,24 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, in
 	var nColl CollectionBase
 	var result []ObjectBase
 
-	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over(), x.id, x.name, x.content, x.type, x.published, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select * from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' union select * from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note') as x order by x.published asc`	
+	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over(), x.id, x.name, x.content, x.type, x.published, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select * from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' union select * from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note') as x order by x.published asc`
 
-	rows, err := db.Query(query, parent.Id)	
+	rows, err := db.Query(query, parent.Id)
 
 	CheckError(err, "error with replies db query")
 
 	var postCount int
 	var attachCount int
 
-	defer rows.Close()	
+	defer rows.Close()
 	for rows.Next() {
 		var post ObjectBase
 		var actor Actor
 		var attachID string
-		var previewID string		
+		var previewID string
 
 		post.InReplyTo = append(post.InReplyTo, parent)
-		
+
 		err = rows.Scan(&postCount, &attachCount, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
 
 		CheckError(err, "error with replies db scan")
@@ -796,17 +796,17 @@ func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, in
 
 		var postCnt int
 		var imgCnt int
-		
+
 		post.Replies, postCnt, imgCnt = GetObjectRepliesRepliesDB(db, post)
 
 		post.Replies.TotalItems = postCnt
-		post.Replies.TotalImgs = imgCnt		
-		
+		post.Replies.TotalImgs = imgCnt
+
 		post.Attachment = GetObjectAttachment(db, attachID)
 
-		post.Preview = GetObjectPreview(db, previewID)				
+		post.Preview = GetObjectPreview(db, previewID)
 
-		result = append(result, post)			
+		result = append(result, post)
 	}
 
 	nColl.OrderedItems = result
@@ -821,7 +821,7 @@ func GetObjectRepliesReplies(db *sql.DB, parent ObjectBase) (*CollectionBase, in
 
 	query := `select id, name, content, type, published, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' order by updated asc`
 
-	rows, err := db.Query(query, parent.Id)	
+	rows, err := db.Query(query, parent.Id)
 
 	CheckError(err, "error with replies replies db query")
 
@@ -830,7 +830,7 @@ func GetObjectRepliesReplies(db *sql.DB, parent ObjectBase) (*CollectionBase, in
 		var post ObjectBase
 		var actor Actor
 		var attachID string
-		var previewID string		
+		var previewID string
 
 		post.InReplyTo = append(post.InReplyTo, parent)
 
@@ -842,14 +842,14 @@ func GetObjectRepliesReplies(db *sql.DB, parent ObjectBase) (*CollectionBase, in
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 
-		post.Preview = GetObjectPreview(db, previewID)				
+		post.Preview = GetObjectPreview(db, previewID)
 
-		result = append(result, post)			
+		result = append(result, post)
 	}
 
 	nColl.OrderedItems = result
 
-	return &nColl, 0, 0	
+	return &nColl, 0, 0
 }
 
 func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, int) {
@@ -857,7 +857,7 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 	var nColl CollectionBase
 	var result []ObjectBase
 
-	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over(), x.id, x.name, x.content, x.type, x.published, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select * from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' union select * from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note') as x order by x.published asc`	
+	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over(), x.id, x.name, x.content, x.type, x.published, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select * from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' union select * from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note') as x order by x.published asc`
 
 	rows, err := db.Query(query, parent.Id)
 
@@ -870,7 +870,7 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 		var post ObjectBase
 		var actor Actor
 		var attachID string
-		var previewID string		
+		var previewID string
 
 		post.InReplyTo = append(post.InReplyTo, parent)
 
@@ -882,12 +882,12 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 
 		post.Attachment = GetObjectAttachment(db, attachID)
 
-		post.Preview = GetObjectPreview(db, previewID)				
+		post.Preview = GetObjectPreview(db, previewID)
 
-		result = append(result, post)			
+		result = append(result, post)
 	}
 
-	nColl.OrderedItems = result	
+	nColl.OrderedItems = result
 
 	return &nColl, postCount, attachCount
 }
@@ -895,7 +895,7 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 func CheckIfObjectOP(db *sql.DB, id string) bool {
 
 	var count int
-	
+
 	query := `select count(id) from replies where inreplyto='' and id=$1 `
 
 	rows, err := db.Query(query, id)
@@ -918,9 +918,9 @@ func GetObjectRepliesCount(db *sql.DB, parent ObjectBase) (int, int) {
 	var countImg int
 
 	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over() from (select id, attachment from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' union select id, attachment from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note') as x`
-	
-	rows, err := db.Query(query, parent.Id)	
-	
+
+	rows, err := db.Query(query, parent.Id)
+
 	CheckError(err, "error with replies count db query")
 
 	defer rows.Close()
@@ -932,11 +932,11 @@ func GetObjectRepliesCount(db *sql.DB, parent ObjectBase) (int, int) {
 
 func GetObjectAttachment(db *sql.DB, id string) []ObjectBase {
 
-	var attachments []ObjectBase	
+	var attachments []ObjectBase
 
 	query := `select x.id, x.type, x.name, x.href, x.mediatype, x.size, x.published from (select id, type, name, href, mediatype, size, published from activitystream where id=$1 union select id, type, name, href, mediatype, size, published from cacheactivitystream where id=$1) as x`
 
-	rows, err := db.Query(query,  id)	
+	rows, err := db.Query(query,  id)
 
 	CheckError(err, "could not select object attachment query")
 
@@ -961,10 +961,10 @@ func GetObjectPreview(db *sql.DB, id string) *NestedObjectBase {
 	var preview NestedObjectBase
 
 	query := `select x.id, x.type, x.name, x.href, x.mediatype, x.size, x.published from (select id, type, name, href, mediatype, size, published from activitystream where id=$1 union select id, type, name, href, mediatype, size, published from cacheactivitystream where id=$1) as x`
-	
-	rows, err := db.Query(query, id)	
 
-	CheckError(err, "could not select object preview query")	
+	rows, err := db.Query(query, id)
+
+	CheckError(err, "could not select object preview query")
 
 	defer rows.Close()
 	for rows.Next() {
@@ -979,16 +979,16 @@ func GetObjectPostsTotalDB(db *sql.DB, actor Actor) int{
 	count := 0
 	query := `select count(id) from activitystream where actor=$1 and id in (select id from replies where inreplyto='' and type='Note')`
 
-	rows, err := db.Query(query, actor.Id)	
+	rows, err := db.Query(query, actor.Id)
 
-	CheckError(err, "could not select post total count query")		
+	CheckError(err, "could not select post total count query")
 
-	defer rows.Close()	
+	defer rows.Close()
 	for rows.Next() {
 		err = rows.Scan(&count)
 		CheckError(err, "error with total post db scan")
 	}
-	
+
 	return count
 }
 
@@ -997,9 +997,9 @@ func GetObjectImgsTotalDB(db *sql.DB, actor Actor) int{
 	count := 0
 	query := `select count(attachment) from activitystream where actor=$1 and id in (select id from replies where inreplyto='' and type='Note' )`
 
-	rows, err := db.Query(query, actor.Id)	
+	rows, err := db.Query(query, actor.Id)
 
-	CheckError(err, "error with posts total db query")			
+	CheckError(err, "error with posts total db query")
 
 	defer rows.Close()
 	for rows.Next() {
@@ -1007,7 +1007,7 @@ func GetObjectImgsTotalDB(db *sql.DB, actor Actor) int{
 
 		CheckError(err, "error with total post db scan")
 	}
-	
+
 	return count
 }
 
@@ -1015,9 +1015,9 @@ func DeletePreviewFromFile(db *sql.DB, id string) {
 
 	var query = `select href from activitystream where id in (select preview from activitystream where id=$1)`
 
-	rows, err := db.Query(query, id)	
+	rows, err := db.Query(query, id)
 
-	CheckError(err, "error query delete attachment")				
+	CheckError(err, "error query delete attachment")
 
 	defer rows.Close()
 	for rows.Next() {
@@ -1041,9 +1041,9 @@ func RemovePreviewFromFile(db *sql.DB, id string) {
 
 	var query = `select href from activitystream where id in (select preview from activitystream where id=$1)`
 
-	rows, err := db.Query(query, id)	
+	rows, err := db.Query(query, id)
 
-	CheckError(err, "error query delete attachment")				
+	CheckError(err, "error query delete attachment")
 
 	defer rows.Close()
 	for rows.Next() {
@@ -1068,9 +1068,9 @@ func DeleteAttachmentFromFile(db *sql.DB, id string) {
 
 	var query = `select href from activitystream where id in (select attachment from activitystream where id=$1)`
 
-	rows, err := db.Query(query, id)	
+	rows, err := db.Query(query, id)
 
-	CheckError(err, "error query delete attachment")				
+	CheckError(err, "error query delete attachment")
 
 	defer rows.Close()
 	for rows.Next() {
@@ -1092,42 +1092,42 @@ func DeleteAttachmentFromFile(db *sql.DB, id string) {
 
 func TombstonePreviewRepliesFromDB(db *sql.DB, id string) {
 	var query = `select id from activitystream where id in (select id from replies where inreplyto=$1)`
-	
+
 	rows, err := db.Query(query, id)
 
 	CheckError(err, "error query tombstone preview replies")
 
-	defer rows.Close()	
+	defer rows.Close()
 	for rows.Next() {
 		var attachment string
 
 		err := rows.Scan(&attachment)
 
 		CheckError(err, "error scanning tombstone preview")
-		
+
 		DeletePreviewFromFile(db, attachment)
 		TombstonePreviewFromDB(db, attachment)
-	}	
+	}
 }
 
 func TombstoneAttachmentRepliesFromDB(db *sql.DB, id string) {
 	var query = `select id from activitystream where id in (select id from replies where inreplyto=$1)`
-	
-	rows, err := db.Query(query, id)	
+
+	rows, err := db.Query(query, id)
 
 	CheckError(err, "error query tombstone attachment replies")
 
-	defer rows.Close()	
+	defer rows.Close()
 	for rows.Next() {
 		var attachment string
 
 		err := rows.Scan(&attachment)
 
 		CheckError(err, "error scanning delete attachment")
-		
+
 		DeleteAttachmentFromFile(db, attachment)
 		TombstoneAttachmentFromDB(db, attachment)
-	}	
+	}
 }
 
 func TombstoneAttachmentFromDB(db *sql.DB, id string) {
@@ -1135,29 +1135,29 @@ func TombstoneAttachmentFromDB(db *sql.DB, id string) {
 
 	var query = `update activitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select attachment from activitystream where id=$3)`
 
-	_, err := db.Exec(query, Domain + "/static/notfound.png", datetime, id)	
+	_, err := db.Exec(query, Domain + "/static/notfound.png", datetime, id)
 
 	CheckError(err, "error with tombstone attachment")
 
 	query = `update cacheactivitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select attachment from cacheactivitystream where id=$3)`
 
-	_, err = db.Exec(query, Domain + "/static/notfound.png", datetime, id)	
+	_, err = db.Exec(query, Domain + "/static/notfound.png", datetime, id)
 
-	CheckError(err, "error with tombstone cache attachment")		
+	CheckError(err, "error with tombstone cache attachment")
 }
 
 func DeleteAttachmentFromDB(db *sql.DB, id string) {
 	var query = `delete from activitystream where id in (select attachment from activitystream where id=$1)`
 
-	_, err := db.Exec(query, id)	
+	_, err := db.Exec(query, id)
 
 	CheckError(err, "error with delete attachment")
 
 	query = `delete from cacheactivitystream where id in (select attachment from cacheactivitystream where id=$1)`
 
-	_, err = db.Exec(query, id)	
+	_, err = db.Exec(query, id)
 
-	CheckError(err, "error with delete cache attachment")		
+	CheckError(err, "error with delete cache attachment")
 }
 
 func TombstonePreviewFromDB(db *sql.DB, id string) {
@@ -1165,73 +1165,73 @@ func TombstonePreviewFromDB(db *sql.DB, id string) {
 
 	var query = `update activitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select preview from activitystream where id=$3)`
 
-	_, err := db.Exec(query, Domain + "/static/notfound.png", datetime, id)	
+	_, err := db.Exec(query, Domain + "/static/notfound.png", datetime, id)
 
 	CheckError(err, "error with tombstone preview")
 
 	query = `update cacheactivitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select preview from cacheactivitystream where id=$3)`
 
-	_, err = db.Exec(query, Domain + "/static/notfound.png", datetime, id)	
+	_, err = db.Exec(query, Domain + "/static/notfound.png", datetime, id)
 
-	CheckError(err, "error with tombstone cache preview")		
+	CheckError(err, "error with tombstone cache preview")
 }
 
 func DeletePreviewFromDB(db *sql.DB, id string) {
 	var query = `delete from activitystream  where id=$1`
 
-	_, err := db.Exec(query, id)	
+	_, err := db.Exec(query, id)
 
 	CheckError(err, "error with delete preview")
 
 	query = `delete from cacheactivitystream where id in (select preview from cacheactivitystream where id=$1)`
 
-	_, err = db.Exec(query, id)	
+	_, err = db.Exec(query, id)
 
-	CheckError(err, "error with delete cache preview")		
+	CheckError(err, "error with delete cache preview")
 }
 
 func DeleteObjectRepliedTo(db *sql.DB, id string){
 	query := `delete from replies where id=$1`
 	_, err := db.Exec(query, id)
 
-	CheckError(err, "error with delete object replies")	
+	CheckError(err, "error with delete object replies")
 }
 
 func TombstoneObjectFromDB(db *sql.DB, id string) {
 	datetime := time.Now().UTC().Format(time.RFC3339)
 	var query = `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', deleted=$1 where id=$2`
 
-	_, err := db.Exec(query, datetime, id)	
+	_, err := db.Exec(query, datetime, id)
 
 	CheckError(err, "error with tombstone object")
 
 	query = `update cacheactivitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='',  deleted=$1 where id=$2`
 
-	_, err = db.Exec(query, datetime, id)	
+	_, err = db.Exec(query, datetime, id)
 
-	CheckError(err, "error with tombstone cache object")	
+	CheckError(err, "error with tombstone cache object")
 }
 
 func DeleteObjectFromDB(db *sql.DB, id string) {
  var query = `delete from activitystream where id=$1`
 
-	_, err := db.Exec(query, id)	
+	_, err := db.Exec(query, id)
 
 	CheckError(err, "error with delete object")
 
 	query = `delete from cacheactivitystream where id=$1`
 
-	_, err = db.Exec(query, id)	
+	_, err = db.Exec(query, id)
 
-	CheckError(err, "error with delete cache object")	
+	CheckError(err, "error with delete cache object")
 }
 
 func DeleteObjectsInReplyTo(db *sql.DB, id string) {
-	query := `delete from replies where id in (select id from replies where inreplyto=$1)`	
+	query := `delete from replies where id in (select id from replies where inreplyto=$1)`
 
 	_, err := db.Exec(query, id)
 
-	CheckError(err, "error with delete object replies to")		
+	CheckError(err, "error with delete object replies to")
 }
 
 func TombstoneObjectRepliesFromDB(db *sql.DB, id string) {
@@ -1239,13 +1239,13 @@ func TombstoneObjectRepliesFromDB(db *sql.DB, id string) {
 
 	var query = `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', deleted=$1 where id in (select id from replies where inreplyto=$2)`
 
-	_, err := db.Exec(query, datetime, id)	
+	_, err := db.Exec(query, datetime, id)
 	CheckError(err, "error with tombstone object replies")
 
 	query = `update cacheactivitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', deleted=$1 where id in (select id from replies where inreplyto=$2)`
 
-	_, err = db.Exec(query, datetime, id)	
-	CheckError(err, "error with tombstone object cache replies")	
+	_, err = db.Exec(query, datetime, id)
+	CheckError(err, "error with tombstone object cache replies")
 
 }
 
@@ -1254,15 +1254,15 @@ func SetAttachmentFromDB(db *sql.DB, id string, _type string) {
 
 	var query = `update activitystream set type=$1, deleted=$2 where id in (select attachment from activitystream where id=$3)`
 
-	_, err := db.Exec(query, _type, datetime, id)	
+	_, err := db.Exec(query, _type, datetime, id)
 
 	CheckError(err, "error with set attachment")
 
 	query = `update cacheactivitystream set type=$1, deleted=$2 where id in (select attachment from cacheactivitystream  where id=$3)`
 
-	_, err = db.Exec(query, _type, datetime, id)	
+	_, err = db.Exec(query, _type, datetime, id)
 
-	CheckError(err, "error with set cache attachment")		
+	CheckError(err, "error with set cache attachment")
 }
 
 func SetAttachmentRepliesFromDB(db *sql.DB, id string, _type string) {
@@ -1270,15 +1270,15 @@ func SetAttachmentRepliesFromDB(db *sql.DB, id string, _type string) {
 
 	var query = `update activitystream set type=$1, deleted=$2 where id in (select attachment from activitystream where id in (select id from replies where inreplyto=$3))`
 
-	_, err := db.Exec(query, _type, datetime, id)	
+	_, err := db.Exec(query, _type, datetime, id)
 
 	CheckError(err, "error with set attachment")
 
 	query = `update cacheactivitystream set type=$1, deleted=$2 where id in (select attachment from cacheactivitystream where id in (select id from replies where inreplyto=$3))`
 
-	_, err = db.Exec(query, _type, datetime, id)	
+	_, err = db.Exec(query, _type, datetime, id)
 
-	CheckError(err, "error with set cache attachment")		
+	CheckError(err, "error with set cache attachment")
 }
 
 func SetPreviewFromDB(db *sql.DB, id string, _type string) {
@@ -1286,15 +1286,15 @@ func SetPreviewFromDB(db *sql.DB, id string, _type string) {
 
 	var query = `update activitystream set type=$1, deleted=$2 where id in (select preview from activitystream where id=$3)`
 
-	_, err := db.Exec(query, _type, datetime, id)	
+	_, err := db.Exec(query, _type, datetime, id)
 
 	CheckError(err, "error with set preview")
 
 	query = `update cacheactivitystream set type=$1, deleted=$2 where id in (select preview from cacheactivitystream where id=$3)`
 
-	_, err = db.Exec(query, _type, datetime, id)	
+	_, err = db.Exec(query, _type, datetime, id)
 
-	CheckError(err, "error with set cache preview")		
+	CheckError(err, "error with set cache preview")
 }
 
 func SetPreviewRepliesFromDB(db *sql.DB, id string, _type string) {
@@ -1302,43 +1302,43 @@ func SetPreviewRepliesFromDB(db *sql.DB, id string, _type string) {
 
 	var query = `update activitystream set type=$1, deleted=$2 where id in (select preview from activitystream where id in (select id from replies where inreplyto=$3))`
 
-	_, err := db.Exec(query, _type, datetime, id)	
+	_, err := db.Exec(query, _type, datetime, id)
 
 	CheckError(err, "error with set preview")
 
-	query = `update cacheactivitystream set type=$1, deleted=$2 where id in (select preview from cacheactivitystream where id in (select id from replies where inreplyto=$3))`	
+	query = `update cacheactivitystream set type=$1, deleted=$2 where id in (select preview from cacheactivitystream where id in (select id from replies where inreplyto=$3))`
 
-	_, err = db.Exec(query, _type, datetime, id)	
+	_, err = db.Exec(query, _type, datetime, id)
 
-	CheckError(err, "error with set cache preview")		
+	CheckError(err, "error with set cache preview")
 }
 
 func SetObjectFromDB(db *sql.DB, id string, _type string) {
 	datetime := time.Now().UTC().Format(time.RFC3339)
-	
+
 	var query = `update activitystream set type=$1, deleted=$2 where id=$3`
 
-	_, err := db.Exec(query, _type, datetime, id)	
+	_, err := db.Exec(query, _type, datetime, id)
 
 	CheckError(err, "error with set object")
 
 	query = `update cacheactivitystream set type=$1, deleted=$2 where id=$3`
 
-	_, err = db.Exec(query, _type, datetime, id)	
+	_, err = db.Exec(query, _type, datetime, id)
 
-	CheckError(err, "error with set cache object")	
+	CheckError(err, "error with set cache object")
 }
 
 func SetObjectRepliesFromDB(db *sql.DB, id string, _type string) {
 	datetime := time.Now().UTC().Format(time.RFC3339)
 
 	var query = `update activitystream set type=$1, deleted=$2 where id in (select id from replies where inreplyto=$3)`
-	_, err := db.Exec(query, _type, datetime, id)	
+	_, err := db.Exec(query, _type, datetime, id)
 	CheckError(err, "error with set object replies")
 
 	query = `update cacheactivitystream set type=$1, deleted=$2 where id in (select id from replies where inreplyto=$3)`
-	_, err = db.Exec(query, _type, datetime, id)	
-	CheckError(err, "error with set cache object replies")	
+	_, err = db.Exec(query, _type, datetime, id)
+	CheckError(err, "error with set cache object replies")
 }
 
 func SetObject(db *sql.DB, id string, _type string) {
@@ -1353,7 +1353,7 @@ func SetObjectAndReplies(db *sql.DB, id string, _type string) {
 	SetObjectRepliesFromDB(db, id, _type);
 	SetAttachmentRepliesFromDB(db, id, _type);
 	SetPreviewRepliesFromDB(db, id, _type);
-	SetObjectFromDB(db, id, _type);	
+	SetObjectFromDB(db, id, _type);
 }
 
 func DeleteObject(db *sql.DB, id string) {
@@ -1361,7 +1361,7 @@ func DeleteObject(db *sql.DB, id string) {
 	DeleteAttachmentFromFile(db, id)
 	DeleteAttachmentFromDB(db, id)
 	DeletePreviewFromFile(db, id)
-	DeletePreviewFromDB(db, id)	
+	DeletePreviewFromDB(db, id)
 	DeleteObjectFromDB(db, id)
 	DeleteObjectRepliedTo(db, id)
 }
@@ -1371,16 +1371,16 @@ func TombstoneObject(db *sql.DB, id string) {
 	DeleteAttachmentFromFile(db, id)
 	TombstoneAttachmentFromDB(db, id)
 	DeletePreviewFromFile(db, id)
-	TombstonePreviewFromDB(db, id)	
+	TombstonePreviewFromDB(db, id)
 	TombstoneObjectFromDB(db, id)
 }
 
 func TombstoneObjectAndReplies(db *sql.DB, id string) {
-	DeleteReportActivity(db, id)	
+	DeleteReportActivity(db, id)
 	DeleteAttachmentFromFile(db, id)
-	TombstoneAttachmentFromDB(db, id)	
+	TombstoneAttachmentFromDB(db, id)
 	DeletePreviewFromFile(db, id)
-	TombstonePreviewFromDB(db, id)		
+	TombstonePreviewFromDB(db, id)
 	TombstoneObjectRepliesFromDB(db, id)
 	TombstoneAttachmentRepliesFromDB(db, id)
 	TombstonePreviewRepliesFromDB(db, id)
@@ -1397,10 +1397,10 @@ func GetRandomCaptcha(db *sql.DB) string{
 	var verify string
 
 	defer rows.Close()
-	
+
 	rows.Next()
 	err = rows.Scan(&verify)
-	
+
 	CheckError(err, "Could not get verify captcha")
 
 	return verify
@@ -1410,11 +1410,11 @@ func GetCaptchaTotal(db *sql.DB) int{
 	query := `select count(*) from verification where type='captcha'`
 
 	rows, err := db.Query(query)
-	
-	CheckError(err, "could not get query captcha total")	
+
+	CheckError(err, "could not get query captcha total")
 
 	defer rows.Close()
-	
+
 	var count int
 	for rows.Next(){
 		if err := rows.Scan(&count); err != nil{
@@ -1436,7 +1436,7 @@ func GetCaptchaCodeDB(db *sql.DB, verify string) string {
 	defer rows.Close()
 
 	var code string
-	
+
 	rows.Next()
 	err = rows.Scan(&code)
 
@@ -1450,19 +1450,19 @@ func GetCaptchaCodeDB(db *sql.DB, verify string) string {
 func GetActorAuth(db *sql.DB, actor string) []string {
 	query := `select type from actorauth where board=$1`
 
-	rows, err := db.Query(query, actor)	
+	rows, err := db.Query(query, actor)
 
-	CheckError(err, "could not get actor auth")	
+	CheckError(err, "could not get actor auth")
 
-	defer rows.Close()	
+	defer rows.Close()
 
 	var auth []string
-	
+
 	for rows.Next() {
 		var e string
 		err = rows.Scan(&e)
 
-		CheckError(err, "could not get actor auth row scan")		
+		CheckError(err, "could not get actor auth row scan")
 
 		auth = append(auth, e)
 	}
@@ -1473,7 +1473,7 @@ func GetActorAuth(db *sql.DB, actor string) []string {
 func DeleteCaptchaCodeDB(db *sql.DB, verify string) {
 	query := `delete from verification where identifier=$1`
 
-	_, err := db.Exec(query, verify)	
+	_, err := db.Exec(query, verify)
 
 	CheckError(err, "could not delete captcah code db")
 
@@ -1488,7 +1488,7 @@ func EscapeString(text string) string {
 func GetActorReportedTotal(db *sql.DB, id string) int {
 	query := `select count(id) from reported where board=$1`
 
-	rows, err := db.Query(query, id)	
+	rows, err := db.Query(query, id)
 
 	CheckError(err, "error getting actor reported total query")
 
@@ -1498,7 +1498,7 @@ func GetActorReportedTotal(db *sql.DB, id string) int {
 	for rows.Next() {
 		rows.Scan(&count)
 	}
-	
+
 	return count
 }
 
@@ -1507,7 +1507,7 @@ func GetActorReportedDB(db *sql.DB, id string) []ObjectBase {
 
 	query := `select id, count, reason from reported where board=$1`
 
-	rows, err := db.Query(query, id)	
+	rows, err := db.Query(query, id)
 
 	CheckError(err, "error getting actor reported query")
 
@@ -1531,7 +1531,7 @@ func GetActorPemFromDB(db *sql.DB, pemID string) PublicKeyPem {
 	CheckError(err, "could not get public key pem from database")
 
 	var pem PublicKeyPem
-	
+
 	defer rows.Close()
 	rows.Next()
 	rows.Scan(&pem.Id, &pem.Owner, &pem.PublicKeyPem)
@@ -1542,7 +1542,7 @@ func GetActorPemFromDB(db *sql.DB, pemID string) PublicKeyPem {
 	}
 
 	pem.PublicKeyPem = strings.ReplaceAll(string(f), "\r\n", `\n`)
-	
+
 	return pem
 }
 
@@ -1570,13 +1570,13 @@ func MarkObjectSensitive(db *sql.DB, id string, sensitive bool) {
 	query = `update cacheactivitystream set sensitive=$1 where id=$2`
 	_, err = db.Exec(query, sensitive, id)
 
-	CheckError(err, "error updating sensitive object in cacheactivitystream")	
+	CheckError(err, "error updating sensitive object in cacheactivitystream")
 }
 
 //if limit less than 1 return all news items
 func getNewsFromDB(db *sql.DB, limit int) []NewsItem {
 	var news []NewsItem
-	
+
 	var query string
 	if(limit > 0) {
 		query =`select title, content, time from newsItem order by time desc limit $1`
@@ -1591,7 +1591,7 @@ func getNewsFromDB(db *sql.DB, limit int) []NewsItem {
 	} else {
 		rows, err = db.Query(query)
 	}
-	
+
 
 	if CheckError(err, "could not get news from db query") != nil {
 		return news
@@ -1608,10 +1608,10 @@ func getNewsFromDB(db *sql.DB, limit int) []NewsItem {
 
 		content = strings.ReplaceAll(content, "\n", "<br>")
 		n.Content = template.HTML(content)
-		
+
 		news = append(news, n)
 	}
-	
+
 	return news
 }
 
@@ -1619,24 +1619,24 @@ func getNewsItemFromDB(db *sql.DB, timestamp int) (NewsItem, error) {
 	var news NewsItem
 	var content string
 	query := `select title, content, time from newsItem where time=$1 limit 1`
-	
+
 	rows, err := db.Query(query, timestamp)
-	
+
 	if err != nil {
 		return news, err
 	}
-	
+
 	defer rows.Close()
 	rows.Next()
 	err = rows.Scan(&news.Title, &content, &news.Time)
-	
+
 	if err != nil {
 		return news, err
 	}
 
 	content = strings.ReplaceAll(content, "\n", "<br>")
-	news.Content = template.HTML(content)	
-	
+	news.Content = template.HTML(content)
+
 	return news, nil
 }
 
@@ -1647,9 +1647,9 @@ func deleteNewsItemFromDB(db *sql.DB, timestamp int) {
 
 func WriteNewsToDB(db *sql.DB, news NewsItem) {
 	query := `insert into newsItem (title, content, time) values ($1, $2, $3)`
-	
+
 	_, err := db.Exec(query, news.Title, news.Content, time.Now().Unix())
-	
+
 	CheckError(err, "error writing news item")
 }
 
@@ -1658,7 +1658,7 @@ func WriteRegexBlacklistDB(db *sql.DB, regex string) {
 
 	rows, err := db.Query(query, regex)
 
-	CheckError(err, "error select from postblacklist db")	
+	CheckError(err, "error select from postblacklist db")
 
 	var re string
 	defer rows.Close()
@@ -1681,13 +1681,13 @@ func GetRegexBlacklistDB(db *sql.DB) []PostBlacklist {
 
 	rows, err := db.Query(query)
 
-	CheckError(err, "error with select all from postblacklist db")	
+	CheckError(err, "error with select all from postblacklist db")
 
 	var List []PostBlacklist
 
 	defer rows.Close()
 	for rows.Next() {
-		var temp PostBlacklist		
+		var temp PostBlacklist
 		rows.Scan(&temp.Id, &temp.Regex)
 
 		List = append(List, temp)

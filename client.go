@@ -59,7 +59,7 @@ type AdminPage struct {
 	Board Board
 	Key string
 	Actor string
-	Boards []Board	
+	Boards []Board
 	Following []string
 	Followers []string
 	Reported []Report
@@ -118,7 +118,7 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	if(len(data.BoardRemainer) == 3){
 		data.BoardRemainer = make([]int, 0)
 	}
-	
+
 	data.InstanceIndex = GetCollectionFromReq("https://fchan.xyz/followers").Items
 	data.NewsItems = getNewsFromDB(db, 3)
 
@@ -127,9 +127,9 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 func NewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB, timestamp int) {
 	t := template.Must(template.New("").Funcs(template.FuncMap{
-		"sub": func (i, j int) int { return i - j },		
+		"sub": func (i, j int) int { return i - j },
 		"unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/news.html"))
-	
+
 	actor := GetActorFromDB(db, Domain)
 
 	var data PageData
@@ -143,16 +143,16 @@ func NewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB, timestamp int) 
 	data.Board.Post.Actor = actor.Id
 	data.Board.Restricted = actor.Restricted
 	data.NewsItems = []NewsItem{NewsItem{}}
-	
+
 	var err error
 	data.NewsItems[0], err = getNewsItemFromDB(db, timestamp)
-	
+
 	if err != nil {
-		w.WriteHeader(http.StatusForbidden)			
+		w.WriteHeader(http.StatusForbidden)
 		w.Write([]byte("404 no path"))
 		return
 	}
-	
+
 	data.Title = actor.PreferredUsername + ": " + data.NewsItems[0].Title
 
 	t.ExecuteTemplate(w, "layout",  data)
@@ -161,9 +161,9 @@ func NewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB, timestamp int) 
 func AllNewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	t := template.Must(template.New("").Funcs(template.FuncMap{
 		"mod": func(i, j int) bool { return i%j == 0 },
-		"sub": func (i, j int) int { return i - j },				
+		"sub": func (i, j int) int { return i - j },
 		"unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/anews.html"))
-	
+
 	actor := GetActorFromDB(db, Domain)
 
 	var data PageData
@@ -183,7 +183,6 @@ func AllNewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 }
 
 func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection){
-
 	t := template.Must(template.New("").Funcs(template.FuncMap{
 		"proxy": func(url string) string {
 			return MediaProxy(url)
@@ -199,13 +198,16 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 			title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
 			link := "<a href=\"" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id)  + "\" title=\"" + title + "\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
 			return template.HTML(link)
-		},								
+		},
+		"add": func (i, j int) int {
+			return i + j
+		},
 		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/nposts.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 
 
 	actor := collection.Actor
 
-	postNum := strings.Replace(r.URL.EscapedPath(), "/" + actor.Name + "/", "", 1)
+	postNum := r.URL.Query().Get("page")
 
 	page, _ := strconv.Atoi(postNum)
 
@@ -230,7 +232,7 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 
 	returnData.Title = "/" + actor.Name + "/ - " + actor.PreferredUsername
 
-	returnData.Key = *Key	
+	returnData.Key = *Key
 
 	returnData.Boards = Boards
 	returnData.Posts = collection.OrderedItems
@@ -241,11 +243,16 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 		for j, k := range e.Replies.OrderedItems {
 			returnData.Posts[i].Replies.OrderedItems[j].ContentHTML = ParseContent(db, returnData.Board.Actor, e.Id, k.Content, e)
 		}
-	}	
+	}
 
-	var offset = 8
+	var offset = 15
 	var pages []int
 	pageLimit := (float64(collection.TotalItems) / float64(offset))
+
+	if pageLimit > 11 {
+		pageLimit = 11
+	}
+
 	for i := 0.0; i < pageLimit; i++ {
 		pages = append(pages, int(i))
 	}
@@ -259,15 +266,15 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection){
 	t := template.Must(template.New("").Funcs(template.FuncMap{
 		"proxy": func(url string) string {
-			return MediaProxy(url)			
+			return MediaProxy(url)
 		},
 		"short": func(actorName string, url string) string {
 			return shortURL(actorName, url)
 		},
 		"parseAttachment": func(obj ObjectBase, catalog bool) template.HTML {
 			return ParseAttachment(obj, catalog)
-		},						
-		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))			
+		},
+		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))
 	actor := collection.Actor
 
 	var returnData PageData
@@ -286,9 +293,9 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	returnData.Board.Post.Actor = actor.Id
 
 	returnData.Instance = GetActorFromDB(db, Domain)
-	
+
 	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
-	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)	
+	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)
 
 	returnData.Title = "/" + actor.Name + "/ - " + actor.PreferredUsername
 
@@ -302,7 +309,7 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 	t := template.Must(template.New("").Funcs(template.FuncMap{
 		"proxy": func(url string) string {
-			return MediaProxy(url)						
+			return MediaProxy(url)
 		},
 		"short": func(actorName string, url string) string {
 			return shortURL(actorName, url)
@@ -316,9 +323,9 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 			title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
 			link := "<a href=\"" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id)  + "\" title=\"" + title + "\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
 			return template.HTML(link)
-		},										
+		},
 		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/npost.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
-	
+
 	path := r.URL.Path
 	actor := GetActorFromPath(db, path, "/")
 	re := regexp.MustCompile("\\w+$")
@@ -344,7 +351,7 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 
 	returnData.Title = "/" + returnData.Board.Name + "/ - " + returnData.Board.PrefName
 
-	returnData.Key = *Key	
+	returnData.Key = *Key
 
 	returnData.Boards = Boards
 
@@ -366,7 +373,7 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 		collection := GetObjectByIDFromDB(db, inReplyTo)
 		if collection.Actor != nil {
 			returnData.Board.Post.Actor = collection.Actor.Id
-			returnData.Board.InReplyTo = inReplyTo							
+			returnData.Board.InReplyTo = inReplyTo
 
 			if len(collection.OrderedItems) > 0 {
 				returnData.Posts = append(returnData.Posts, collection.OrderedItems[0])
@@ -386,7 +393,7 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 		}
 	}
 
-	t.ExecuteTemplate(w, "layout",  returnData)			
+	t.ExecuteTemplate(w, "layout",  returnData)
 }
 
 func GetBoardCollection(db *sql.DB) []Board {
@@ -406,7 +413,7 @@ func GetBoardCollection(db *sql.DB) []Board {
 	}
 
 	sort.Sort(BoardSortAsc(collection))
-	
+
 	return collection
 }
 
@@ -415,14 +422,18 @@ func WantToServePage(db *sql.DB, actorName string, page int) (Collection, bool) 
 	var collection Collection
 	serve := false
 
+	if page > 10 {
+		return collection, serve
+	}
+
 	actor := GetActorByNameFromDB(db, actorName)
 
 	if actor.Id != "" {
 		collection = GetObjectFromDBPage(db, actor.Id, page)
-		collection.Actor = &actor		
+		collection.Actor = &actor
 		return collection, true
 	}
-	
+
 	return collection, serve
 }
 
@@ -435,10 +446,10 @@ func WantToServeCatalog(db *sql.DB, actorName string) (Collection, bool) {
 
 	if actor.Id != "" {
 		collection = GetObjectFromDBCatalog(db, actor.Id)
-		collection.Actor = &actor		
+		collection.Actor = &actor
 		return collection, true
 	}
-	
+
 	return collection, serve
 }
 
@@ -465,7 +476,7 @@ func GetCaptchaCode(captcha string) string {
 func CreateLocalDeleteDB(db *sql.DB, id string, _type string)	{
 	query := `select id from removed where id=$1`
 
-	rows, err := db.Query(query, id)	
+	rows, err := db.Query(query, id)
 
 	CheckError(err, "could not query removed")
 
@@ -478,26 +489,26 @@ func CreateLocalDeleteDB(db *sql.DB, id string, _type string)	{
 
 		if i != "" {
 			query := `update removed set type=$1 where id=$2`
-			
-			_, err := db.Exec(query, _type, id)			
-			
+
+			_, err := db.Exec(query, _type, id)
+
 			CheckError(err, "Could not update removed post")
-			
+
 		}
 	} else {
 		query := `insert into removed (id, type) values ($1, $2)`
-		
-		_, err := db.Exec(query, id, _type)		
-		
+
+		_, err := db.Exec(query, id, _type)
+
 		CheckError(err, "Could not insert removed post")
 	}
 }
 
 func GetLocalDeleteDB(db *sql.DB) []Removed {
 	var deleted []Removed
-	
+
 	query := `select id, type from removed`
-	
+
 	rows, err := db.Query(query)
 
 	CheckError(err, "could not query removed")
@@ -518,7 +529,7 @@ func GetLocalDeleteDB(db *sql.DB) []Removed {
 func CreateLocalReportDB(db *sql.DB, id string, board string, reason string) {
 	query := `select id, count from reported where id=$1 and board=$2`
 
-	rows, err := db.Query(query, id, board)	
+	rows, err := db.Query(query, id, board)
 
 	CheckError(err, "could not query reported")
 
@@ -534,23 +545,23 @@ func CreateLocalReportDB(db *sql.DB, id string, board string, reason string) {
 			count = count + 1
 			query := `update reported set count=$1 where id=$2`
 
-			_, err := db.Exec(query, count, id)			
-			
+			_, err := db.Exec(query, count, id)
+
 			CheckError(err, "Could not update reported post")
 		}
 	} else {
 		query := `insert into reported (id, count, board, reason) values ($1, $2, $3, $4)`
-		
-		_, err := db.Exec(query, id, 1, board, reason)		
-		
+
+		_, err := db.Exec(query, id, 1, board, reason)
+
 		CheckError(err, "Could not insert reported post")
-	}	
+	}
 
 }
 
 func GetLocalReportDB(db *sql.DB, board string) []Report {
 	var reported []Report
-	
+
 	query := `select id, count, reason from reported where board=$1`
 
 	rows, err := db.Query(query, board)
@@ -573,7 +584,7 @@ func GetLocalReportDB(db *sql.DB, board string) []Report {
 func CloseLocalReportDB(db *sql.DB, id string, board string) {
 	query := `delete from reported where id=$1 and board=$2`
 
-	_, err := db.Exec(query, id, board)	
+	_, err := db.Exec(query, id, board)
 
 	CheckError(err, "Could not delete local report from db")
 }
@@ -586,7 +597,7 @@ func GetActorFollowNameFromPath(path string) string{
 	actor = re.FindString(path)
 
 	actor = strings.Replace(actor, "f", "", 1)
-	actor = strings.Replace(actor, "-", "", 1)	
+	actor = strings.Replace(actor, "-", "", 1)
 
 	return actor
 }
@@ -646,7 +657,7 @@ func MediaProxy(url string) string {
 
 	if re.MatchString(url) {
 		return url
-	}	
+	}
 
 	MediaHashs[HashMedia(url)] = url
 	return "/api/media?hash=" + HashMedia(url)
@@ -675,15 +686,15 @@ func ParseAttachment(obj ObjectBase, catalog bool) template.HTML {
 			media += "preview=\"" + MediaProxy(obj.Preview.Href) + "\""
 		} else {
 			media += "src=\"" + MediaProxy(obj.Attachment[0].Href) + "\""
-			media += "preview=\"" + MediaProxy(obj.Attachment[0].Href) + "\""			
+			media += "preview=\"" + MediaProxy(obj.Attachment[0].Href) + "\""
 		}
 
 		media += ">"
 
 		return template.HTML(media)
-	}          
+	}
 
-	if(regexp.MustCompile(`audio\/`).MatchString(obj.Attachment[0].MediaType)){	
+	if(regexp.MustCompile(`audio\/`).MatchString(obj.Attachment[0].MediaType)){
 		media = "<audio "
 		media += "controls=\"controls\" "
 		media += "preload=\"metadta\" "
@@ -699,17 +710,17 @@ func ParseAttachment(obj ObjectBase, catalog bool) template.HTML {
 		media += ">"
 		media += "Audio is not supported."
 		media += "</audio>"
-	
+
 		return template.HTML(media)
 	}
 
-	if(regexp.MustCompile(`video\/`).MatchString(obj.Attachment[0].MediaType)){		
+	if(regexp.MustCompile(`video\/`).MatchString(obj.Attachment[0].MediaType)){
 		media = "<video "
 		media += "controls=\"controls\" "
 		media += "preload=\"metadta\" "
 		media += "muted=\"muted\" "
 		if catalog {
-			media += "style=\"margin-right: 10px; margin-bottom: 10px; max-width: 180px; max-height: 180px;\" "			
+			media += "style=\"margin-right: 10px; margin-bottom: 10px; max-width: 180px; max-height: 180px;\" "
 		} else {
 			media += "style=\"float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;\" "
 		}
@@ -720,7 +731,7 @@ func ParseAttachment(obj ObjectBase, catalog bool) template.HTML {
 		media += ">"
 		media += "Video is not supported."
 		media += "</video>"
-		
+
 		return template.HTML(media)
 	}
 
@@ -729,8 +740,8 @@ func ParseAttachment(obj ObjectBase, catalog bool) template.HTML {
 
 func ParseContent(db *sql.DB, board Actor, op string, content string, thread ObjectBase) template.HTML {
 
-	nContent := strings.ReplaceAll(content, `<`, "&lt;")		
-	
+	nContent := strings.ReplaceAll(content, `<`, "&lt;")
+
 	nContent = ParseLinkComments(db, board, op, nContent, thread)
 
 	nContent = ParseCommentQuotes(nContent)
@@ -748,7 +759,7 @@ func ParseLinkComments(db *sql.DB, board Actor, op string, content string, threa
 	for i, _ := range match {
 		link := strings.Replace(match[i][0], ">>", "", 1)
 		isOP := ""
-		
+
 		domain := match[i][2]
 
 		if link == op {
@@ -791,18 +802,18 @@ func ParseLinkComments(db *sql.DB, board Actor, op string, content string, threa
 		replyID, isReply := IsReplyToOP(db, op, parsedLink)
 		if isReply {
 			id := shortURL(board.Outbox, replyID)
-			
+
 			content = strings.Replace(content, match[i][0], "<a class=\"reply\" style=\"" + style + "\" title=\"" + quoteTitle +  "\" href=\"/" + board.Name + "/" + shortURL(board.Outbox, op)  +  "#" + id + "\">&gt;&gt;" + id + ""  + isOP + "</a>", -1)
 
 		} else {
-			
+
 			//this is a cross post
 			parsedOP := GetReplyOP(db, parsedLink)
 
 			if parsedOP != "" {
 				link = parsedOP + "#" + shortURL(parsedOP, parsedLink)
 			}
-			
+
 			content = strings.Replace(content, match[i][0], "<a class=\"reply\" style=\"" + style + "\" title=\"" + quoteTitle +  "\" href=\"" + link + "\">&gt;&gt;" + shortURL(board.Outbox, parsedLink)  + isOP + " →</a>", -1)
 		}
 	}
@@ -818,8 +829,8 @@ func ParseLinkTitle(actorName string, op string, content string) string {
 		link := strings.Replace(match[i][0], ">>", "", 1)
 		isOP := ""
 
-		domain := match[i][2]		
-		
+		domain := match[i][2]
+
 		if link == op {
 			isOP = " (OP)"
 		}
@@ -839,9 +850,9 @@ func ParseCommentQuotes(content string) string {
 	// replace quotes
 	re := regexp.MustCompile(`((\r\n|\r|\n|^)>(.+)?[^\r\n])`)
 	match := re.FindAllStringSubmatch(content, -1)
-	
+
 	for i, _ := range match {
-		quote := strings.Replace(match[i][0], ">", "&gt;", 1)		
+		quote := strings.Replace(match[i][0], ">", "&gt;", 1)
 		line := re.ReplaceAllString(match[i][0], "<span class=\"quote\">" + quote + "</span>")
 		content = strings.Replace(content, match[i][0], line, 1)
 	}

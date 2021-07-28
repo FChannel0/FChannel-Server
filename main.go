@@ -21,7 +21,7 @@ import (
 	"bufio"
 	"io"
 	"github.com/gofrs/uuid"
-	"crypto/sha256" 	
+	"crypto/sha256"
 	"encoding/hex"
 )
 
@@ -68,7 +68,7 @@ func main() {
 	*Key = CreateKey(32)
 
 	FollowingBoards = GetActorFollowingDB(db, Domain)
-	
+
 	Boards = GetBoardCollection(db)
 
 	// root actor is used to follow remote feeds that are not local
@@ -76,16 +76,16 @@ func main() {
 	if GetConfigValue("instancename") != "" {
 		CreateNewBoardDB(db, *CreateNewActor("", GetConfigValue("instancename"), GetConfigValue("instancesummary"), authReq, false))
 		if PublicIndexing == "true" {
-			AddInstanceToIndex(Domain)			
+			AddInstanceToIndex(Domain)
 		}
 	}
-	
+
 	// Allow access to public media folder
 	fileServer := http.FileServer(http.Dir("./public"))
 	http.Handle("/public/", http.StripPrefix("/public", neuter(fileServer)))
 
 	javascriptFiles := http.FileServer(http.Dir("./static"))
-	http.Handle("/static/", http.StripPrefix("/static", neuter(javascriptFiles)))					
+	http.Handle("/static/", http.StripPrefix("/static", neuter(javascriptFiles)))
 
 	// main routing
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request){
@@ -101,7 +101,7 @@ func main() {
 		var mainInbox bool
 		var mainOutbox bool
 		var mainFollowing bool
-		var mainFollowers bool		
+		var mainFollowers bool
 
 		var actorMain bool
 		var actorInbox bool
@@ -110,22 +110,22 @@ func main() {
 		var actorPost bool
 		var actorFollowing bool
 		var actorFollowers bool
-		var actorReported bool		
+		var actorReported bool
 		var actorVerification bool
 		var actorMainPage bool
 
 		var accept = r.Header.Get("Accept")
-		
+
 		var method = r.Method
 
 		var actor = GetActorFromPath(db, path, "/")
 
 		if actor.Name == "main" {
-			mainActor = (path == "/")			
+			mainActor = (path == "/")
 			mainInbox = (path == "/inbox")
 			mainOutbox = (path == "/outbox")
 			mainFollowing = (path == "/following")
-			mainFollowers = (path == "/followers")			
+			mainFollowers = (path == "/followers")
 		} else {
 			actorMain = (path == "/" + actor.Name)
 			actorInbox = (path == "/" + actor.Name + "/inbox")
@@ -133,7 +133,7 @@ func main() {
 			actorOutbox = (path == "/" + actor.Name + "/outbox")
 			actorFollowing = (path == "/" + actor.Name + "/following")
 			actorFollowers = (path == "/" + actor.Name + "/followers")
-			actorReported = (path == "/" + actor.Name + "/reported")				
+			actorReported = (path == "/" + actor.Name + "/reported")
 			actorVerification = (path == "/" + actor.Name + "/verification")
 
 			escapedActorName := strings.Replace(actor.Name, "*", "\\*", -1)
@@ -141,15 +141,15 @@ func main() {
 			escapedActorName = strings.Replace(escapedActorName, "$", "\\$", -1)
 			escapedActorName = strings.Replace(escapedActorName, "?", "\\?", -1)
 			escapedActorName = strings.Replace(escapedActorName, "+", "\\+", -1)
-			escapedActorName = strings.Replace(escapedActorName, ".", "\\.", -1)															
+			escapedActorName = strings.Replace(escapedActorName, ".", "\\.", -1)
 
 			re := regexp.MustCompile("/" + escapedActorName + "/[0-9]{1,2}$")
 
 			actorMainPage = re.MatchString(path)
-			
+
 			re = regexp.MustCompile("/" + escapedActorName + "/\\w+")
-			
-			actorPost = 	re.MatchString(path)
+
+			actorPost =		re.MatchString(path)
 		}
 
 		if mainActor {
@@ -159,27 +159,27 @@ func main() {
 			}
 
 			IndexGet(w, r, db)
-			
+
 			return
 		}
-		
+
 		if mainInbox {
 			if method == "POST" {
-				
+
 			} else {
-				w.WriteHeader(http.StatusForbidden)				
+				w.WriteHeader(http.StatusForbidden)
 				w.Write([]byte("404 no path"))
 			}
 			return
 		}
-		
+
 		if mainOutbox {
 			if method == "GET" {
 				GetActorOutbox(w, r, db)
 			} else if method == "POST" {
 				ParseOutboxRequest(w, r, db)
 			} else {
-				w.WriteHeader(http.StatusForbidden)			
+				w.WriteHeader(http.StatusForbidden)
 				w.Write([]byte("404 no path"))
 			}
 			return
@@ -198,17 +198,17 @@ func main() {
 		if actorMain || actorMainPage {
 			if acceptActivity(accept) {
 				GetActorInfo(w, db, actor.Id)
-				return 
+				return
 			}
 
-			postNum := strings.Replace(r.URL.EscapedPath(), "/" + actor.Name + "/", "", 1)
+			postNum := r.URL.Query().Get("page")
 
-			page, _ := strconv.Atoi(postNum)			
+			page, _ := strconv.Atoi(postNum)
 			collection, valid := WantToServePage(db, actor.Name, page)
 
 			if valid {
 				OutboxGet(w, r, db, collection)
-			}			
+			}
 
 			return
 		}
@@ -221,14 +221,14 @@ func main() {
 		if actorFollowers {
 			GetActorFollowers(w, db, actor.Id)
 			return
-		}		
+		}
 
 		if actorInbox {
 			if method == "POST" {
 				ParseInboxRequest(w, r, db)
 			} else {
 				w.WriteHeader(http.StatusForbidden)
-				w.Write([]byte("404 no path"))							
+				w.Write([]byte("404 no path"))
 			}
 			return
 		}
@@ -243,12 +243,12 @@ func main() {
 
 		if actorOutbox {
 			if method == "GET" {
-				GetActorOutbox(w, r, db)				
+				GetActorOutbox(w, r, db)
 			} else if method == "POST" {
 				ParseOutboxRequest(w, r, db)
 			} else {
 				w.WriteHeader(http.StatusForbidden)
-				w.Write([]byte("404 no path"))											
+				w.Write([]byte("404 no path"))
 			}
 			return
 		}
@@ -272,31 +272,31 @@ func main() {
 
 			auth := CreateTripCode(verify.Code)
 			auth = CreateTripCode(auth)
-			
+
 			if CreateTripCode(auth) == code {
 				w.WriteHeader(http.StatusOK)
 			} else {
 				w.WriteHeader(http.StatusUnauthorized)
 			}
-			
-			w.Write([]byte(""))																										
+
+			w.Write([]byte(""))
 		}
 
 		//catch all
 		if actorPost {
-			if acceptActivity(accept) {			
+			if acceptActivity(accept) {
 				GetActorPost(w, db, path)
-				return 
+				return
 			}
 
 			PostGet(w, r, db)
-			return			
-		}		
+			return
+		}
 
-		w.WriteHeader(http.StatusForbidden)			
+		w.WriteHeader(http.StatusForbidden)
 		w.Write([]byte("404 no path"))
 	})
-	
+
 	http.HandleFunc("/news/", func(w http.ResponseWriter, r *http.Request){
 		timestamp := r.URL.Path[6:]
 
@@ -308,10 +308,10 @@ func main() {
 		if timestamp[len(timestamp)-1:] == "/" {
 			timestamp = timestamp[:len(timestamp)-1]
 		}
-		
+
 		ts, err := strconv.Atoi(timestamp)
 		if err != nil {
-			w.WriteHeader(http.StatusForbidden)			
+			w.WriteHeader(http.StatusForbidden)
 			w.Write([]byte("404 no path"))
 		} else {
 			NewsGet(w, r, db, ts)
@@ -328,7 +328,7 @@ func main() {
 			fmt.Println("\n\nBlacklist post blocked\n\n")
 			http.Redirect(w, r, Domain + "/", http.StatusMovedPermanently)
 			return
-		}		
+		}
 
 		if(file != nil && header.Size > (7 << 20)){
 			w.Write([]byte("7MB max file size"))
@@ -337,9 +337,9 @@ func main() {
 
 		if(r.FormValue("inReplyTo") == "" && file == nil) {
 			w.Write([]byte("Media is required for new posts"))
-			return			
+			return
 		}
-		
+
 
 		if(r.FormValue("inReplyTo") == "" || file == nil) {
 			if(r.FormValue("comment") == "" && r.FormValue("subject") == ""){
@@ -356,25 +356,25 @@ func main() {
 		if(len(r.FormValue("subject")) > 100 || len(r.FormValue("name")) > 100 || len(r.FormValue("options")) > 100) {
 			w.Write([]byte("Name, Subject or Options limit 100 characters"))
 			return
-		}		
+		}
 
 		if(r.FormValue("captcha") == "") {
 			w.Write([]byte("Incorrect Captcha"))
 			return
-		}			
-		
+		}
+
 		b := bytes.Buffer{}
 		we := multipart.NewWriter(&b)
 
 		if(file != nil){
 			var fw io.Writer
-			
+
 			fw, err := we.CreateFormFile("file", header.Filename)
 
 			CheckError(err, "error with form file create")
 
 			_, err = io.Copy(fw, file)
-			
+
 			CheckError(err, "error with form file copy")
 		}
 
@@ -389,21 +389,21 @@ func main() {
 				err := we.WriteField(key, name)
 				CheckError(err, "error with writing name field")
 				err = we.WriteField("tripcode", tripcode)
-				CheckError(err, "error with writing tripcode field")				
+				CheckError(err, "error with writing tripcode field")
 			}else{
 				err := we.WriteField(key, r0[0])
 				CheckError(err, "error with writing field")
 			}
 		}
-		
+
 		if(r.FormValue("inReplyTo") == "" && reply != ""){
 			err := we.WriteField("inReplyTo", reply)
-			CheckError(err, "error with writing inReplyTo field")			
+			CheckError(err, "error with writing inReplyTo field")
 		}
-		
+
 		we.Close()
 
-		sendTo := r.FormValue("sendTo")		
+		sendTo := r.FormValue("sendTo")
 		req, err := http.NewRequest("POST", sendTo, &b)
 
 		CheckError(err, "error with post form req")
@@ -417,16 +417,16 @@ func main() {
 		defer resp.Body.Close()
 
 		if(resp.StatusCode == 200){
-			
+
 			body, _ := ioutil.ReadAll(resp.Body)
-			
+
 			var obj ObjectBase
 
 			obj = ParseOptions(r, obj)
 			for _, e := range obj.Option {
 				if(e == "noko" || e == "nokosage"){
 					http.Redirect(w, r, Domain + "/" + r.FormValue("boardName") + "/" + shortURL(r.FormValue("sendTo"), string(body)) , http.StatusMovedPermanently)
-					return					
+					return
 				}
 			}
 
@@ -442,7 +442,7 @@ func main() {
 			w.Write([]byte("Incorrect Captcha"))
 			return
 		}
-		
+
 		http.Redirect(w, r, Domain + "/" + r.FormValue("boardName"), http.StatusMovedPermanently)
 	})
 
@@ -486,22 +486,22 @@ func main() {
 			if following.MatchString(follow) {
 				followingActor := FingerActor(follow)
 				col := GetActorCollection(followingActor.Following)
-				
+
 				var nObj ObjectBase
 				nObj.Id = followingActor.Id
 
 				col.Items = append(col.Items, nObj)
-				
+
 				for _, e := range col.Items {
 					if !IsAlreadyFollowing(db, actorId, e.Id) && e.Id != Domain && e.Id != actorId {
 						followActivity := MakeFollowActivity(db, actorId, e.Id)
 
 						if FingerActor(e.Id).Id != "" {
 							MakeActivityRequestOutbox(db, followActivity)
-						}					
+						}
 					}
 				}
-				
+
 				//follow all of boards followers
 			} else if followers.MatchString(follow){
 				followersActor := FingerActor(follow)
@@ -510,17 +510,17 @@ func main() {
 				var nObj ObjectBase
 				nObj.Id = followersActor.Id
 
-				col.Items = append(col.Items, nObj)				
-				
+				col.Items = append(col.Items, nObj)
+
 				for _, e := range col.Items {
 					if !IsAlreadyFollowing(db, actorId, e.Id) && e.Id != Domain && e.Id != actorId {
 						followActivity := MakeFollowActivity(db, actorId, e.Id)
 						if FingerActor(e.Id).Id != "" {
 							MakeActivityRequestOutbox(db, followActivity)
-						}					
+						}
 					}
 				}
-				
+
 				//do a normal follow to a single board
 			} else {
 				followActivity := MakeFollowActivity(db, actorId, follow)
@@ -531,16 +531,16 @@ func main() {
 				}
 
 				if FingerActor(follow).Id != ""{
-					MakeActivityRequestOutbox(db, followActivity)						
+					MakeActivityRequestOutbox(db, followActivity)
 				}
 			}
-			
+
 			var redirect string
 			if(actor.Name != "main") {
 				redirect = "/" + actor.Name
-			}			
-			
-			http.Redirect(w, r, "/" + *Key + "/" + redirect, http.StatusSeeOther)																	
+			}
+
+			http.Redirect(w, r, "/" + *Key + "/" + redirect, http.StatusSeeOther)
 		} else if manage && actor.Name != "" {
 			t := template.Must(template.New("").Funcs(template.FuncMap{
 				"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/manage.html"))
@@ -577,7 +577,7 @@ func main() {
 				r.ID    = e.ID
 				r.Reason = e.Reason
 				reports = append(reports, r)
-			}			
+			}
 
 			var adminData AdminPage
 			adminData.Following = following
@@ -599,11 +599,11 @@ func main() {
 
 
 			t.ExecuteTemplate(w, "layout", adminData)
-			
+
 		} else if admin || actor.Id == Domain {
 			t := template.Must(template.New("").Funcs(template.FuncMap{
-				"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/nadmin.html"))						
-			
+				"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/nadmin.html"))
+
 			actor := GetActor(Domain)
 			follow := GetActorCollection(actor.Following).Items
 			follower := GetActorCollection(actor.Followers).Items
@@ -628,12 +628,12 @@ func main() {
 			adminData.Board.ModCred,_ = GetPasswordFromSession(r)
 
 			adminData.Boards = Boards
-			
+
 			adminData.Board.Post.Actor = actor.Id
 
-			adminData.PostBlacklist = GetRegexBlacklistDB(db)			
+			adminData.PostBlacklist = GetRegexBlacklistDB(db)
 
-			t.ExecuteTemplate(w, "layout",  adminData)				
+			t.ExecuteTemplate(w, "layout",  adminData)
 		}
 	})
 
@@ -642,9 +642,9 @@ func main() {
 		actor := GetActorFromDB(db, Domain)
 
 		if !HasValidation(w, r, actor) {
-			return 
+			return
 		}
-		
+
 		var newActorActivity Activity
 		var board Actor
 		r.ParseForm()
@@ -655,7 +655,7 @@ func main() {
 		} else {
 			restrict = false
 		}
-		
+
 		board.Name = r.FormValue("name")
 		board.PreferredUsername = r.FormValue("prefname")
 		board.Summary = r.FormValue("summary")
@@ -671,12 +671,12 @@ func main() {
 		newActorActivity.Object.Alias = board.Name
 		newActorActivity.Object.Name = board.PreferredUsername
 		newActorActivity.Object.Summary = board.Summary
-		newActorActivity.Object.Sensitive = board.Restricted		
+		newActorActivity.Object.Sensitive = board.Restricted
 
 		MakeActivityRequestOutbox(db, newActorActivity)
-		http.Redirect(w, r, "/" + *Key, http.StatusSeeOther)		
+		http.Redirect(w, r, "/" + *Key, http.StatusSeeOther)
 	})
-	
+
 	http.HandleFunc("/" + *Key + "/postnews", func(w http.ResponseWriter, r *http.Request) {
 
 		actor := GetActorFromDB(db, Domain)
@@ -684,17 +684,17 @@ func main() {
 		if !HasValidation(w, r, actor) {
 			return
 		}
-		
+
 		var newsitem NewsItem
-		
+
 		newsitem.Title = r.FormValue("title")
 		newsitem.Content = template.HTML(r.FormValue("summary"))
-		
+
 		WriteNewsToDB(db, newsitem)
-		
-		http.Redirect(w, r, "/", http.StatusSeeOther)		
+
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 	})
-	
+
 	http.HandleFunc("/" + *Key + "/newsdelete/", func(w http.ResponseWriter, r *http.Request){
 
 		actor := GetActorFromDB(db, Domain)
@@ -702,13 +702,13 @@ func main() {
 		if !HasValidation(w, r, actor) {
 			return
 		}
-		
+
 		timestamp := r.URL.Path[13+len(*Key):]
-		
+
 		tsint, err := strconv.Atoi(timestamp)
-		
+
 		if(err != nil){
-			w.WriteHeader(http.StatusForbidden)			
+			w.WriteHeader(http.StatusForbidden)
 			w.Write([]byte("404 no path"))
 			return
 		} else {
@@ -728,12 +728,12 @@ func main() {
 			verify.Code = code
 
 			j, _ := json.Marshal(&verify)
-			
+
 			req, err := http.NewRequest("POST", Domain + "/auth", bytes.NewBuffer(j))
 
 			CheckError(err, "error making verify req")
 
-			req.Header.Set("Content-Type", activitystreams)			
+			req.Header.Set("Content-Type", activitystreams)
 
 			resp, err := http.DefaultClient.Do(req)
 
@@ -747,15 +747,15 @@ func main() {
 
 			if(resp.StatusCode != 200) {
 				t := template.Must(template.ParseFiles("./static/verify.html"))
-				t.Execute(w, "wrong password " + verify.Code)			
+				t.Execute(w, "wrong password " + verify.Code)
 			} else {
-				
+
 				sessionToken, _ := uuid.NewV4()
 
 				_, err := cache.Do("SETEX", sessionToken, "86400", body + "|" + verify.Code)
 				if err != nil {
 					t := template.Must(template.ParseFiles("./static/verify.html"))
-					t.Execute(w, "")			
+					t.Execute(w, "")
 					return
 				}
 
@@ -765,18 +765,18 @@ func main() {
 					Expires: time.Now().UTC().Add(60 * 60 * 48 * time.Second),
 				})
 
-				http.Redirect(w, r, "/", http.StatusSeeOther)				
+				http.Redirect(w, r, "/", http.StatusSeeOther)
 			}
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("404 no path"))			
+			w.Write([]byte("404 no path"))
 		}
 	})
 
 	http.HandleFunc("/banmedia", func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Query().Get("id")
 		board := r.URL.Query().Get("board")
-		
+
 		_, auth := GetPasswordFromSession(r)
 
 		if id == "" || auth == "" {
@@ -788,7 +788,7 @@ func main() {
 		col := GetCollectionFromID(id)
 
 		if len(col.OrderedItems) > 0 {
-			
+
 			actor := col.OrderedItems[0].Actor
 
 			if !HasAuth(db, auth, actor) {
@@ -796,7 +796,7 @@ func main() {
 				w.Write([]byte(""))
 				return
 			}
-			
+
 			if len(col.OrderedItems[0].Attachment) > 0 {
 				re := regexp.MustCompile(Domain)
 				file := re.ReplaceAllString(col.OrderedItems[0].Attachment[0].Href, "")
@@ -812,7 +812,7 @@ func main() {
 				if err != nil {
 					fmt.Println("error readin bytes for setting media ban")
 				}
-				
+
 				if !IsMediaBanned(db, f) {
 					query := `insert into bannedmedia (hash) values ($1)`
 
@@ -825,8 +825,8 @@ func main() {
 				var obj ObjectBase
 				obj.Id = id
 				obj.Actor = actor
-				
-				isOP := CheckIfObjectOP(db, obj.Id)		
+
+				isOP := CheckIfObjectOP(db, obj.Id)
 
 				var OP string
 				if len(col.OrderedItems[0].InReplyTo) > 0 {
@@ -859,13 +859,13 @@ func main() {
 			}
 		}
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))				
-	})		
+		w.Write([]byte(""))
+	})
 
 	http.HandleFunc("/delete", func(w http.ResponseWriter, r *http.Request){
 		id := r.URL.Query().Get("id")
 		board := r.URL.Query().Get("board")
-		
+
 		_, auth := GetPasswordFromSession(r)
 
 		if id == "" || auth == "" {
@@ -883,7 +883,7 @@ func main() {
 				w.Write([]byte(""))
 				return
 			}
-			
+
 			if !CheckIfObjectOP(db, id) {
 				TombstoneObject(db, id)
 			} else {
@@ -898,7 +898,7 @@ func main() {
 				return
 			}
 		}
-		
+
 		actor := col.OrderedItems[0].Actor
 
 		if !HasAuth(db, auth, actor) {
@@ -910,8 +910,8 @@ func main() {
 		var obj ObjectBase
 		obj.Id = id
 		obj.Actor = actor
-		
-		isOP := CheckIfObjectOP(db, obj.Id)		
+
+		isOP := CheckIfObjectOP(db, obj.Id)
 
 		var OP string
 		if len(col.OrderedItems[0].InReplyTo) > 0 {
@@ -943,15 +943,15 @@ func main() {
 			http.Redirect(w, r, "/" + board, http.StatusSeeOther)
 			return
 		}
-		
+
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))		
+		w.Write([]byte(""))
 	})
 
 	http.HandleFunc("/deleteattach", func(w http.ResponseWriter, r *http.Request){
-		
+
 		id := r.URL.Query().Get("id")
-		board := r.URL.Query().Get("board")		
+		board := r.URL.Query().Get("board")
 
 		_, auth := GetPasswordFromSession(r)
 
@@ -960,8 +960,8 @@ func main() {
 			w.Write([]byte(""))
 			return
 		}
-		
-		manage := r.URL.Query().Get("manage")		
+
+		manage := r.URL.Query().Get("manage")
 		col := GetCollectionFromID(id)
 
 		if len(col.OrderedItems) < 1 {
@@ -970,12 +970,12 @@ func main() {
 				w.Write([]byte(""))
 				return
 			}
-			
+
 			DeleteAttachmentFromFile(db, id)
 			TombstoneAttachmentFromDB(db, id)
-			
+
 			DeletePreviewFromFile(db, id)
-			TombstonePreviewFromDB(db, id)			
+			TombstonePreviewFromDB(db, id)
 
 			if(manage == "t"){
 				http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)
@@ -985,7 +985,7 @@ func main() {
 				return
 			}
 		}
-		
+
 		actor := col.OrderedItems[0].Actor
 
 		var OP string
@@ -994,7 +994,7 @@ func main() {
 		} else {
 			OP = id
 		}
-		
+
 		if !HasAuth(db, auth, actor) {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(""))
@@ -1003,10 +1003,10 @@ func main() {
 
 		DeleteAttachmentFromFile(db, id)
 		TombstoneAttachmentFromDB(db, id)
-		
+
 		DeletePreviewFromFile(db, id)
 		TombstonePreviewFromDB(db, id)
-		
+
 		if (manage == "t") {
 			http.Redirect(w, r, "/" + *Key + "/" + board, http.StatusSeeOther)
 			return
@@ -1019,13 +1019,13 @@ func main() {
 		}
 
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))				
+		w.Write([]byte(""))
 	})
 
 	http.HandleFunc("/marksensitive", func(w http.ResponseWriter, r *http.Request){
-		
+
 		id := r.URL.Query().Get("id")
-		board := r.URL.Query().Get("board")		
+		board := r.URL.Query().Get("board")
 
 		_, auth := GetPasswordFromSession(r)
 
@@ -1034,7 +1034,7 @@ func main() {
 			w.Write([]byte(""))
 			return
 		}
-		
+
 		col := GetCollectionFromID(id)
 
 		if len(col.OrderedItems) < 1 {
@@ -1045,11 +1045,11 @@ func main() {
 			}
 
 			MarkObjectSensitive(db, id, true)
-			
+
 			http.Redirect(w, r, "/" + board, http.StatusSeeOther)
 			return
 		}
-		
+
 		actor := col.OrderedItems[0].Actor
 
 		var OP string
@@ -1058,7 +1058,7 @@ func main() {
 		} else {
 			OP = id
 		}
-		
+
 		if !HasAuth(db, auth, actor) {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(""))
@@ -1076,14 +1076,14 @@ func main() {
 		}
 
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))				
-	})	
+		w.Write([]byte(""))
+	})
 
 	http.HandleFunc("/remove", func(w http.ResponseWriter, r *http.Request){
 		id := r.URL.Query().Get("id")
 		manage := r.URL.Query().Get("manage")
 		board := r.URL.Query().Get("board")
-		col := GetCollectionFromID(id)		
+		col := GetCollectionFromID(id)
 		actor := col.OrderedItems[0].Actor
 		_, auth := GetPasswordFromSession(r)
 
@@ -1102,8 +1102,8 @@ func main() {
 		var obj ObjectBase
 		obj.Id = id
 		obj.Actor = actor
-		
-		isOP := CheckIfObjectOP(db, obj.Id)		
+
+		isOP := CheckIfObjectOP(db, obj.Id)
 
 		var OP string
 		if len(col.OrderedItems[0].InReplyTo) > 0 {
@@ -1131,17 +1131,17 @@ func main() {
 			http.Redirect(w, r, "/" + board, http.StatusSeeOther)
 			return
 		}
-		
+
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))		
+		w.Write([]byte(""))
 	})
 
 	http.HandleFunc("/removeattach", func(w http.ResponseWriter, r *http.Request){
-		
+
 		id := r.URL.Query().Get("id")
-		manage := r.URL.Query().Get("manage")		
-		board := r.URL.Query().Get("board")		
-		col := GetCollectionFromID(id)		
+		manage := r.URL.Query().Get("manage")
+		board := r.URL.Query().Get("board")
+		col := GetCollectionFromID(id)
 		actor := col.OrderedItems[0].Actor
 
 		var OP string
@@ -1150,7 +1150,7 @@ func main() {
 		} else {
 			OP = id
 		}
-		
+
 		_, auth := GetPasswordFromSession(r)
 
 		if id == "" || auth == "" {
@@ -1167,7 +1167,7 @@ func main() {
 
 		SetAttachmentFromDB(db, id, "Removed")
 		SetPreviewFromDB(db, id, "Removed")
-		
+
 		if (manage == "t") {
 			http.Redirect(w, r, "/" + *Key + "/" + board, http.StatusSeeOther)
 			return
@@ -1180,8 +1180,8 @@ func main() {
 		}
 
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))				
-	})	
+		w.Write([]byte(""))
+	})
 
 	http.HandleFunc("/report", func(w http.ResponseWriter, r *http.Request){
 
@@ -1204,10 +1204,10 @@ func main() {
 
 		if(close != "1" && !CheckCaptcha(db, captcha)) {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("captcha required"))					
-			return							
+			w.Write([]byte("captcha required"))
+			return
 		}
-		
+
 		if close == "1" {
 			if !HasAuth(db, auth, actor.Id) {
 				w.WriteHeader(http.StatusBadRequest)
@@ -1216,14 +1216,14 @@ func main() {
 			}
 
 			if !IsIDLocal(db, id) {
-				CloseLocalReportDB(db, id, board)				
+				CloseLocalReportDB(db, id, board)
 				http.Redirect(w, r, "/" + *Key + "/" + board, http.StatusSeeOther)
-				return 
+				return
 			}
 
 			reported := DeleteReportActivity(db, id)
 			if reported {
-				http.Redirect(w, r, "/" + *Key + "/" + board, http.StatusSeeOther)							
+				http.Redirect(w, r, "/" + *Key + "/" + board, http.StatusSeeOther)
 				return
 			}
 
@@ -1235,17 +1235,17 @@ func main() {
 		if !IsIDLocal(db, id) {
 			CreateLocalReportDB(db, id, board, reason)
 			http.Redirect(w, r, "/" + board + "/" + remoteShort(id), http.StatusSeeOther)
-			return			
+			return
 		}
-		
+
 		reported := ReportActivity(db, id, reason)
 		if reported {
-			http.Redirect(w, r, id, http.StatusSeeOther)			
+			http.Redirect(w, r, id, http.StatusSeeOther)
 			return
 		}
 
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))					
+		w.Write([]byte(""))
 	})
 
 	http.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request){
@@ -1266,7 +1266,7 @@ func main() {
 		}
 
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))		
+		w.Write([]byte(""))
 	})
 
 	http.HandleFunc("/.well-known/webfinger", func(w http.ResponseWriter, r *http.Request) {
@@ -1274,7 +1274,7 @@ func main() {
 
 		if(len(acct) < 1) {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("resource needs a value"))		
+			w.Write([]byte("resource needs a value"))
 			return
 		}
 
@@ -1284,7 +1284,7 @@ func main() {
 
 		if(len(actorDomain) < 2) {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("accpets only subject form of acct:board@instance"))		
+			w.Write([]byte("accpets only subject form of acct:board@instance"))
 			return
 		}
 
@@ -1296,13 +1296,13 @@ func main() {
 
 		if !IsActorLocal(db, TP + "" + actorDomain[1] + "" + actorDomain[0]) {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("actor not local"))		
+			w.Write([]byte("actor not local"))
 			return
 		}
 
 		var finger Webfinger
 		var link WebfingerLink
-		
+
 		finger.Subject = "acct:" + actorDomain[0] + "@" + actorDomain[1]
 		link.Rel = "self"
 		link.Type = "application/activity+json"
@@ -1314,7 +1314,7 @@ func main() {
 
 		w.Header().Set("Content-Type", activitystreams)
 		w.Write(enc)
-		
+
 	})
 
 	http.HandleFunc("/addtoindex", func(w http.ResponseWriter, r *http.Request) {
@@ -1348,10 +1348,10 @@ func main() {
 			testCase := r.FormValue("testCase")
 
 			if regex == "" {
-				http.Redirect(w, r, "/", http.StatusSeeOther)						
+				http.Redirect(w, r, "/", http.StatusSeeOther)
 				return
 			}
-			
+
 			r.ParseForm()
 
 			re := regexp.MustCompile(regex)
@@ -1362,9 +1362,9 @@ func main() {
 				WriteRegexBlacklistDB(db, regex)
 			}
 		}
-		
-		http.Redirect(w, r, "/" + *Key + "#regex", http.StatusSeeOther)		
-	})	
+
+		http.Redirect(w, r, "/" + *Key + "#regex", http.StatusSeeOther)
+	})
 
 	http.HandleFunc("/api/media", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("hash") != "" {
@@ -1380,30 +1380,30 @@ func main() {
 
 		board := r.URL.Query().Get("board")
 		actor := GetActorByNameFromDB(db, board)
-		
+
 		SetActorAutoSubscribeDB(db, actor.Id)
 		autoSub := GetActorAutoSubscribeDB(db, actor.Id)
 
 		if autoSub {
 			AutoFollow(db, actor.Id)
 		}
-		
-		http.Redirect(w, r, "/" + *Key + "/" + board, http.StatusSeeOther)				
-	})		
+
+		http.Redirect(w, r, "/" + *Key + "/" + board, http.StatusSeeOther)
+	})
 
 	fmt.Println("Server for " + Domain + " running on port " + Port)
 
 	fmt.Println("Mod key: " + *Key)
 	PrintAdminAuth(db)
-	
-	http.ListenAndServe(Port, nil)	
+
+	http.ListenAndServe(Port, nil)
 }
 
 func CheckError(e error, m string) error{
 	if e != nil {
-		fmt.Println()		
+		fmt.Println()
 		fmt.Println(m)
-		fmt.Println()		
+		fmt.Println()
 		panic(e)
 	}
 
@@ -1417,7 +1417,7 @@ func ConnectDB() *sql.DB {
 	user     := GetConfigValue("dbuser")
 	password := GetConfigValue("dbpass")
 	dbname   := GetConfigValue("dbname")
-	
+
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s " +
 		"dbname=%s sslmode=disable", host, port, user, password, dbname)
 
@@ -1436,20 +1436,20 @@ func CreateKey(len int) string {
 	var key string
 	str := (CreateTripCode(RandomID(len)))
 	for i := 0; i < len; i++ {
-		key += fmt.Sprintf("%c", str[i])			
+		key += fmt.Sprintf("%c", str[i])
 	}
 	return key
 }
 
 func neuter(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        if strings.HasSuffix(r.URL.Path, "/") {
-            http.NotFound(w, r)
-            return
-        }
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/") {
+						http.NotFound(w, r)
+						return
+				}
 
-        next.ServeHTTP(w, r)
-    })
+				next.ServeHTTP(w, r)
+		})
 }
 
 func CreateTripCode(input string) string {
@@ -1485,10 +1485,10 @@ func GetActorFromPath(db *sql.DB, location string, prefix string) Actor {
 
 	var nActor Actor
 
-	nActor = 	GetActorByNameFromDB(db, actor)
+	nActor =	GetActorByNameFromDB(db, actor)
 
 	if nActor.Id == "" {
-		nActor = 	GetActorByName(db, actor)
+		nActor =	GetActorByName(db, actor)
 	}
 
 	return nActor
@@ -1497,7 +1497,7 @@ func GetActorFromPath(db *sql.DB, location string, prefix string) Actor {
 func GetContentType(location string) string {
 	elements := strings.Split(location, ";")
 	if len(elements) > 0 {
-		return elements[0]	
+		return elements[0]
 	} else {
 		return location
 	}
@@ -1511,16 +1511,16 @@ func RandomID(size int) string {
 	for i := 0; i < rng; i++ {
 		newID += string(domain[rand.Intn(len(domain))])
 	}
-	
+
 	return newID
 }
 
 func CreateUniqueID(db *sql.DB, actor string) string {
-	var newID string	
+	var newID string
 	isUnique := false
 	for !isUnique {
 		newID = RandomID(8)
-		
+
 		query := fmt.Sprintf("select id from activitystream where id='%s/%s/%s'", Domain, actor, newID)
 
 		rows, err := db.Query(query)
@@ -1533,12 +1533,12 @@ func CreateUniqueID(db *sql.DB, actor string) string {
 		for rows.Next(){
 			count += 1
 		}
-		
+
 		if count < 1 {
 			isUnique = true
 		}
 	}
-	
+
 	return newID
 }
 
@@ -1578,7 +1578,7 @@ func GetActorInfo(w http.ResponseWriter, db *sql.DB, id string) {
 func GetActorPost(w http.ResponseWriter, db *sql.DB, path string) {
 	collection := GetCollectionFromPath(db, Domain + "" + path)
 	if len(collection.OrderedItems) > 0 {
-		enc, _ := json.MarshalIndent(collection, "", "\t")							
+		enc, _ := json.MarshalIndent(collection, "", "\t")
 		w.Header().Set("Content-Type", "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"")
 		w.Write(enc)
 	}
@@ -1597,7 +1597,7 @@ func CreateObject(objType string) ObjectBase {
 func AddFollowersToActivity(db *sql.DB, activity Activity) Activity{
 
 	activity.To = append(activity.To, activity.Actor.Id)
-	
+
 	for _, e := range activity.To {
 		aFollowers := GetActorCollection(e + "/followers")
 		for _, k := range aFollowers.Items {
@@ -1606,11 +1606,11 @@ func AddFollowersToActivity(db *sql.DB, activity Activity) Activity{
 	}
 
 	var nActivity Activity
-	
+
 	for _, e := range activity.To {
 		var alreadyTo = false
 		for _, k := range nActivity.To {
-			if e == k || e == activity.Actor.Id {				
+			if e == k || e == activity.Actor.Id {
 				alreadyTo = true
 			}
 		}
@@ -1618,17 +1618,17 @@ func AddFollowersToActivity(db *sql.DB, activity Activity) Activity{
 		if !alreadyTo {
 			nActivity.To = append(nActivity.To, e)
 		}
-	}	
+	}
 
-	activity.To = nActivity.To	
-	
+	activity.To = nActivity.To
+
 	return activity
 }
 
 func CreateActivity(activityType string, obj ObjectBase) Activity {
 	var newActivity Activity
 	actor := FingerActor(obj.Actor)
-	
+
 	newActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 	newActivity.Type = activityType
 	newActivity.Published = obj.Published
@@ -1642,10 +1642,10 @@ func CreateActivity(activityType string, obj ObjectBase) Activity {
 	}
 
 	for _, e := range obj.Cc {
-		if obj.Actor != e {		
+		if obj.Actor != e {
 			newActivity.Cc = append(newActivity.Cc, e)
 		}
-	}	
+	}
 
 	return newActivity
 }
@@ -1722,7 +1722,7 @@ func CreateAttachmentObject(file multipart.File, header *multipart.FileHeader) (
 
 	var nAttachment []ObjectBase
 	var image ObjectBase
-	
+
 	image.Type = "Attachment"
 	image.Name = filename
 	image.Href = Domain + "/" + tempFile.Name()
@@ -1737,18 +1737,18 @@ func CreateAttachmentObject(file multipart.File, header *multipart.FileHeader) (
 
 func ParseCommentForReplies(db *sql.DB, comment string, op string) []ObjectBase {
 
-	re := regexp.MustCompile(`(>>(https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/)(f[A-Za-z0-9_.\-~]+-)?([A-Za-z0-9_.\-~]+)?#?([A-Za-z0-9_.\-~]+)?)`)	
+	re := regexp.MustCompile(`(>>(https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/)(f[A-Za-z0-9_.\-~]+-)?([A-Za-z0-9_.\-~]+)?#?([A-Za-z0-9_.\-~]+)?)`)
 	match := re.FindAllStringSubmatch(comment, -1)
 
 	var links []string
 
 	for i:= 0; i < len(match); i++ {
 		str := strings.Replace(match[i][0], ">>", "", 1)
-		str = strings.Replace(str, "www.", "", 1)		
+		str = strings.Replace(str, "www.", "", 1)
 		str = strings.Replace(str, "http://", "", 1)
-		str = strings.Replace(str, "https://", "", 1)		
+		str = strings.Replace(str, "https://", "", 1)
 		str = TP + "" + str
-		_ , isReply := IsReplyToOP(db, op, str)		
+		_ , isReply := IsReplyToOP(db, op, str)
 		if !IsInStringArray(links, str) &&  isReply {
 			links = append(links, str)
 		}
@@ -1776,7 +1776,7 @@ func CheckValidActivity(id string) (Collection, bool) {
 	}
 
 	req, err := http.NewRequest("GET", id, nil)
-	
+
 	if err != nil {
 		fmt.Println("error with request")
 		panic(err)
@@ -1788,7 +1788,7 @@ func CheckValidActivity(id string) (Collection, bool) {
 
 	if err != nil {
 		fmt.Println("error with response")
-		panic(err)		
+		panic(err)
 	}
 
 	defer resp.Body.Close()
@@ -1866,7 +1866,7 @@ func GetActorCollection(collection string) Collection {
 	resp, err := RouteProxy(req)
 
 	if err != nil {
-		fmt.Println("error with getting actor collection resp " + collection)		
+		fmt.Println("error with getting actor collection resp " + collection)
 		return nCollection
 	}
 
@@ -1875,13 +1875,13 @@ func GetActorCollection(collection string) Collection {
 	if resp.StatusCode == 200 {
 		body, _ := ioutil.ReadAll(resp.Body)
 
-		if len(body) > 0 { 
+		if len(body) > 0 {
 			err = json.Unmarshal(body, &nCollection)
-			
+
 			CheckError(err, "error getting actor collection from body " + collection)
 		}
 	}
-	
+
 	return nCollection
 }
 
@@ -1893,7 +1893,7 @@ func IsValidActor(id string) (Actor, bool) {
 		return actor, true;
 	}
 
-	return actor, false;	
+	return actor, false;
 }
 
 func IsActivityLocal(db *sql.DB, activity Activity) bool {
@@ -1918,7 +1918,7 @@ func IsActivityLocal(db *sql.DB, activity Activity) bool {
 
 func IsIDLocal(db *sql.DB, id string) bool {
 	activity := GetActivityFromDB(db, id)
-	return len(activity.OrderedItems) > 0 
+	return len(activity.OrderedItems) > 0
 }
 
 func IsActorLocal(db *sql.DB, id string) bool {
@@ -1957,22 +1957,22 @@ func IsObjectCached(db *sql.DB, id string) bool {
 	var nID string
 	defer rows.Close()
 	rows.Next()
-	rows.Scan(&nID)	
+	rows.Scan(&nID)
 
 	if nID == "" {
 		return false
 	}
 
-	return true	
+	return true
 }
 
 func GetObjectFromActivity(activity Activity) ObjectBase {
-	return *activity.Object 
+	return *activity.Object
 }
 
 func MakeCaptchas(db *sql.DB, total int) {
 	difference := total - GetCaptchaTotal(db)
-	
+
 	for i := 0; i < difference; i++ {
 		CreateNewCaptcha(db)
 	}
@@ -2011,9 +2011,9 @@ func SupportedMIMEType(mime string) bool {
 			return true
 		}
 	}
-	
+
 	return false
-}	
+}
 
 func DeleteReportActivity(db *sql.DB, id string) bool {
 
@@ -2025,7 +2025,7 @@ func DeleteReportActivity(db *sql.DB, id string) bool {
 		CheckError(err, "error closing reported activity")
 		return false
 	}
-	
+
 	return true
 }
 
@@ -2038,7 +2038,7 @@ func ReportActivity(db *sql.DB, id string, reason string) bool {
 	actor := GetActivityFromDB(db, id)
 
 	query := `select count from reported where id=$1`
-	
+
 	rows, err := db.Query(query, id)
 
 	CheckError(err, "could not select count from reported")
@@ -2058,13 +2058,13 @@ func ReportActivity(db *sql.DB, id string, reason string) bool {
 			CheckError(err, "error inserting new reported activity")
 			return false
 		}
-		
+
 	} else {
 		count = count + 1
 		query = `update reported set count=$1 where id=$2`
 
 		_, err := db.Exec(query, count, id)
-		
+
 		if err != nil {
 			CheckError(err, "error updating reported activity")
 			return false
@@ -2090,7 +2090,7 @@ func GetActorReported(w http.ResponseWriter, r *http.Request, db *sql.DB, id str
 		w.Write([]byte(""))
 		return
 	}
-	
+
 	var following Collection
 
 	following.AtContext.Context = "https://www.w3.org/ns/activitystreams"
@@ -2098,7 +2098,7 @@ func GetActorReported(w http.ResponseWriter, r *http.Request, db *sql.DB, id str
 	following.TotalItems = GetActorReportedTotal(db, id)
 	following.Items = GetActorReportedDB(db, id)
 
-	enc, _ := json.MarshalIndent(following, "", "\t")							
+	enc, _ := json.MarshalIndent(following, "", "\t")
 	w.Header().Set("Content-Type", activitystreams)
 	w.Write(enc)
 }
@@ -2112,10 +2112,10 @@ func MakeActivityRequestOutbox(db *sql.DB, activity Activity) {
 
 	req, err := http.NewRequest("POST", activity.Actor.Outbox, bytes.NewBuffer(j))
 
-	CheckError(err, "error with sending activity req to outbox")		
+	CheckError(err, "error with sending activity req to outbox")
 
 	re := regexp.MustCompile("https?://(www.)?")
-	
+
 	var instance string
 	if activity.Actor.Id == Domain {
 		instance = re.ReplaceAllString(Domain, "")
@@ -2132,16 +2132,16 @@ func MakeActivityRequestOutbox(db *sql.DB, activity Activity) {
 	sig := fmt.Sprintf("(request-target): %s %s\nhost: %s\ndate: %s", "post", path, instance, date)
 	encSig, err := ActivitySign(db, *activity.Actor, sig)
 	CheckError(err, "unable to sign activity response")
-	signature := fmt.Sprintf("keyId=\"%s\",headers=\"(request-target) host date\",signature=\"%s\"", activity.Actor.PublicKey.Id, encSig)	
-	
-	req.Header.Set("Content-Type", activitystreams)			
+	signature := fmt.Sprintf("keyId=\"%s\",headers=\"(request-target) host date\",signature=\"%s\"", activity.Actor.PublicKey.Id, encSig)
+
+	req.Header.Set("Content-Type", activitystreams)
 	req.Header.Set("Date", date)
 	req.Header.Set("Signature", signature)
 	req.Host = instance
 
 	_, err = RouteProxy(req)
 
-	CheckError(err, "error with sending activity resp to")	
+	CheckError(err, "error with sending activity resp to")
 }
 
 func MakeActivityRequest(db *sql.DB, activity Activity) {
@@ -2150,7 +2150,7 @@ func MakeActivityRequest(db *sql.DB, activity Activity) {
 
 	for _, e := range activity.To {
 		if e != activity.Actor.Id {
-			
+
 			actor := FingerActor(e)
 
 			if actor.Id != "" {
@@ -2164,7 +2164,7 @@ func MakeActivityRequest(db *sql.DB, activity Activity) {
 
 					date := time.Now().UTC().Format(time.RFC1123)
 					path := strings.Replace(actor.Inbox, instance, "", 1)
-					
+
 					re := regexp.MustCompile("https?://(www.)?")
 					path = re.ReplaceAllString(path, "")
 
@@ -2173,7 +2173,7 @@ func MakeActivityRequest(db *sql.DB, activity Activity) {
 					CheckError(err, "unable to sign activity response")
 					signature := fmt.Sprintf("keyId=\"%s\",headers=\"(request-target) host date\",signature=\"%s\"", activity.Actor.PublicKey.Id, encSig)
 
-					req.Header.Set("Content-Type", activitystreams)			
+					req.Header.Set("Content-Type", activitystreams)
 					req.Header.Set("Date", date)
 					req.Header.Set("Signature", signature)
 					req.Host = instance
@@ -2183,21 +2183,21 @@ func MakeActivityRequest(db *sql.DB, activity Activity) {
 					if err != nil {
 						fmt.Println("error with sending activity resp to actor " + instance)
 					}
-				}				
+				}
 			}
 		}
-	}	
+	}
 }
 
 func GetCollectionFromID(id string) Collection {
 	var nColl Collection
-	
+
 	req, err := http.NewRequest("GET", id, nil)
 
 	CheckError(err, "could not get collection from id req")
 
-	req.Header.Set("Accept", activitystreams)				
-	
+	req.Header.Set("Accept", activitystreams)
+
 	resp, err := RouteProxy(req)
 
 	if err != nil {
@@ -2247,11 +2247,11 @@ func PrintAdminAuth(db *sql.DB){
 
 	var code string
 	var identifier string
-	
+
 	rows.Next()
 	rows.Scan(&identifier, &code)
 
-	fmt.Println("Admin Login: " + identifier + ", Code: " + code) 
+	fmt.Println("Admin Login: " + identifier + ", Code: " + code)
 }
 
 func IsInStringArray(array []string, value string) bool {
@@ -2266,10 +2266,10 @@ func IsInStringArray(array []string, value string) bool {
 func GetUniqueFilename(_type string) string {
 	id   := RandomID(8)
 	file := "/public/" + id + "." + _type
-	
+
 	for true {
 		if _, err := os.Stat("." + file); err == nil {
-			id   = RandomID(8)			
+			id   = RandomID(8)
 			file = "/public/" + id + "." + _type
 		}else{
 			return "/public/" + id + "." + _type
@@ -2307,18 +2307,18 @@ func DeleteObjectRequest(db *sql.DB, id string) {
 
 func DeleteObjectAndRepliesRequest(db *sql.DB, id string) {
 	var nObj ObjectBase
-	var nActor Actor	
+	var nActor Actor
 	nObj.Id = id
 	nObj.Actor = nActor.Id
-	
+
 	activity := CreateActivity("Delete", nObj)
-	
+
 	obj := GetObjectByIDFromDB(db, id)
 
 	activity.Actor.Id = obj.OrderedItems[0].Actor
 
 	activity.Object = &obj.OrderedItems[0]
-	
+
 	followers := GetActorFollowDB(db, obj.OrderedItems[0].Actor)
 	for _, e := range followers {
 		activity.To = append(activity.To, e.Id)
@@ -2327,7 +2327,7 @@ func DeleteObjectAndRepliesRequest(db *sql.DB, id string) {
 	following := GetActorFollowingDB(db, obj.OrderedItems[0].Actor)
 	for _, e := range following {
 		activity.To = append(activity.To, e.Id)
-	}	
+	}
 
 	MakeActivityRequest(db, activity)
 }
@@ -2343,13 +2343,13 @@ func ResizeAttachmentToPreview(db *sql.DB) {
 	defer rows.Close()
 	for rows.Next() {
 
-		var id string		
+		var id string
 		var href string
 		var mediatype string
 		var name string
 		var size int
 		var published string
-		
+
 		rows.Scan(&id, &href, &mediatype, &name, &size, &published)
 
 		re := regexp.MustCompile(`^\w+`)
@@ -2368,20 +2368,20 @@ func ResizeAttachmentToPreview(db *sql.DB) {
 
 			re = regexp.MustCompile(`/\w+$`)
 			actor := re.ReplaceAllString(id, "")
-			
+
 			nPreview.Type = "Preview"
-			nPreview.Id = fmt.Sprintf("%s/%s", actor, CreateUniqueID(db, actor))		
+			nPreview.Id = fmt.Sprintf("%s/%s", actor, CreateUniqueID(db, actor))
 			nPreview.Name = name
 			nPreview.Href = Domain + "" + nHref
 			nPreview.MediaType = mediatype
 			nPreview.Size = int64(size)
 			nPreview.Published = published
-			nPreview.Updated = published		
+			nPreview.Updated = published
 
 			re = regexp.MustCompile(`/public/.+`)
 
 			objFile := re.FindString(href)
-			
+
 			if(id != "") {
 				cmd := exec.Command("convert", "." + objFile ,"-resize", "250x250>", "-strip",  "." + nHref)
 
@@ -2390,10 +2390,10 @@ func ResizeAttachmentToPreview(db *sql.DB) {
 				CheckError(err, "error with resize attachment preview")
 
 				if err == nil {
-					fmt.Println(objFile + " -> " + nHref)				
+					fmt.Println(objFile + " -> " + nHref)
 					WritePreviewToDB(db, nPreview)
 					UpdateObjectWithPreview(db, id, nPreview.Id)
-				}			
+				}
 			}
 		}
 	}
@@ -2409,7 +2409,7 @@ func UpdateObjectWithPreview(db *sql.DB, id string, preview string) {
 }
 
 func ParseCommentForReply(comment string) string {
-	
+
 	re := regexp.MustCompile(`(>>(https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/)(f[A-Za-z0-9_.\-~]+-)?([A-Za-z0-9_.\-~]+)?#?([A-Za-z0-9_.\-~]+)?)`)
 	match := re.FindAllStringSubmatch(comment, -1)
 
@@ -2427,7 +2427,7 @@ func ParseCommentForReply(comment string) string {
 			return links[0]
 		}
 	}
-	
+
 	return ""
 }
 
@@ -2453,7 +2453,7 @@ func GetActorCollectionReq(r *http.Request, collection string) Collection {
 
 	req.Header.Set("Accept", activitystreams)
 
-	req.Header.Set("Authorization", "Basic " + pass)		
+	req.Header.Set("Authorization", "Basic " + pass)
 
 	resp, err := RouteProxy(req)
 
@@ -2469,7 +2469,7 @@ func GetActorCollectionReq(r *http.Request, collection string) Collection {
 
 		CheckError(err, "error getting actor collection from body " + collection)
 	}
-	
+
 	return nCollection
 }
 
@@ -2496,8 +2496,8 @@ func shortURL(actorName string, url string) string {
 	if(temp == actor){
 		id := localShort(op)
 
-    re := regexp.MustCompile(`.+\/`)
-    replyCheck := re.FindString(reply)
+		re := regexp.MustCompile(`.+\/`)
+		replyCheck := re.FindString(reply)
 
 		if(reply != "" && replyCheck == actor){
 			id = id + "#" + localShort(reply)
@@ -2505,20 +2505,20 @@ func shortURL(actorName string, url string) string {
 			id = id + "#" + remoteShort(reply)
 		}
 
-		return id;            
+		return id;
 	}else{
 		id := remoteShort(op)
 
-    re := regexp.MustCompile(`.+\/`)
-    replyCheck := re.FindString(reply)
+		re := regexp.MustCompile(`.+\/`)
+		replyCheck := re.FindString(reply)
 
 		if(reply != "" && replyCheck == actor){
 			id = id + "#" + localShort(reply)
 		} else if reply != "" {
 			id = id + "#" + remoteShort(reply)
-		}		
+		}
 
-		return id;                        
+		return id;
 	}
 }
 
@@ -2578,18 +2578,18 @@ func RunDatabaseSchema(db *sql.DB) {
 	query, err := ioutil.ReadFile("databaseschema.psql")
 	CheckError(err, "could not read databaseschema.psql file")
 	if _, err := db.Exec(string(query)); err != nil {
-		CheckError(err, "could not exec databaseschema.psql")		
+		CheckError(err, "could not exec databaseschema.psql")
 	}
 }
 
 func CreatedNeededDirectories() {
 	if _, err := os.Stat("./public"); os.IsNotExist(err) {
-    os.Mkdir("./public", 0755)
+		os.Mkdir("./public", 0755)
 	}
 
 	if _, err := os.Stat("./pem/board"); os.IsNotExist(err) {
-    os.MkdirAll("./pem/board", 0700)
-	}	
+		os.MkdirAll("./pem/board", 0700)
+	}
 }
 
 //looks for actor with pattern of board@instance
@@ -2606,10 +2606,10 @@ func FingerActor(path string) Actor{
 	if ActorCache[actor + "@" + instance].Id != "" {
 		nActor = ActorCache[actor + "@" + instance]
 	} else {
-		r := FingerRequest(actor, instance)		
+		r := FingerRequest(actor, instance)
 		if r != nil && r.StatusCode == 200 {
 			defer r.Body.Close()
-			
+
 			body, _ := ioutil.ReadAll(r.Body)
 
 			err := json.Unmarshal(body, &nActor)
@@ -2617,7 +2617,7 @@ func FingerActor(path string) Actor{
 			CheckError(err, "error getting fingerrequet resp from json body")
 
 			ActorCache[actor + "@" + instance] = nActor
-		}	
+		}
 	}
 
 	return nActor
@@ -2639,7 +2639,7 @@ func FingerRequest(actor string, instance string) (*http.Response){
 
 	if resp.StatusCode == 200 {
 		defer resp.Body.Close()
-		
+
 		body, _ := ioutil.ReadAll(resp.Body)
 
 		err := json.Unmarshal(body, &finger)
@@ -2651,11 +2651,11 @@ func FingerRequest(actor string, instance string) (*http.Response){
 		for _, e := range finger.Links {
 			if(e.Type == "application/activity+json"){
 				req, err := http.NewRequest("GET", e.Href, nil)
-				
+
 				CheckError(err, "could not get finger request from id req")
 
-				req.Header.Set("Accept", activitystreams)				
-				
+				req.Header.Set("Accept", activitystreams)
+
 				resp, err := RouteProxy(req)
 				return resp
 			}
@@ -2683,7 +2683,7 @@ func GetActorInstance(path string) (string, string) {
 		if(len(match) > 2) {
 			return "main", match[3]
 		}
-	}     
+	}
 
 	re = regexp.MustCompile(`(https?://)?(www)?([\w\d-_.:]+)\/([\w\d-_.]+)(\/([\w\d-_.]+))?`)
 	httpFormat := re.MatchString(path)
@@ -2694,7 +2694,7 @@ func GetActorInstance(path string) (string, string) {
 			if match[4] == "users" {
 				return match[6], match[3]
 			}
-			
+
 			return match[4], match[3]
 		}
 	}
@@ -2708,7 +2708,7 @@ func AddInstanceToIndex(actor string) {
 	if re.MatchString(actor) {
 		return
 	}
-	
+
 	followers := GetCollectionFromID("https://fchan.xyz/followers")
 
 	var alreadyIndex = false
@@ -2725,14 +2725,14 @@ func AddInstanceToIndex(actor string) {
 
 		_, err = http.DefaultClient.Do(req)
 
-		CheckError(err, "error with add instance to actor index resp")		
+		CheckError(err, "error with add instance to actor index resp")
 	}
 }
 
 func AddInstanceToIndexDB(db *sql.DB, actor string) {
 
 	time.Sleep(15 * time.Second)
-	
+
 	followers := GetCollectionFromID("https://fchan.xyz/followers")
 
 	var alreadyIndex = false
@@ -2745,7 +2745,7 @@ func AddInstanceToIndexDB(db *sql.DB, actor string) {
 	checkActor := GetActor(actor)
 
 	if checkActor.Id == actor {
-		if !alreadyIndex {			
+		if !alreadyIndex {
 			query := `insert into follower (id, follower) values ($1, $2)`
 
 			_, err := db.Exec(query, "https://fchan.xyz", actor)
@@ -2776,7 +2776,7 @@ func GetCollectionFromReq(path string) Collection {
 
 	if err != nil {
 		panic(err)
-	}	
+	}
 
 	return respCollection
 }
@@ -2809,7 +2809,7 @@ func RouteImages(w http.ResponseWriter, media string) {
 		fileBytes, err := ioutil.ReadFile("./static/notfound.png")
 
 		CheckError(err, "could not get /static/notfound.png file bytes")
-		
+
 		w.Write(fileBytes)
 		return
 	}
@@ -2818,12 +2818,12 @@ func RouteImages(w http.ResponseWriter, media string) {
 
 	body, _ := ioutil.ReadAll(resp.Body)
 	for name, values := range resp.Header {
-    for _, value := range values {
-			w.Header().Set(name, value)			
+		for _, value := range values {
+			w.Header().Set(name, value)
 		}
 	}
-	
-	w.Write(body)	
+
+	w.Write(body)
 }
 
 func IsPostBlacklist(db *sql.DB, comment string) bool {
@@ -2842,9 +2842,9 @@ func IsPostBlacklist(db *sql.DB, comment string) bool {
 
 func HasValidation(w http.ResponseWriter, r *http.Request, actor Actor) bool {
 		id, _ := GetPasswordFromSession(r)
-		
+
 		if id == "" || (id != actor.Id && id != Domain) {
-			http.Redirect(w, r, "/", http.StatusSeeOther)			
+			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return false
 		}
 
@@ -2865,20 +2865,20 @@ func IsReplyToOP(db *sql.DB, op string, link string) (string, bool) {
 		link = re.ReplaceAllString(link, "")
 		link = "%" + match[1] + "/" + link
 	}
-	
+
 	query := `select id from replies where id like $1 and inreplyto=$2`
 
 	rows, err := db.Query(query, link, op)
 
 	CheckError(err, "error selecting in reply to op from db")
 
-	var id string 
+	var id string
 	defer rows.Close()
 	rows.Next()
 	rows.Scan(&id)
 
 	if id != "" {
-		
+
 		return id, true
 	}
 

@@ -18,7 +18,7 @@
 {{ $board := .Board }}
 <hr>
 <ul style="margin: 0; padding: 0; display: inline">
-  <li style="display: inline"><a href="/{{ $board.Name }}/catalog">[Catalog]</a></li>      
+  <li style="display: inline"><a href="/{{ $board.Name }}/catalog">[Catalog]</a></li>
   <li style="display: inline"><a href="#bottom">[Bottom]</a></li>
   <li style="display: inline"><a href="javascript:location.reload()">[Refresh]</a></li>
 </ul>
@@ -35,19 +35,19 @@
 {{ if gt .TotalPage 0 }}
 {{ $totalPage := .TotalPage }}
 <ul style="float: right; margin: 0; padding: 0; display: inline">
-  {{ $page := .CurrentPage }}      
+  {{ $page := .CurrentPage }}
   {{ if gt $page 0 }}
-  <li style="display: inline"><button onclick="previous('{{$board.Name }}', '{{ $page }}')">Previous</button></li>
+  <li style="display: inline"><a href="/{{ $board.Name }}?page={{ sub $page 1 }}">[ < ]</a></li>
   {{ end }}
   {{ range $i, $e := .Pages }}
   {{ if eq $i $page}}
-  <li style="display: inline"><a href="/{{ $board.Name }}/{{ $i }}"><b>[{{ $i }}]</b></a></li>
+  <li style="display: inline"><a href="/{{ $board.Name }}?page={{ $i }}"><b>[{{ $i }}]</b></a></li>
   {{ else }}
-  <li style="display: inline"><a href="/{{ $board.Name }}/{{ $i }}">[{{ $i }}]</a></li>              
+  <li style="display: inline"><a href="/{{ $board.Name }}?page={{ $i }}">[{{ $i }}]</a></li>
   {{ end }}
   {{ end }}
   {{ if lt .CurrentPage .TotalPage }}
-  <li style="display: inline"><button onclick="next('{{ $board.Name }}','{{ $totalPage }}' ,'{{ $page }}')">next</button></li>
+  <li style="display: inline"><a href="/{{ $board.Name }}?page={{ add $page 1 }}">[ > ]</a></li>
   {{ end }}
 </ul>
 {{ end }}
@@ -55,8 +55,4 @@
 
 {{ define "script" }}
 <script src="/static/js/footerscript.js"></script>
-<script>
-  viewLink("{{ .Board.Name }}", "{{ .Board.Actor.Id }}")
-
-</script>    
 {{ end }}
