@@ -14,7 +14,7 @@ import "strings"
 import "os/exec"
 
 func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	
+
 	var activity Activity
 
 	actor := GetActorFromPath(db, r.URL.Path, "/")
@@ -22,24 +22,24 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	defer r.Body.Close()
 	if contentType == "multipart/form-data" || contentType == "application/x-www-form-urlencoded" {
-		r.ParseMultipartForm(5 << 20)		
-		if(BoardHasAuthType(db, actor.Name, "captcha") && CheckCaptcha(db, r.FormValue("captcha"))) {		
+		r.ParseMultipartForm(5 << 20)
+		if(BoardHasAuthType(db, actor.Name, "captcha") && CheckCaptcha(db, r.FormValue("captcha"))) {
 			f, header, _ := r.FormFile("file")
 
 			if(header != nil) {
-				defer f.Close()			
+				defer f.Close()
 				if(header.Size > (7 << 20)){
 					w.WriteHeader(http.StatusRequestEntityTooLarge)
 					w.Write([]byte("7MB max file size"))
 					return
 				}
-				
+
 				if(IsMediaBanned(db, f)) {
 					fmt.Println("media banned")
 					http.Redirect(w, r, Domain, http.StatusSeeOther)
 					return
 				}
-				
+
 				contentType, _ := GetFileContentType(f)
 
 				if(!SupportedMIMEType(contentType)) {
@@ -48,10 +48,10 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 					return
 				}
 			}
-			
+
 			var nObj = CreateObject("Note")
 			nObj = ObjectFromForm(r, db, nObj)
-			
+
 			nObj.Actor = Domain + "/" + actor.Name
 
 			nObj = WriteObjectToDB(db, nObj)
@@ -61,9 +61,9 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 			var id string
 			op := len(nObj.InReplyTo) - 1
-			if op >= 0 {		
+			if op >= 0 {
 				if nObj.InReplyTo[op].Id == "" {
-					id = nObj.Id  
+					id = nObj.Id
 				} else {
 					id = nObj.InReplyTo[0].Id + "|" + nObj.Id
 				}
@@ -80,17 +80,17 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		activity = GetActivityFromJson(r, db)
 		if IsActivityLocal(db, activity) {
 			if !VerifyHeaderSignature(r, *activity.Actor) {
-				w.WriteHeader(http.StatusBadRequest)										
-				w.Write([]byte(""))					
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(""))
 				return
 			}
-			
+
 			switch activity.Type {
 			case "Create":
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte(""))
 				break
-				
+
 			case "Follow":
 				var validActor bool
 				var validLocalActor bool
@@ -108,13 +108,13 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				FollowingBoards = GetActorFollowingDB(db, Domain)
 				Boards = GetBoardCollection(db)
 				break
-				
+
 			case "Delete":
 				fmt.Println("This is a delete")
 				w.WriteHeader(http.StatusBadRequest)
-				w.Write([]byte("could not process activity"))										
+				w.Write([]byte("could not process activity"))
 				break
-				
+
 			case "Note":
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte("could not process activity"))
@@ -127,10 +127,10 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				restricted := activity.Object.Sensitive
 
 				actor := CreateNewBoardDB(db, *CreateNewActor(name, prefname, summary, authReq, restricted))
-				
+
 				if actor.Id != "" {
 					var board []ObjectBase
-					var item ObjectBase			
+					var item ObjectBase
 					var removed bool = false
 
 					item.Id = actor.Id
@@ -150,19 +150,19 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 					Boards = GetBoardCollection(db)
 					return
 				}
-				
+
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte(""))
 				break
-				
+
 			default:
 				w.WriteHeader(http.StatusBadRequest)
-				w.Write([]byte("could not process activity"))			
+				w.Write([]byte("could not process activity"))
 			}
 		} else {
-			fmt.Println("is NOT activity")		
+			fmt.Println("is NOT activity")
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("could not process activity"))			
+			w.Write([]byte("could not process activity"))
 		}
 	}
 }
@@ -182,7 +182,7 @@ func ObjectFromJson(r *http.Request, obj ObjectBase) ObjectBase {
 		jObj.To = GetToFromJson(respActivity.ToRaw)
 		jObj.Cc = GetToFromJson(respActivity.CcRaw)
 	}
-	
+
 	return obj
 }
 
@@ -199,7 +199,7 @@ func GetObjectFromJson(obj []byte) ObjectBase {
 	if t != nil {
 		switch t.String() {
 		case "[]interface {}":
-			var lObj ObjectBase		
+			var lObj ObjectBase
 			var arrContext ObjectArray
 			err = json.Unmarshal(obj, &arrContext.Object)
 			CheckError(err, "error with []interface{} oject from json")
@@ -215,7 +215,7 @@ func GetObjectFromJson(obj []byte) ObjectBase {
 			CheckError(err, "error with object from json")
 			nObj = *arrContext.Object
 			break
-			
+
 		case "string":
 			var lObj ObjectBase
 			var arrContext ObjectString
@@ -232,7 +232,7 @@ func GetObjectFromJson(obj []byte) ObjectBase {
 
 func GetActorFromJson(actor []byte) Actor{
 	var generic interface{}
-	var nActor Actor		
+	var nActor Actor
 	err := json.Unmarshal(actor, &generic)
 
 	if err != nil {
@@ -245,17 +245,17 @@ func GetActorFromJson(actor []byte) Actor{
 		case "map[string]interface {}":
 			err = json.Unmarshal(actor, &nActor)
 			CheckError(err, "error with To []interface{}")
-			
+
 		case "string":
 			var str string
 			err = json.Unmarshal(actor, &str)
 			CheckError(err, "error with To string")
 			nActor.Id = str
 		}
-		
-		return nActor		
+
+		return nActor
 	}
-	
+
 	return nActor
 }
 
@@ -271,22 +271,22 @@ func GetToFromJson(to []byte) []string {
 	t := reflect.TypeOf(generic)
 
 	if t != nil {
-		var nStr []string		
+		var nStr []string
 		switch t.String() {
 		case "[]interface {}":
 			err = json.Unmarshal(to, &nStr)
 			CheckError(err, "error with To []interface{}")
 			return nStr
-			
+
 		case "string":
 			var str string
 			err = json.Unmarshal(to, &str)
 			CheckError(err, "error with To string")
 			nStr = append(nStr, str)
-			return nStr			
+			return nStr
 		}
 	}
-	
+
 	return nil
 }
 
@@ -319,14 +319,14 @@ func HasContextFromJson(context []byte) bool {
 			hasContext = true
 		}
 	}
-	
+
 	return hasContext
 }
 
 func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
-	
+
 	file, header, _ := r.FormFile("file")
-	
+
 	if file != nil {
 		defer file.Close()
 
@@ -370,7 +370,7 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 
 	if !IsInStringArray(activity.To, originalPost.Id) {
 		activity.To = append(activity.To, originalPost.Id)
-	}	
+	}
 
 	if originalPost.Id != "" {
 		if !IsActivityLocal(db, activity) {
@@ -386,26 +386,26 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 	for _, e := range replyingTo {
 
 		has := false
-		
+
 		for _, f := range obj.InReplyTo {
 			if e.Id == f.Id {
 				has = true
 				break
 			}
 		}
-		
+
 		if !has {
 			obj.InReplyTo = append(obj.InReplyTo, e)
 
 			var activity Activity
-			
+
 			activity.To = append(activity.To, e.Id)
-			
+
 			if !IsActivityLocal(db, activity) {
 				actor := FingerActor(e.Id)
 				if !IsInStringArray(obj.To, actor.Id) {
 					obj.To = append(obj.To, actor.Id)
-				}				
+				}
 			}
 		}
 	}
@@ -417,20 +417,20 @@ func ParseOptions(r *http.Request, obj ObjectBase) ObjectBase {
 	options := EscapeString(r.FormValue("options"))
 	if options != "" {
 		option := strings.Split(options, ";")
-		email := regexp.MustCompile(".+@.+\\..+")		
+		email := regexp.MustCompile(".+@.+\\..+")
 		wallet := regexp.MustCompile("wallet:.+")
 		delete := regexp.MustCompile("delete:.+")
 		for _, e := range option {
 			if e == "noko" {
-				obj.Option = append(obj.Option, "noko")				 
+				obj.Option = append(obj.Option, "noko")
 			} else if e == "sage" {
-				obj.Option = append(obj.Option, "sage")				 				
+				obj.Option = append(obj.Option, "sage")
 			} else if e == "nokosage" {
-				obj.Option = append(obj.Option, "nokosage")				 								
+				obj.Option = append(obj.Option, "nokosage")
 			} else if email.MatchString(e) {
-				obj.Option = append(obj.Option, "email:" + e)				 												
+				obj.Option = append(obj.Option, "email:" + e)
 			} else if wallet.MatchString(e) {
-				obj.Option = append(obj.Option, "wallet")				 																
+				obj.Option = append(obj.Option, "wallet")
 				var wallet CryptoCur
 				value := strings.Split(e, ":")
 				wallet.Type = value[0]
@@ -478,7 +478,7 @@ func GetActivityFromJson(r *http.Request, db *sql.DB) Activity {
 		nActivity.Actor = &actor
 		nActivity.Published = respActivity.Published
 		nActivity.Auth = respActivity.Auth
-		
+
 		if len(to) > 0 {
 			nActivity.To = to
 		}
@@ -491,7 +491,7 @@ func GetActivityFromJson(r *http.Request, db *sql.DB) Activity {
 		nActivity.Object = &jObj
 	}
 
-	return nActivity	
+	return nActivity
 }
 
 func CheckCaptcha(db *sql.DB, captcha string) bool {
@@ -500,7 +500,7 @@ func CheckCaptcha(db *sql.DB, captcha string) bool {
 	if strings.Trim(parts[0], " ") == "" || strings.Trim(parts[1], " ") == ""{
 		return false
 	}
-	
+
 	path  := "public/" + parts[0] + ".png"
 	code  := GetCaptchaCodeDB(db, path)
 
@@ -526,7 +526,7 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	if !VerifyHeaderSignature(r, *activity.Actor) {
 		response := RejectActivity(activity)
-		MakeActivityRequest(db, response)				
+		MakeActivityRequest(db, response)
 		return
 	}
 
@@ -547,7 +547,7 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			if actor.Id != "" {
 				if activity.Object.Replies != nil {
 					for _, k := range activity.Object.Replies.OrderedItems {
-						TombstoneObject(db, k.Id)					
+						TombstoneObject(db, k.Id)
 					}
 				}
 				TombstoneObject(db, activity.Object.Id)
@@ -556,7 +556,7 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		}
 		break
 
-		
+
 	case "Follow":
 		for _, e := range activity.To {
 			if GetActorFromDB(db, e).Id != "" {
@@ -575,24 +575,24 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 					}
 				}
 
-				actor := FingerActor(response.Object.Actor)				
+				actor := FingerActor(response.Object.Actor)
 				remoteActorFollowingCol := GetCollectionFromReq(actor.Following)
-				
+
 				for _, e := range remoteActorFollowingCol.Items {
 					if e.Id == response.Actor.Id {
 						alreadyFollowing = true
 					}
 				}
-				
+
 				if autoSub && !alreadyFollow && alreadyFollowing {
-					followActivity := MakeFollowActivity(db, response.Actor.Id, response.Object.Actor)	
-					
+					followActivity := MakeFollowActivity(db, response.Actor.Id, response.Object.Actor)
+
 					if FingerActor(response.Object.Actor).Id != "" {
 						MakeActivityRequestOutbox(db, followActivity)
-					}	
+					}
 				}
 			} else {
-				fmt.Println("follow request for rejected")				
+				fmt.Println("follow request for rejected")
 				response := RejectActivity(activity)
 				MakeActivityRequest(db, response)
 				return
@@ -602,16 +602,16 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	case "Reject":
 		if activity.Object.Object.Type == "Follow" {
-			fmt.Println("follow rejected")									
+			fmt.Println("follow rejected")
 			SetActorFollowingDB(db, activity)
 		}
-		break		
+		break
 	}
 }
 
 func MakeActivityFollowingReq(w http.ResponseWriter, r *http.Request, activity Activity) bool {
 	actor := GetActor(activity.Object.Id)
-	
+
 	req, err := http.NewRequest("POST", actor.Inbox, nil)
 
 	CheckError(err, "Cannot make new get request to actor inbox for following req")
@@ -647,7 +647,7 @@ func IsMediaBanned(db *sql.DB, f multipart.File) bool {
 
 	hash := HashBytes(fileBytes)
 
-	f.Seek(0, 0)	
+	f.Seek(0, 0)
 
 	query := `select hash from bannedmedia where hash=$1`
 

@@ -314,7 +314,6 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 		"short": func(actorName string, url string) string {
 			return shortURL(actorName, url)
 		},
-
 		"parseAttachment": func(obj ObjectBase, catalog bool) template.HTML {
 			return ParseAttachment(obj, catalog)
 		},

@@ -1769,6 +1769,7 @@ func ParseCommentForReplies(db *sql.DB, comment string, op string) []ObjectBase 
 }
 
 func CheckValidActivity(id string) (Collection, bool) {
+	var respCollection Collection
 
 	re := regexp.MustCompile(`.+\.onion(.+)?`)
 	if re.MatchString(id) {
@@ -1779,7 +1780,6 @@ func CheckValidActivity(id string) (Collection, bool) {
 
 	if err != nil {
 		fmt.Println("error with request")
-		panic(err)
 	}
 
 	req.Header.Set("Accept", activitystreams)
@@ -1788,14 +1788,12 @@ func CheckValidActivity(id string) (Collection, bool) {
 
 	if err != nil {
 		fmt.Println("error with response")
-		panic(err)
+		return respCollection, false
 	}
 
 	defer resp.Body.Close()
 
 	body, _ := ioutil.ReadAll(resp.Body)
-
-	var respCollection Collection
 
 	err = json.Unmarshal(body, &respCollection)
 
@@ -2181,7 +2179,10 @@ func MakeActivityRequest(db *sql.DB, activity Activity) {
 					_, err = RouteProxy(req)
 
 					if err != nil {
-						fmt.Println("error with sending activity resp to actor " + instance)
+						fmt.Println("error with sending activity resp to actor " + instance + " instance marked as inactive and will be removed from following and followers in 24 hrs")
+						AddInstanceToInactiveDB(db, instance)
+					} else {
+						DeleteInstanceFromInactiveDB(db, instance)
 					}
 				}
 			}
@@ -2555,7 +2556,7 @@ func RouteProxy(req *http.Request) (*http.Response, error) {
 		CheckError(err, "error parsing tor proxy url")
 
 		proxyTransport := &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
-		client := &http.Client{ Transport: proxyTransport, Timeout: time.Second * 75 }
+		client := &http.Client{ Transport: proxyTransport, Timeout: time.Second * 30 }
 		return client.Do(req)
 	}
 
@@ -2800,10 +2801,6 @@ func RouteImages(w http.ResponseWriter, media string) {
 	CheckError(err, "error with Route Images req")
 
 	resp, err := http.DefaultClient.Do(req)
-
-	if err != nil {
-		fmt.Println("error with Route Images resp " + MediaHashs[media])
-	}
 
 	if err != nil || resp.StatusCode == 404 {
 		fileBytes, err := ioutil.ReadFile("./static/notfound.png")

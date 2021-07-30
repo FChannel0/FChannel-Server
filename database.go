@@ -1729,3 +1729,55 @@ func SetActorAutoSubscribeDB(db *sql.DB, id string) {
 
 	CheckError(err, "error with set actor auto subscribe status from db")
 }
+
+func AddInstanceToInactiveDB(db *sql.DB, instance string) {
+	query := `select timestamp from inactive where instance=$1`
+
+	rows, err := db.Query(query, instance)
+
+	CheckError(err, "error selecting instance from inactive")
+
+	var timeStamp string
+	defer rows.Close()
+	rows.Next()
+	rows.Scan(&timeStamp)
+
+	if timeStamp == "" {
+		query := `insert into inactive (instance, timestamp) values ($1, $2)`
+
+		_, err := db.Exec(query, instance, time.Now().UTC().Format(time.RFC3339))
+
+		CheckError(err, "error inserting instance to inactive")
+	} else {
+		if IsInactiveTimestamp(db, timeStamp) {
+			query := `delete from following where following like $1`
+			_, err:= db.Exec(query, "%" + instance + "%")
+
+			CheckError(err, "error deleting inactive instance following")
+
+			query = `delete from follower where follower like $1`
+			_, err= db.Exec(query, "%" + instance + "%")
+
+			CheckError(err, "error deleting inactive instance follower")
+
+			DeleteInstanceFromInactiveDB(db, instance)
+		}
+	}
+}
+
+func DeleteInstanceFromInactiveDB(db *sql.DB, instance string) {
+	query := `delete from inactive where instance=$1`
+
+	_, err := db.Exec(query, instance)
+
+	CheckError(err, "error deleting instance in inactive")
+}
+
+func IsInactiveTimestamp(db *sql.DB, timeStamp string) bool {
+	stamp, _ := time.Parse(time.RFC3339, timeStamp)
+	if time.Now().Sub(stamp).Hours() > 24 {
+		return true
+	}
+
+	return false
+}
