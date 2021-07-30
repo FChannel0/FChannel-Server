@@ -4,18 +4,18 @@
   <p style="text-align: center;">{{ .Board.Summary }}</p>
   {{ $len := len .Posts }}
   {{ if .Board.InReplyTo }}
-  <h3 id="newpostbtn"  state="0" style="text-align: center; margin-top: 80px;"><a href="javascript:newpost()">[Post a Reply]</a></h3>  
+  <h3 id="newpostbtn"  state="0" style="text-align: center; margin-top: 80px; display: none;"><a href="javascript:newpost()">[Post a Reply]</a></h3>
   {{ else }}
-  <h3 id="newpostbtn"  state="0" style="text-align: center; margin-top: 80px;"><a href="javascript:newpost()">[Start a New Thread]</a></h3>
+  <h3 id="newpostbtn"  state="0" style="text-align: center; margin-top: 80px; display: none;"><a href="javascript:newpost()">[Start a New Thread]</a></h3>
   {{ end }}
-  <div id="newpost" style="display: none;">    
-    <form onsubmit="sessionStorage.setItem('element-closed-reply', true)" id="new-post" action="/post" method="post" enctype="multipart/form-data" style="margin-left: 180px;">        
+  <div id="newpost">
+    <form onsubmit="sessionStorage.setItem('element-closed-reply', true)" id="new-post" action="/post" method="post" enctype="multipart/form-data" style="margin-left: 180px;">
       <label for="name">Name:</label><br>
       <input type="text" id="name" name="name" placeholder="Anonymous" maxlength="100"><br>
       <label for="options">Options:</label><br>
       <input type="text" id="options" name="options" maxlength="100" style="margin-right:10px">{{ if .Board.InReplyTo }}<input type="submit" value="Post">{{ end }}<br>
       {{ if eq .Board.InReplyTo "" }}
-      <label for="subject">Subject:</label><br>      
+      <label for="subject">Subject:</label><br>
       <input type="text" id="subject" name="subject" maxlength="100" style="margin-right:10px"><input type="submit" value="Post"><br>
       {{ end }}
       <label for="comment">Comment:</label><br>
@@ -28,7 +28,7 @@
       <input type="file" id="file" name="file" {{ if gt $len 1 }} required {{ else }} {{ if eq $len 0 }} required {{ end }} {{ end }} ><br><br>
       <input type="checkbox" name="sensitive"><span>Mark attachment as sensitive</span><br><br>
       <label stye="display: inline-block;" for="captcha">Captcha:</label>
-      <br>              
+      <br>
       <input style="display: inline-block;"  type="text" id="captcha" name="captcha" autocomplete="off"><br>
       <div style="height: 65px;">
         <img src="{{ .Board.Captcha }}">
@@ -36,4 +36,8 @@
     </form>
   </div>
 </div>
+<script>
+  document.getElementById("newpostbtn").style.display = "block";
+  document.getElementById("newpost").style.display = "none";
+</script>
 {{ end }}
