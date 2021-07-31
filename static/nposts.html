@@ -10,15 +10,14 @@
 <meta name="twitter:title" content="{{ .Title }}">
 <meta name="twitter:description" content="{{ .Board.Summary }}">
 <meta name="twitter:card" content="summary_large_image">
-<script src="/static/js/posts.js"></script>
 {{ end }}
-
 
 {{ define "content" }}
 {{ $board := .Board }}
 <hr>
 <ul style="margin: 0; padding: 0; display: inline">
   <li style="display: inline"><a href="/{{ $board.Name }}/catalog">[Catalog]</a></li>
+  <li style="display: inline"><a href="/{{ $board.Name }}/archive">[Archive]</a></li>
   <li style="display: inline"><a href="#bottom">[Bottom]</a></li>
   <li style="display: inline"><a href="javascript:location.reload()">[Refresh]</a></li>
 </ul>
@@ -28,6 +27,7 @@
 <hr>
 <ul style="margin: 0; padding: 0; display: inline">
   <li style="display: inline"><a href="/{{ $board.Name }}/catalog">[Catalog]</a></li>
+  <li style="display: inline"><a href="/{{ $board.Name }}/archive">[Archive]</a></li>
   <li style="display: inline"><a id="bottom" href="#top">[Top]</a></li>
   <li style="display: inline"><a href="javascript:location.reload()">[Refresh]</a></li>
 </ul>
@@ -54,5 +54,6 @@
 {{ end }}
 
 {{ define "script" }}
+<script src="/static/js/posts.js"></script>
 <script src="/static/js/footerscript.js"></script>
 {{ end }}

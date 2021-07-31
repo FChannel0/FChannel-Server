@@ -69,6 +69,8 @@ func main() {
 
 	FollowingBoards = GetActorFollowingDB(db, Domain)
 
+	StartupArchive(db)
+
 	Boards = GetBoardCollection(db)
 
 	// root actor is used to follow remote feeds that are not local
@@ -113,6 +115,7 @@ func main() {
 		var actorReported bool
 		var actorVerification bool
 		var actorMainPage bool
+		var actorArchive bool
 
 		var accept = r.Header.Get("Accept")
 
@@ -135,6 +138,7 @@ func main() {
 			actorFollowers = (path == "/" + actor.Name + "/followers")
 			actorReported = (path == "/" + actor.Name + "/reported")
 			actorVerification = (path == "/" + actor.Name + "/verification")
+			actorArchive = (path == "/" + actor.Name + "/archive")
 
 			escapedActorName := strings.Replace(actor.Name, "*", "\\*", -1)
 			escapedActorName = strings.Replace(escapedActorName, "^", "\\^", -1)
@@ -249,6 +253,14 @@ func main() {
 			} else {
 				w.WriteHeader(http.StatusForbidden)
 				w.Write([]byte("404 no path"))
+			}
+			return
+		}
+
+		if actorArchive {
+			collection, valid := WantToServeArchive(db, actor.Name)
+			if valid {
+				ArchiveGet(w, r, db, collection)
 			}
 			return
 		}
@@ -843,6 +855,7 @@ func main() {
 					go DeleteObjectRequest(db, id)
 				}
 
+				UnArchiveLast(db)
 
 				if !isOP {
 					if (!IsIDLocal(db, id)){
@@ -890,6 +903,9 @@ func main() {
 				TombstoneObjectAndReplies(db, id)
 			}
 
+			UnArchiveLast(db)
+
+
 			if(manage == "t"){
 				http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)
 				return
@@ -927,6 +943,8 @@ func main() {
 		if IsIDLocal(db, id){
 			go DeleteObjectRequest(db, id)
 		}
+
+		UnArchiveLast(db)
 
 		if(manage == "t"){
 			http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)
@@ -2897,4 +2915,10 @@ func GetReplyOP(db *sql.DB, link string) string {
 	rows.Scan(&id)
 
 	return id
+}
+
+func StartupArchive(db *sql.DB) {
+	for _, e := range FollowingBoards {
+		ArchivePosts(db, GetActorFromDB(db, e.Id))
+	}
 }

@@ -2,9 +2,9 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="UTF-8">    
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="keywords" content="Federated Imageboard based on Activtypub">    
+    <meta name="keywords" content="Federated Imageboard based on Activtypub">
     <meta property="og:locale" content="en_US" />
     <meta property="og:type" content="website" />
     <link rel="icon" type="image/png"  href="/static/favicon.png">
@@ -30,7 +30,7 @@
           color: #820404
           {{ end }}
       }
-      
+
       .popup-box {
           {{ if .Board.Restricted }}
           border: 4px solid #d3caf0;
@@ -47,8 +47,16 @@
           {{ else }}
           background-color: #f9f9e0;
           {{ end }}
-      }      
-      
+      }
+
+      .box-alt {
+          {{ if .Board.Restricted }}
+          background-color: #d3caf0;
+          {{ else }}
+          background-color: #f0e2d9;
+          {{ end }}
+      }
+
       .quote {
           color: #789922;
       }
@@ -60,7 +68,7 @@
           background-color: #f0e0d6;
           {{ end }}
       }
-      
+
       :target > div > .post {
           {{ if .Board.Restricted }}
           background-color: #d6bad0;
@@ -72,21 +80,21 @@
           color: #117743;
       }
     </style>
-    {{ template "header" . }}    
+    {{ template "header" . }}
   </head>
   <body>
     <ul style="display: inline; padding:0;">
       {{ $l := len .Boards }}
-      <li style="display: inline;">[<a href="/">Home</a>]</li>            
+      <li style="display: inline;">[<a href="/">Home</a>]</li>
       {{range $i, $e := .Boards}}
       {{ if eq (sub $l 1) 0 }}
-      <li style="display: inline;">[ <a href="{{.Location}}">{{$e.Name}} </a>]</li>      
+      <li style="display: inline;">[ <a href="{{.Location}}">{{$e.Name}} </a>]</li>
       {{ else if eq $i 0 }}
       <li style="display: inline;">[<a href="{{.Location}}">{{$e.Name}} </a>/</li>
       {{ else if eq $i (sub $l 1) }}
       <li style="display: inline;"><a href="{{.Location}}">{{$e.Name}}</a>]</li>
       {{ else }}
-      <li style="display: inline;"><a href="{{.Location}}">{{$e.Name}} </a>/</li>      
+      <li style="display: inline;"><a href="{{.Location}}">{{$e.Name}} </a>/</li>
       {{ end }}
       {{end}}
     </ul>
@@ -96,9 +104,9 @@
     {{ end }}
     {{ end }}
     {{ template "top" . }}
-    
+
     {{ template "content" . }}
-    
+
     {{ template "bottom" . }}
     <div align="center" style="width: 500px; margin:0 auto; margin-top: 50px;">
       <a href="/">[Home]</a><a href="/static/rules.html">[Rules]</a><a href="/static/faq.html">[FAQ]</a>

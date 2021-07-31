@@ -55,6 +55,11 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			nObj.Actor = Domain + "/" + actor.Name
 
 			nObj = WriteObjectToDB(db, nObj)
+
+			if len(nObj.To) == 0 {
+				ArchivePosts(db, actor)
+			}
+
 			activity := CreateActivity("Create", nObj)
 			activity = AddFollowersToActivity(db, activity)
 			go MakeActivityRequest(db, activity)
@@ -536,6 +541,7 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			if IsActorLocal(db, e) {
 				if !IsActorLocal(db, activity.Actor.Id) {
 					WriteObjectToCache(db, *activity.Object)
+					ArchivePosts(db, GetActorFromDB(db, e))
 				}
 			}
 		}

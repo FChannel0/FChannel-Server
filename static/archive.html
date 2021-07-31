@@ -1,0 +1,81 @@
+{{ define "header" }}
+<title>/{{ .Board.Name }}/ - Archive</title>
+<meta name="description" content="{{ (index .Posts 0).Content }}">
+<meta property="og:url" content="{{ (index .Posts 0).Id }}">
+<meta property="og:site_name" content="{{ .Instance.PreferredUsername }}" />
+
+<meta property="og:title" content="{{ (index .Posts 0).Name }}">
+<meta property="og:description" content="{{ (index .Posts 0).Content }}">
+
+<meta name="twitter:title" content="{{ (index .Posts 0).Name }}">
+<meta name="twitter:description" content="{{ (index .Posts 0).Content }}">
+<meta name="twitter:card" content="summary_large_image">
+
+{{ if (index .Posts 0).Preview }}
+<meta property="og:image" content="{{ (index .Posts 0).Preview.Href }}" />
+<meta name="twitter:image" content="{{ (index .Posts 0).Preview.Href }}" />
+{{ end }}
+
+<script src="/static/js/posts.js"></script>
+{{ end }}
+
+{{ define "top" }}
+<h1 style="text-align: center; color: #af0a0f;">/{{ .Board.Name }}/ - {{ .Board.PrefName }}</h1>
+<p style="text-align: center;">{{ .Board.Summary }}</p>
+<h1 style="text-align: center;">Archived Posts</h1>
+{{ end }}
+
+{{ define "content" }}
+{{ $board := .Board }}
+
+<hr>
+<ul style="margin: 0; padding: 0; display: inline;">
+  <li style="display: inline"><a href="/{{ $board.Name }}">[Return]</a></li>
+  <li style="display: inline"><a href="/{{ $board.Name }}/catalog">[Catalog]</a></li>
+  <li style="display: inline"><a href="#bottom">[Bottom]</a></li>
+  <li style="display: inline"><a href="javascript:location.reload()">[Refresh]</a></li>
+</ul>
+<hr>
+
+<table align="center" style="width: 900px;">
+  <tr>
+    <th style="width: 100px">No.</th>
+    <th>Excerpt</th>
+    <th style="width: 100px;"></th>
+  </tr>
+  {{ range $i, $e := .Posts }}
+  {{ if mod $i 2 }}
+  <tr class="box-alt">
+    <td>{{ short $board.Actor.Outbox $e.Id }}</td>
+    <td>{{ shortExcerpt $e }}</td>
+    <td style="text-align: center;"><a href="/{{ $board.Actor.Name }}/{{ short $board.Actor.Outbox $e.Id }}">[View]</a></td>
+  </tr>
+  {{ else }}
+  <tr class="box">
+    <td>{{ short $board.Actor.Outbox $e.Id }}</td>
+    <td>{{ shortExcerpt $e }}</td>
+    <td style="text-align: center;"><a href="/{{ $board.Actor.Name }}/{{ short $board.Actor.Outbox $e.Id }}">[View]</a></td>
+  </tr>
+  {{ end }}
+  {{ end }}
+</table>
+
+<hr>
+<div style="height: 22px;">
+     <ul style="position: absolute; left: 5px;  margin: 0; padding: 0; display: inline;">
+       <li style="display: inline"><a href="/{{ $board.Name }}">[Return]</a></li>
+       <li style="display: inline"><a href="/{{ $board.Name }}/catalog">[Catalog]</a></li>
+       <li style="display: inline"><a id="bottom" href="#top">[Top]</a></li>
+       <li style="display: inline"><a href="javascript:location.reload()">[Refresh]</a></li>
+     </ul>
+</div>
+<hr>
+
+{{ end }}
+
+{{ define "script" }}
+<script src="/static/js/footerscript.js"></script>
+<script>
+  viewLink("{{ .Board.Name }}", "{{ .Board.Actor.Id }}")
+</script>
+{{ end }}

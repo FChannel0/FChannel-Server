@@ -277,6 +277,7 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 			return ParseAttachment(obj, catalog)
 		},
 		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))
+
 	actor := collection.Actor
 
 	var returnData PageData
@@ -291,6 +292,54 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	returnData.Board.Restricted = actor.Restricted
 	returnData.Key = *Key
 	returnData.ReturnTo = "catalog"
+
+	returnData.Board.Post.Actor = actor.Id
+
+	returnData.Instance = GetActorFromDB(db, Domain)
+
+	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
+	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)
+
+	returnData.Title = "/" + actor.Name + "/ - " + actor.PreferredUsername
+
+	returnData.Boards = Boards
+
+	returnData.Posts = collection.OrderedItems
+
+	t.ExecuteTemplate(w, "layout",  returnData)
+}
+
+func ArchiveGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection){
+	t := template.Must(template.New("").Funcs(template.FuncMap{
+		"proxy": func(url string) string {
+			return MediaProxy(url)
+		},
+		"short": func(actorName string, url string) string {
+			return shortURL(actorName, url)
+		},
+		"shortExcerpt": func(post ObjectBase) template.HTML {
+			return template.HTML(ShortExcerpt(post))
+		},
+		"parseAttachment": func(obj ObjectBase, catalog bool) template.HTML {
+			return ParseAttachment(obj, catalog)
+		},
+		"mod": func(i, j int) bool { return i % j == 0 },
+		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/archive.html", "./static/bottom.html"))
+
+	actor := collection.Actor
+
+	var returnData PageData
+	returnData.Board.Name = actor.Name
+	returnData.Board.PrefName = actor.PreferredUsername
+	returnData.Board.InReplyTo = ""
+	returnData.Board.To = actor.Outbox
+	returnData.Board.Actor = *actor
+	returnData.Board.Summary = actor.Summary
+	returnData.Board.ModCred, _ = GetPasswordFromSession(r)
+	returnData.Board.Domain = Domain
+	returnData.Board.Restricted = actor.Restricted
+	returnData.Key = *Key
+	returnData.ReturnTo = "archive"
 
 	returnData.Board.Post.Actor = actor.Id
 
@@ -448,6 +497,22 @@ func WantToServeCatalog(db *sql.DB, actorName string) (Collection, bool) {
 
 	if actor.Id != "" {
 		collection = GetObjectFromDBCatalog(db, actor.Id)
+		collection.Actor = &actor
+		return collection, true
+	}
+
+	return collection, serve
+}
+
+func WantToServeArchive(db *sql.DB, actorName string) (Collection, bool) {
+
+	var collection Collection
+	serve := false
+
+	actor := GetActorByNameFromDB(db, actorName)
+
+	if actor.Id != "" {
+		collection = GetActorCollectionDBType(db, actor.Id, "Archive")
 		collection.Actor = &actor
 		return collection, true
 	}
@@ -923,4 +988,32 @@ func ConvertSize(size int64) string {
 	}
 
 		return rValue;
+}
+
+func ShortExcerpt(post ObjectBase) string {
+	var returnString string
+
+	if post.Name != "" {
+		returnString = post.Name + ": " + post.Content;
+	} else {
+		returnString = post.Content;
+	}
+
+	re := regexp.MustCompile(`(^.{100})`)
+
+	match := re.FindStringSubmatch(returnString)
+
+	if len(match) > 0 {
+		returnString = match[0] + "..."
+	}
+
+	re = regexp.MustCompile(`(^.+:)`)
+
+	match = re.FindStringSubmatch(returnString)
+
+	if len(match) > 0 {
+		returnString = strings.Replace(returnString, match[0], "<b>" + match[0] + "</b>", 1)
+	}
+
+	return returnString
 }
