@@ -18,7 +18,7 @@
     <a href="/deleteattach?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Attachment]</a>
     <a href="/marksensitive?id={{ .Id }}&board={{ $board.Actor.Name }}">[Mark Sensitive]</a>
     {{ end }}
-    <span style="display: block;">File: <a id="{{ .Id }}-img" href="{{ proxy (index .Attachment 0).Href}}">{{ (index .Attachment 0).Name  }}</a><span id="{{ .Id }}-size">({{ (index .Attachment 0).Size  }})</span></span>
+    <span style="display: block;">File: <a id="{{ .Id }}-img" href="{{ proxy (index .Attachment 0).Href}}">{{ shortImg (index .Attachment 0).Name  }}</a><span id="{{ .Id }}-size"> ({{ convertSize (index .Attachment 0).Size  }})</span></span>
     <div id="hide-{{ .Id }}" style="display: none;">[Hide]</div>
     <div id="sensitive-{{ .Id }}" style="display: none;"><div style="position: relative; text-align: center;"><img id="sensitive-img-{{ .Id }}" style="float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;" src="/static/sensitive.png"><div id="sensitive-text-{{ .Id }}" style="width: 240px; position: absolute; margin-top: 110px; padding: 5px; background-color: black; color: white; cursor: default; ">NSFW Content</div></div></div>
     <div id="media-{{ .Id }}">{{ parseAttachment . false }}</div>
@@ -68,7 +68,7 @@
           <a href="/deleteattach?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Attachment]</a>
           <a href="/marksensitive?id={{ .Id }}&board={{ $board.Actor.Name }}">[Mark Sensitive]</a>
           {{ end }}
-          <span style="display: block;">File <a id="{{ .Id }}-img" href="{{ proxy (index .Attachment 0).Href}}">{{ (index .Attachment 0).Name  }}</a> <span id="{{ .Id }}-size">({{ (index .Attachment 0).Size  }})</span></span>
+          <span style="display: block;">File <a id="{{ .Id }}-img" href="{{ proxy (index .Attachment 0).Href}}">{{ shortImg (index .Attachment 0).Name  }}</a> <span id="{{ .Id }}-size"> ({{ convertSize (index .Attachment 0).Size  }})</span></span>
           <div id="hide-{{ .Id }}" style="display: none;">[Hide]</div>
           <div id="sensitive-{{ .Id }}" style="display: none;"><div style="position: relative; text-align: center;"><img id="sensitive-img-{{ .Id }}" style="float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;" src="/static/sensitive.png"><div id="sensitive-text-{{ .Id }}" style="width: 240px; position: absolute; margin-top: 110px; padding: 5px; background-color: black; color: white; cursor: default; ">NSFW Content</div></div></div>
           <div> </div>
@@ -108,21 +108,9 @@
         </div>
       </div>
     </div>
-    <script>
-      {{ if .Attachment }}
-      document.getElementById("{{ .Id }}-size").innerText = " (" + convertSize({{ (index .Attachment 0).Size }}) + ")";
-      document.getElementById("{{ .Id }}-img").innerText = shortImg("{{ (index .Attachment 0).Name }}");
-      {{ end }}
-    </script>
     {{ end }}
     {{ end }}
   </div>
 </div>
-<script>
-  {{ if .Attachment }}
-  document.getElementById("{{ .Id }}-size").innerText = " (" + convertSize({{ (index .Attachment 0).Size }}) + ")";
-  document.getElementById("{{ .Id }}-img").innerText = shortImg("{{ (index .Attachment 0).Name }}");
-  {{ end }}
-</script>
 {{ end }}
 {{ end }}

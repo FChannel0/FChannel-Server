@@ -10,6 +10,7 @@ import (
 	"sort"
 	"regexp"
 	"time"
+	"fmt"
 )
 
 var Key *string = new(string)
@@ -196,6 +197,12 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 		"parseContent": func(board Actor, op string, content string, thread ObjectBase) template.HTML {
 			return ParseContent(db, board, op, content, thread)
 		},
+		"shortImg": func(url string) string {
+			return  ShortImg(url)
+		},
+		"convertSize": func(size int64) string {
+			return  ConvertSize(size)
+		},
 		"parseReplyLink": func(actorId string, op string, id string, content string) template.HTML {
 			actor := FingerActor(actorId)
 			title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
@@ -314,6 +321,12 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 		},
 		"parseContent": func(board Actor, op string, content string, thread ObjectBase) template.HTML {
 			return ParseContent(db, board, op, content, thread)
+		},
+		"shortImg": func(url string) string {
+			return  ShortImg(url)
+		},
+		"convertSize": func(size int64) string {
+			return  ConvertSize(size)
 		},
 		"parseReplyLink": func(actorId string, op string, id string, content string) template.HTML {
 			actor := FingerActor(actorId)
@@ -798,12 +811,15 @@ func ParseLinkComments(db *sql.DB, board Actor, op string, content string, threa
 
 			//this is a cross post
 			parsedOP := GetReplyOP(db, parsedLink)
+			actor := FingerActor(parsedLink)
 
 			if parsedOP != "" {
 				link = parsedOP + "#" + shortURL(parsedOP, parsedLink)
 			}
 
-			content = strings.Replace(content, match[i][0], "<a class=\"reply\" style=\"" + style + "\" title=\"" + quoteTitle +  "\" href=\"" + link + "\">&gt;&gt;" + shortURL(board.Outbox, parsedLink)  + isOP + " →</a>", -1)
+			if actor.Id != "" {
+				content = strings.Replace(content, match[i][0], "<a class=\"reply\" style=\"" + style + "\" title=\"" + quoteTitle +  "\" href=\"" + link + "\">&gt;&gt;" + shortURL(board.Outbox, parsedLink)  + isOP + " →</a>", -1)
+			}
 		}
 	}
 
@@ -864,4 +880,47 @@ func ConvertHashLink(domain string, link string) string {
 	}
 
 	return parsedLink
+}
+
+func ShortImg(url string) string {
+	nURL := url
+
+	re := regexp.MustCompile(`(\.\w+$)`)
+
+	fileName := re.ReplaceAllString(url, "")
+
+	if(len(fileName) > 26) {
+		re := regexp.MustCompile(`(^.{26})`)
+
+		match := re.FindStringSubmatch(fileName)
+
+		if len(match) > 0 {
+			nURL = match[0]
+		}
+
+		re = regexp.MustCompile(`(\..+$)`)
+
+		match = re.FindStringSubmatch(url)
+
+		if len(match) > 0 {
+			nURL = nURL  + "(...)" + match[0];
+		}
+	}
+
+	return nURL;
+}
+
+func ConvertSize(size int64) string {
+	var rValue string
+
+	convert := float32(size) / 1024.0;
+
+	if(convert > 1024) {
+		convert = convert / 1024.0;
+		rValue = fmt.Sprintf("%.2f MB", convert)
+	} else {
+		rValue = fmt.Sprintf("%.2f KB", convert)
+	}
+
+		return rValue;
 }

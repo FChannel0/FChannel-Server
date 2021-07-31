@@ -2,14 +2,14 @@ function startNewPost(){
     var el = document.getElementById("newpostbtn");
     el.style="display:none;";
     el.setAttribute("state", "1");
-    document.getElementById("newpost").style = "display: block;";  
+    document.getElementById("newpost").style = "display: block;";
 }
 
 function stopNewPost(){
     var el = document.getElementById("newpostbtn");
     el.style="display:block;";
     el.setAttribute("state", "0");
-    document.getElementById("newpost").style = "display: hidden;"; 
+    document.getElementById("newpost").style = "display: hidden;";
 }
 
 function newpost()
@@ -18,19 +18,13 @@ function newpost()
     if(state === "0")
     {
         startNewPost();
-        sessionStorage.setItem("newpostState", true);    
+        sessionStorage.setItem("newpostState", true);
     }
     else
     {
         stopNewPost();
-        sessionStorage.setItem("newpostState", false);      
+        sessionStorage.setItem("newpostState", false);
     }
-}
-
-function getMIMEType(type)
-{
-    re = /\/.+/g;
-    return type.replace(re, "");
 }
 
 function shortURL(actorName, url)
@@ -39,7 +33,7 @@ function shortURL(actorName, url)
     temp = re.exec(url);
 
     var output;
-    
+
     if(stripTransferProtocol(temp[0]) == stripTransferProtocol(actorName) + "/")
     {
         var short = url.replace("https://", "");
@@ -50,7 +44,7 @@ function shortURL(actorName, url)
 
         var u = re.exec(short);
 
-        re = /\w+$/g;              
+        re = /\w+$/g;
 
         output =  re.exec(short);
     }else{
@@ -62,7 +56,7 @@ function shortURL(actorName, url)
 
         var u = re.exec(short);
 
-        re = /\w+$/g;              
+        re = /\w+$/g;
 
         u =  re.exec(short);
 
@@ -71,47 +65,13 @@ function shortURL(actorName, url)
         str = str.replace(u, " ").trim();
 
         re = /(\w|[!@#$%^&*<>])+$/;
-        
+
         v = re.exec(str);
 
         output = "f" + v[0] + "-" + u
     }
 
     return output;
-}
-
-function shortImg(url)
-{
-    var u = url;
-    if(url.length > 26)
-    {
-        var re = /^.{26}/g;
-
-        u = re.exec(url);
-
-        re = /\..+$/g;
-
-        var v = re.exec(url);
-
-        u += "(...)" + v;
-    }
-    return u;        
-}            
-
-function convertSize(size)
-{
-    var convert = size / 1024.0;
-    if(convert > 1024)
-    {
-        convert = convert / 1024.0;
-        convert = convert.toFixed(2) + " MB";
-    }
-    else
-    {
-        convert = convert.toFixed(2) + " KB";
-    }
-
-    return convert;
 }
 
 function getBoardId(url)
@@ -135,31 +95,31 @@ function convertContent(actorName, content, opid)
             {
                 isOP = " (OP)";
             }
-            
+
             var q = link;
-            
+
             if(document.getElementById(link + "-content") != null) {
                 q = document.getElementById(link + "-content").innerText;
                 q = q.replaceAll('>', '/\>');
                 q = q.replaceAll('"', '');
-                q = q.replaceAll("'", "");                       
+                q = q.replaceAll("'", "");
             }
             newContent = newContent.replace(quote, '<a class="reply" title="' + q +  '" href="'+ (actorName) + "/" + shortURL(actorName, opid)  +  '#' + shortURL(actorName, link) + '";">>>' + shortURL(actorName, link)  + isOP + '</a>');
 
-        });           
+        });
     }
-    
+
     re =  /^(\s+)?>.+/gm;
 
     match = newContent.match(re);
     if(match)
     {
         match.forEach(function(quote, i) {
-    
+
             newContent = newContent.replace(quote, '<span class="quote">' + quote + '</span>');
         });
     }
-    
+
     return newContent.replaceAll('/\>', '>');
 }
 
@@ -177,15 +137,15 @@ function convertContentNoLink(actorName, content, opid)
             {
                 isOP = " (OP)";
             }
-            
+
             var q = link;
-            
+
             if(document.getElementById(link + "-content") != null) {
                 q = document.getElementById(link + "-content").innerText;
             }
-            
+
             newContent = newContent.replace(quote, '>>' + shortURL(actorName, link)  + isOP);
-        });   
+        });
     }
     newContent = newContent.replaceAll("'", "");
     return newContent.replaceAll('"', '');
@@ -194,34 +154,17 @@ function convertContentNoLink(actorName, content, opid)
 function closeReply()
 {
     document.getElementById("reply-box").style.display = "none";
-    document.getElementById("reply-comment").value = "";      
-      
+    document.getElementById("reply-comment").value = "";
+
     sessionStorage.setItem("element-closed-reply", true);
 }
 
 function closeReport()
 {
     document.getElementById("report-box").style.display = "none";
-    document.getElementById("report-comment").value = "";        
+    document.getElementById("report-comment").value = "";
 
     sessionStorage.setItem("element-closed-report", true);
-}
-
-
-function previous(actorName, page)
-{
-    var prev = parseInt(page) - 1;
-    if(prev < 0)
-        prev = 0;
-    window.location.href = "/" + actorName + "/" + prev;
-}
-
-function next(actorName, totalPage, page)
-{
-    var next = parseInt(page) + 1;
-    if(next > parseInt(totalPage))
-        next = parseInt(totalPage);
-    window.location.href = "/" + actorName + "/" + next;
 }
 
 function quote(actorName, opid, id)
@@ -248,7 +191,7 @@ function quote(actorName, opid, id)
 
     if (inReplyTo.value != opid)
         comment.value = "";
-    
+
     header.innerText = "Replying to Thread No. " + shortURL(actorName, opid);
     inReplyTo.value = opid;
     sessionStorage.setItem("element-reply-actor", actorName);
@@ -258,7 +201,7 @@ function quote(actorName, opid, id)
         comment.value += ">>" + id + "\n";
     sessionStorage.setItem("element-reply-comment", comment.value);
 
-    dragElement(header);            
+    dragElement(header);
 
 }
 
@@ -268,7 +211,7 @@ function report(actorName, id)
     var box = document.getElementById("report-box");
     var header = document.getElementById("report-header");
     var comment = document.getElementById("report-comment");
-    var inReplyTo = document.getElementById("report-inReplyTo-box");    
+    var inReplyTo = document.getElementById("report-inReplyTo-box");
 
     var w = window.innerWidth / 2 - 200;
     var h = document.getElementById(id + "-content").offsetTop - 348;
@@ -284,8 +227,8 @@ function report(actorName, id)
     sessionStorage.setItem("element-report-actor", actorName);
     sessionStorage.setItem("element-report-id", id);
 
-    dragElement(header);            
-}  
+    dragElement(header);
+}
 
 var pos1, pos2, pos3, pos4;
 var elmnt;
@@ -363,7 +306,7 @@ const stateLoadHandler = function(event){
         comment.value = sessionStorage.getItem("element-report-comment");
 
         box.setAttribute("style", sessionStorage.getItem("element-report-style"));
-            
+
         box.style.top = sessionStorage.getItem("report-top");
         box.style.left = sessionStorage.getItem("report-left");
 
@@ -393,7 +336,7 @@ const stateLoadHandler = function(event){
         pos4 = parseInt(sessionStorage.getItem("pos4"));
 
         box.setAttribute("style", sessionStorage.getItem("element-reply-style"));
-            
+
         box.style.top = sessionStorage.getItem("reply-top");
         box.style.left = sessionStorage.getItem("reply-left");
 
@@ -421,4 +364,3 @@ function isOnion(value){
         return true;
     return false;
 }
-
