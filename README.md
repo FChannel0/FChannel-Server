@@ -9,21 +9,21 @@ It is a testing environment, so the instances might come and go.
 
 ## To Do List
 Current things that will be implemented first are:
-- A way to automatically index new instances into a list so others can discover instances as they come online. 
-- Setting up a server proxy so that clearnet instances can talk to TOR/Loki/I2P instances. 
+- A way to automatically index new instances into a list so others can discover instances as they come online.
+- Setting up a server proxy so that clearnet instances can talk to TOR/Loki/I2P instances.
 - Other improvements will be made over time, first it needs to be as easy as possible for new instances to come online and connect with others reliably.
 
 Try and run your own instances and federate with one of the instances above.
-Any contributions or suggestions are appreciated. Best way to give immediate feedback is the Matrix channel #fchan:matrix.org
+Any contributions or suggestions are appreciated. Best way to give immediate feedback is the XMPP: general@rooms.fchannel.org or Matrix: #fchan:matrix.org
 
 # Server Installation and Configuration
 
 ## Minimum Server Requirements
 
 - Go v1.16+
-  
+
 - PostgreSQL
-  
+
 - Redis
 
 - ImageMagick
@@ -47,24 +47,24 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
 ### config file
 
   `instance:fchan.xyz`  Domain name that the host can be located at without www and `http://` or `https://`
-  
+
   `instancetp:https://` Transfer protocol your domain is using, should be https if possible. Do not put `https://` if you are using `http://`
-  
+
   `instanceport:3000`   Port the server is running on locally, on your server.
-  
+
   `instancename:FChan`  Full name that you want your instances to be called.
-  
+
   `instancesummary:FChan is a federated image board instance.` Brief description of your instance.
 
 
   `dbhost:localhost`    Database host. Most likely leave as `localhost`.
-  
+
   `dbport:5432`         Port number for database. Most likely leave the default value.
-  
+
   `dbname:fchan_server` Database name for psql.
-  
+
   `dbuser:admin`        Database user that can connect to dbname.
-  
+
   `dbpass:password`     Database password for dbuser.
 
   `torproxy:127.0.0.1:9050`     Tor proxy route and port, leave blank if you do not want to support
@@ -75,13 +75,13 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
 
 
   Currently e-mail is not implemented to do anything special, but the code is in place
-  
+
   `emailserver:mail.fchan.xyz`
-  
+
   `emailport:465`
-  
+
   `emailaddress:contact@fchan.xyz`
-  
+
   `emailpass:password`
 
 ### Local testing
@@ -109,7 +109,7 @@ Use [Certbot](https://github.com/certbot/certbot), (or your tool of choice) to s
 
 ```
 server {
-        listen 80; 
+        listen 80;
         listen [::]:80;
 
         root /var/www/html;
@@ -158,4 +158,3 @@ server {
 Any support is appreciated all funds go to hosting and development of the project
 
 XMR - 85ma5KYR8Jk8zhGospQ8DeMNUrY74rQqEgiiPHvKHbowa37TAa5MLUD8RBaupw5oAxWmpFDrSAxsDbeXcfoAwiZF69mq4CE
-

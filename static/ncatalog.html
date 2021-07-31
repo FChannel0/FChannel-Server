@@ -44,7 +44,8 @@
       <script>
         media = document.getElementById("media-{{ .Id }}")
 
-        if(({{ .Sensitive }} && {{ $board.Actor.Restricted }}) || (isOnion("{{ .Id }}") && !isOnion("{{ $board.Domain }}"))){            sensitive = document.getElementById("sensitive-{{ .Id }}")
+        if(({{ .Sensitive }} && {{ $board.Actor.Restricted }}) || ({{ isOnion .Id }} && !{{ isOnion $board.Domain }}){
+            sensitive = document.getElementById("sensitive-{{ .Id }}")
             hide = document.getElementById("hide-{{ .Id }}")
             sensitive.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: block;"; document.getElementById("sensitive-{{ .Id }}").style="display: none;"; document.getElementById("hide-{{ .Id }}").style="display: block; cursor: pointer;"}
             hide.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: none;"; document.getElementById("sensitive-{{ .Id }}").style="display: block;"; document.getElementById("hide-{{ .Id }}").style="display: none;"}
@@ -52,7 +53,7 @@
             media.style = "display: none;"
         }
 
-        if(isOnion("{{ .Id }}") && !isOnion("{{ $board.Domain }}")) {
+        if({{ isOnion .Id }} && !{{ isOnion $board.Domain }}) {
             sensitive = document.getElementById("sensitive-{{ .Id }}")
             document.getElementById("sensitive-img-{{ .Id }}").src = "/static/onion.png"
             document.getElementById("sensitive-text-{{ .Id }}").innerText = "Tor Instance"

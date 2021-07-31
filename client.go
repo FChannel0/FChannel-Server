@@ -203,6 +203,9 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 		"convertSize": func(size int64) string {
 			return  ConvertSize(size)
 		},
+		"isOnion": func(url string) bool {
+			return  IsOnion(url)
+		},
 		"parseReplyLink": func(actorId string, op string, id string, content string) template.HTML {
 			actor := FingerActor(actorId)
 			title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
@@ -275,6 +278,9 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 		},
 		"parseAttachment": func(obj ObjectBase, catalog bool) template.HTML {
 			return ParseAttachment(obj, catalog)
+		},
+		"isOnion": func(url string) bool {
+			return  IsOnion(url)
 		},
 		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))
 
@@ -376,6 +382,9 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 		},
 		"convertSize": func(size int64) string {
 			return  ConvertSize(size)
+		},
+		"isOnion": func(url string) bool {
+			return  IsOnion(url)
 		},
 		"parseReplyLink": func(actorId string, op string, id string, content string) template.HTML {
 			actor := FingerActor(actorId)
@@ -1016,4 +1025,13 @@ func ShortExcerpt(post ObjectBase) string {
 	}
 
 	return returnString
+}
+
+func IsOnion(url string) bool {
+	re := regexp.MustCompile(`\.onion$`)
+	if(re.MatchString(url)) {
+		return true;
+	}
+
+	return false
 }
