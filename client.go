@@ -193,6 +193,9 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 		"parseAttachment": func(obj ObjectBase, catalog bool) template.HTML {
 			return ParseAttachment(obj, catalog)
 		},
+		"parseContent": func(board Actor, op string, content string, thread ObjectBase) template.HTML {
+			return ParseContent(db, board, op, content, thread)
+		},
 		"parseReplyLink": func(actorId string, op string, id string, content string) template.HTML {
 			actor := FingerActor(actorId)
 			title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
@@ -236,14 +239,6 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 
 	returnData.Boards = Boards
 	returnData.Posts = collection.OrderedItems
-
-	for i, e := range returnData.Posts {
-		returnData.Posts[i].ContentHTML = ParseContent(db, returnData.Board.Actor, e.Id, e.Content, e)
-
-		for j, k := range e.Replies.OrderedItems {
-			returnData.Posts[i].Replies.OrderedItems[j].ContentHTML = ParseContent(db, returnData.Board.Actor, e.Id, k.Content, e)
-		}
-	}
 
 	var offset = 15
 	var pages []int
@@ -317,6 +312,9 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 		"parseAttachment": func(obj ObjectBase, catalog bool) template.HTML {
 			return ParseAttachment(obj, catalog)
 		},
+		"parseContent": func(board Actor, op string, content string, thread ObjectBase) template.HTML {
+			return ParseContent(db, board, op, content, thread)
+		},
 		"parseReplyLink": func(actorId string, op string, id string, content string) template.HTML {
 			actor := FingerActor(actorId)
 			title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
@@ -382,14 +380,6 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 
 	if len(returnData.Posts) > 0 {
 		returnData.PostId = shortURL(returnData.Board.To, returnData.Posts[0].Id)
-
-		for i, e := range returnData.Posts {
-			returnData.Posts[i].ContentHTML = ParseContent(db, returnData.Board.Actor, e.Id, e.Content, e)
-
-			for j, k := range e.Replies.OrderedItems {
-				returnData.Posts[i].Replies.OrderedItems[j].ContentHTML = ParseContent(db, returnData.Board.Actor, e.Id, k.Content, e)
-			}
-		}
 	}
 
 	t.ExecuteTemplate(w, "layout",  returnData)

@@ -2,6 +2,7 @@
 {{ $board := .Board }}
 {{ $len := len .Posts }}
 {{ range .Posts }}
+{{ $thread := . }}
 {{ $opId := .Id }}
 {{ if eq $board.InReplyTo "" }}
 <hr>
@@ -10,16 +11,16 @@
   <div id="{{ short $board.Actor.Outbox .Id }}" style="overflow: visible; margin-bottom: 12px;">
     {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}
     <a href="/delete?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Post]</a>
-    {{ end }}        
+    {{ end }}
     {{ if .Attachment }}
     {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}
-    <a href="/banmedia?id={{ .Id }}&board={{ $board.Actor.Name }}">[Ban Media]</a>                        
+    <a href="/banmedia?id={{ .Id }}&board={{ $board.Actor.Name }}">[Ban Media]</a>
     <a href="/deleteattach?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Attachment]</a>
     <a href="/marksensitive?id={{ .Id }}&board={{ $board.Actor.Name }}">[Mark Sensitive]</a>
-    {{ end }}                
+    {{ end }}
     <span style="display: block;">File: <a id="{{ .Id }}-img" href="{{ proxy (index .Attachment 0).Href}}">{{ (index .Attachment 0).Name  }}</a><span id="{{ .Id }}-size">({{ (index .Attachment 0).Size  }})</span></span>
     <div id="hide-{{ .Id }}" style="display: none;">[Hide]</div>
-    <div id="sensitive-{{ .Id }}" style="display: none;"><div style="position: relative; text-align: center;"><img id="sensitive-img-{{ .Id }}" style="float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;" src="/static/sensitive.png"><div id="sensitive-text-{{ .Id }}" style="width: 240px; position: absolute; margin-top: 110px; padding: 5px; background-color: black; color: white; cursor: default; ">NSFW Content</div></div></div>    
+    <div id="sensitive-{{ .Id }}" style="display: none;"><div style="position: relative; text-align: center;"><img id="sensitive-img-{{ .Id }}" style="float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;" src="/static/sensitive.png"><div id="sensitive-text-{{ .Id }}" style="width: 240px; position: absolute; margin-top: 110px; padding: 5px; background-color: black; color: white; cursor: default; ">NSFW Content</div></div></div>
     <div id="media-{{ .Id }}">{{ parseAttachment . false }}</div>
     <script>
       media = document.getElementById("media-{{ .Id }}")
@@ -40,42 +41,42 @@
           sensitive.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: block;"; document.getElementById("sensitive-{{ .Id }}").style="display: none;"; document.getElementById("hide-{{ .Id }}").style="display: block; cursor: pointer;"}
           hide.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: none;"; document.getElementById("sensitive-{{ .Id }}").style="display: block;"; document.getElementById("hide-{{ .Id }}").style="display: none;"}
           sensitive.style = "display: block"
-          media.style = "display: none;"          
+          media.style = "display: none;"
       }
     </script>
     {{ end }}
     <span style="color: #0f0c5d;"><b>{{ .Name }}</b></span><span style="color: #117743;"><b>{{ if .AttributedTo }} {{.AttributedTo }} {{ else }} Anonymous {{ end }}</b></span><span class="tripcode"> {{ .TripCode }} </span><span>{{ .Published }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/{{ short $board.Actor.Outbox $opId }}#{{ short $board.Actor.Outbox .Id }}">No.</a> <a id="{{ .Id }}-link" title="{{ .Id }}" href="javascript:quote('{{ $board.Actor.Id }}', '{{ $opId }}', '{{ .Id }}')">{{ short $board.Actor.Outbox .Id }}</a> {{ if ne .Type "Tombstone" }}<a href="javascript:report('{{ $board.Actor.Id }}', '{{ .Id }}')">[Report]</a>{{ end }}</span>
-    <p id="{{ .Id }}-content" style="white-space: pre-wrap; margin: 10px 30px 10px 30px;">{{.ContentHTML}}</p>
+    <p id="{{ .Id }}-content" style="white-space: pre-wrap; margin: 10px 30px 10px 30px;">{{ parseContent $board.Actor $opId .Content $thread }}</p>
     {{ if .Replies }}
     {{ $replies := .Replies }}
     {{ if gt $replies.TotalItems 5 }}
     {{ if gt $len 1 }}
-    <span>{{ $replies.TotalItems }} replies{{ if gt $replies.TotalImgs 0}} and {{ $replies.TotalImgs }} images{{ end }}, Click <a id="view" post="{{.Id}}" href="/{{ $board.Name }}/{{ .Id }}">here</a> to view all.</span>
+    <span>{{ $replies.TotalItems }} replies{{ if gt $replies.TotalImgs 0}} and {{ $replies.TotalImgs }} images{{ end }}, Click <a id="view" post="{{.Id}}" href="/{{ $board.Name }}/{{ short $board.Actor.Outbox .Id }}">here</a> to view all.</span>
     {{ end }}
     {{ end }}
     {{ range $replies.OrderedItems }}
-    <div id="{{ short $board.Actor.Outbox .Id }}">    
+    <div id="{{ short $board.Actor.Outbox .Id }}">
       <div  style="display: inline-block; overflow: auto;">
         <div style="float: left; display: block; margin-right: 5px;">>></div>
         <div class="post" style="overflow: auto; padding: 5px; margin-bottom: 2px;">
-          {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}          
+          {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}
           <a href="/delete?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Post]</a>
-          {{ end }}              
+          {{ end }}
           {{ if .Attachment }}
           {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}
-          <a href="/banmedia?id={{ .Id }}&board={{ $board.Actor.Name }}">[Ban Media]</a>                              
+          <a href="/banmedia?id={{ .Id }}&board={{ $board.Actor.Name }}">[Ban Media]</a>
           <a href="/deleteattach?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Attachment]</a>
           <a href="/marksensitive?id={{ .Id }}&board={{ $board.Actor.Name }}">[Mark Sensitive]</a>
           {{ end }}
           <span style="display: block;">File <a id="{{ .Id }}-img" href="{{ proxy (index .Attachment 0).Href}}">{{ (index .Attachment 0).Name  }}</a> <span id="{{ .Id }}-size">({{ (index .Attachment 0).Size  }})</span></span>
           <div id="hide-{{ .Id }}" style="display: none;">[Hide]</div>
-          <div id="sensitive-{{ .Id }}" style="display: none;"><div style="position: relative; text-align: center;"><img id="sensitive-img-{{ .Id }}" style="float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;" src="/static/sensitive.png"><div id="sensitive-text-{{ .Id }}" style="width: 240px; position: absolute; margin-top: 110px; padding: 5px; background-color: black; color: white; cursor: default; ">NSFW Content</div></div></div>              
+          <div id="sensitive-{{ .Id }}" style="display: none;"><div style="position: relative; text-align: center;"><img id="sensitive-img-{{ .Id }}" style="float: left; margin-right: 10px; margin-bottom: 10px; max-width: 250px; max-height: 250px;" src="/static/sensitive.png"><div id="sensitive-text-{{ .Id }}" style="width: 240px; position: absolute; margin-top: 110px; padding: 5px; background-color: black; color: white; cursor: default; ">NSFW Content</div></div></div>
           <div> </div>
           <div id="media-{{ .Id }}" sensitive="0">{{ parseAttachment . false }}</div>
           <script>
             media = document.getElementById("media-{{ .Id }}")
-            
-            if(({{ .Sensitive }} && {{ $board.Actor.Restricted }}) || (isOnion("{{ .Id }}") && !isOnion("{{ $board.Domain }}"))){            
+
+            if(({{ .Sensitive }} && {{ $board.Actor.Restricted }}) || (isOnion("{{ .Id }}") && !isOnion("{{ $board.Domain }}"))){
                 sensitive = document.getElementById("sensitive-{{ .Id }}")
                 hide = document.getElementById("hide-{{ .Id }}")
                 sensitive.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: block;"; document.getElementById("sensitive-{{ .Id }}").style="display: none;"; document.getElementById("hide-{{ .Id }}").style="display: block; cursor: pointer;"}
@@ -92,9 +93,9 @@
                 sensitive.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: block;"; document.getElementById("sensitive-{{ .Id }}").style="display: none;"; document.getElementById("hide-{{ .Id }}").style="display: block; cursor: pointer;"}
                 hide.onclick = function(){document.getElementById("media-{{ .Id }}").style="display: none;"; document.getElementById("sensitive-{{ .Id }}").style="display: block;"; document.getElementById("hide-{{ .Id }}").style="display: none;"}
                 sensitive.style = "display: block"
-                media.style = "display: none;"          
-            }            
-          </script>              
+                media.style = "display: none;"
+            }
+          </script>
           {{ end }}
           <span style="color: #0f0c5d;"><b>{{ .Name }}</b></span><span style="color: #117743;"><b>{{ if .AttributedTo }} {{.AttributedTo }} {{ else }} Anonymous {{ end }}</b></span><span class="tripcode"> {{ .TripCode }} </span><span>{{ .Published }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/{{ short $board.Actor.Outbox $opId }}#{{ short $board.Actor.Outbox .Id }}">No. </a><a id="{{ .Id }}-link" title="{{ .Id }}" href="javascript:quote('{{ $board.Actor.Id }}', '{{ $opId }}', '{{ .Id }}')">{{ short $board.Actor.Outbox .Id }}</a> {{ if ne .Type "Tombstone" }}<a href="javascript:report('{{ $board.Actor.Id }}', '{{ .Id }}')">[Report]</a>{{ end }}</span>
           {{ $parentId := .Id }}
@@ -103,7 +104,7 @@
           <span id="{{$parentId}}-replyto-{{.Id}}">{{ parseReplyLink $board.Actor.Id $opId .Id .Content }}</span>
           {{ end }}
           {{ end }}
-          <p id="{{ .Id }}-content" style="white-space: pre-wrap; margin: 10px 30px 10px 30px;">{{.ContentHTML}}</p>
+          <p id="{{ .Id }}-content" style="white-space: pre-wrap; margin: 10px 30px 10px 30px;">{{ parseContent $board.Actor $opId .Content $thread }}</p>
         </div>
       </div>
     </div>
@@ -112,13 +113,13 @@
       document.getElementById("{{ .Id }}-size").innerText = " (" + convertSize({{ (index .Attachment 0).Size }}) + ")";
       document.getElementById("{{ .Id }}-img").innerText = shortImg("{{ (index .Attachment 0).Name }}");
       {{ end }}
-    </script>      
+    </script>
     {{ end }}
     {{ end }}
   </div>
 </div>
 <script>
-  {{ if .Attachment }}      
+  {{ if .Attachment }}
   document.getElementById("{{ .Id }}-size").innerText = " (" + convertSize({{ (index .Attachment 0).Size }}) + ")";
   document.getElementById("{{ .Id }}-img").innerText = shortImg("{{ (index .Attachment 0).Name }}");
   {{ end }}
