@@ -206,6 +206,14 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 		"isOnion": func(url string) bool {
 			return  IsOnion(url)
 		},
+		"showArchive": func() bool {
+			col := GetActorCollectionDBTypeLimit(db, collection.Actor.Id, "Archive", 1)
+
+			if len(col.OrderedItems) > 0 {
+					return true
+			}
+			return false;
+		},
 		"parseReplyLink": func(actorId string, op string, id string, content string) template.HTML {
 			actor := FingerActor(actorId)
 			title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
@@ -281,6 +289,14 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 		},
 		"isOnion": func(url string) bool {
 			return  IsOnion(url)
+		},
+		"showArchive": func() bool {
+			col := GetActorCollectionDBTypeLimit(db, collection.Actor.Id, "Archive", 1)
+
+			if len(col.OrderedItems) > 0 {
+					return true
+			}
+			return false;
 		},
 		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))
 
@@ -1008,7 +1024,7 @@ func ShortExcerpt(post ObjectBase) string {
 		returnString = post.Content;
 	}
 
-	re := regexp.MustCompile(`(^.{100})`)
+	re := regexp.MustCompile(`(^(.|\r\n|\n){100})`)
 
 	match := re.FindStringSubmatch(returnString)
 
@@ -1028,7 +1044,7 @@ func ShortExcerpt(post ObjectBase) string {
 }
 
 func IsOnion(url string) bool {
-	re := regexp.MustCompile(`\.onion$`)
+	re := regexp.MustCompile(`\.onion`)
 	if(re.MatchString(url)) {
 		return true;
 	}

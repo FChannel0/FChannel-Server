@@ -855,7 +855,7 @@ func main() {
 					go DeleteObjectRequest(db, id)
 				}
 
-				UnArchiveLast(db)
+				UnArchiveLast(db, actor)
 
 				if !isOP {
 					if (!IsIDLocal(db, id)){
@@ -889,9 +889,9 @@ func main() {
 
 		manage := r.URL.Query().Get("manage")
 		col := GetCollectionFromID(id)
-
 		if len(col.OrderedItems) < 1 {
-			if !HasAuth(db, auth, GetActorByNameFromDB(db, board).Id) {
+			actor := GetActorByNameFromDB(db, board)
+			if !HasAuth(db, auth, actor.Id) {
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte(""))
 				return
@@ -903,7 +903,7 @@ func main() {
 				TombstoneObjectAndReplies(db, id)
 			}
 
-			UnArchiveLast(db)
+			UnArchiveLast(db, actor.Id)
 
 
 			if(manage == "t"){
@@ -944,7 +944,7 @@ func main() {
 			go DeleteObjectRequest(db, id)
 		}
 
-		UnArchiveLast(db)
+		UnArchiveLast(db, actor)
 
 		if(manage == "t"){
 			http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)
@@ -1343,6 +1343,22 @@ func main() {
 		}
 
 		go AddInstanceToIndexDB(db, actor)
+	})
+
+	http.HandleFunc("/poparchive", func(w http.ResponseWriter, r *http.Request) {
+
+		actor := GetActorFromDB(db, Domain)
+
+		if !HasValidation(w, r, actor) {
+			return
+		}
+
+		id := r.URL.Query().Get("id")
+		board := r.URL.Query().Get("board")
+
+		SetObjectType(db, id, "Note")
+
+		http.Redirect(w, r, "/" + board + "/archive", http.StatusSeeOther)
 	})
 
 	http.HandleFunc("/blacklist", func(w http.ResponseWriter, r *http.Request) {

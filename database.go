@@ -568,7 +568,7 @@ func GetObjectFromDB(db *sql.DB, id string) Collection {
 	var nColl Collection
 	var result []ObjectBase
 
-	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where id=$1 order by updated desc`
+	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where id=$1 union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where id=$1 order by updated desc`
 
 	rows, err := db.Query(query, id)
 
@@ -1914,6 +1914,47 @@ func GetActorCollectionDBType(db *sql.DB, actorId string, nType string) Collecti
 	return nColl
 }
 
+func GetActorCollectionDBTypeLimit(db *sql.DB, actorId string, nType string, limit int) Collection {
+	var nColl Collection
+	var result []ObjectBase
+
+	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type=$2 union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type=$2 union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type=$2) as x order by x.updated desc limit $3`
+
+	rows, err := db.Query(query, actorId, nType, limit)
+
+	CheckError(err, "error query object from db archive")
+
+	defer rows.Close()
+	for rows.Next(){
+		var post ObjectBase
+		var actor Actor
+		var attachID string
+		var previewID string
+
+		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
+
+		CheckError(err, "error scan object into post struct archive")
+
+		post.Actor = actor.Id
+
+		var replies CollectionBase
+
+		post.Replies = &replies
+
+		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCount(db, post)
+
+		post.Attachment = GetObjectAttachment(db, attachID)
+
+		post.Preview = GetObjectPreview(db, previewID)
+
+		result = append(result, post)
+	}
+
+	nColl.OrderedItems = result
+
+	return nColl
+}
+
 func UpdateObjectTypeDB(db *sql.DB, id string, nType string) {
 	query := `update activitystream set type=$2 where id=$1 and type !='Tombstone'`
 
@@ -1928,25 +1969,25 @@ func UpdateObjectTypeDB(db *sql.DB, id string, nType string) {
 	CheckError(err, "error updating cache reply type to archive")
 }
 
-func UnArchiveLast(db *sql.DB) {
-	query := `select id, updated from activitystream where type='Archive' union select id, updated from cacheactivitystream where type='Archive'  order by updated desc limit 1`
-
-	rows, err := db.Query(query)
-
-	CheckError(err, "error with unarchive last")
-
-	var id, updated string
-	defer rows.Close()
-	rows.Next()
-	rows.Scan(&id, &updated)
-
-	col := GetObjectFromDB(db, id)
+func UnArchiveLast(db *sql.DB, actorId string) {
+	col := GetActorCollectionDBTypeLimit(db, actorId, "Archive", 1)
 
 	for _, e := range col.OrderedItems {
 		for _, k := range e.Replies.OrderedItems {
 			UpdateObjectTypeDB(db, k.Id, "Note")
 		}
 		UpdateObjectTypeDB(db, e.Id, "Note")
+	}
+}
+
+func SetObjectType(db *sql.DB, id string, nType string) {
+	col := GetObjectFromDB(db, id)
+
+	for _, e := range col.OrderedItems {
+		for _, k := range e.Replies.OrderedItems {
+			UpdateObjectTypeDB(db, k.Id, nType)
+		}
+		UpdateObjectTypeDB(db, e.Id, nType)
 	}
 }
 

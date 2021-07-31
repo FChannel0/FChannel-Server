@@ -39,6 +39,9 @@
 
 <table align="center" style="width: 900px;">
   <tr>
+    {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}
+    <td></td>
+    {{ end }}
     <th style="width: 100px">No.</th>
     <th>Excerpt</th>
     <th style="width: 100px;"></th>
@@ -46,12 +49,18 @@
   {{ range $i, $e := .Posts }}
   {{ if mod $i 2 }}
   <tr class="box-alt">
+    {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}
+    <td><a href="/poparchive?id={{ $e.Id }}&board={{ $board.Name }}">[Pop]</a></td>
+    {{ end }}
     <td>{{ short $board.Actor.Outbox $e.Id }}</td>
     <td>{{ shortExcerpt $e }}</td>
     <td style="text-align: center;"><a href="/{{ $board.Actor.Name }}/{{ short $board.Actor.Outbox $e.Id }}">[View]</a></td>
   </tr>
   {{ else }}
   <tr class="box">
+    {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}
+    <td><a href="/poparchive?id={{ $e.Id }}">[Pop]</a></td>
+    {{ end }}
     <td>{{ short $board.Actor.Outbox $e.Id }}</td>
     <td>{{ shortExcerpt $e }}</td>
     <td style="text-align: center;"><a href="/{{ $board.Actor.Name }}/{{ short $board.Actor.Outbox $e.Id }}">[View]</a></td>

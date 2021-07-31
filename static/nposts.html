@@ -17,7 +17,9 @@
 <hr>
 <ul style="margin: 0; padding: 0; display: inline">
   <li style="display: inline"><a href="/{{ $board.Name }}/catalog">[Catalog]</a></li>
+  {{ if showArchive }}
   <li style="display: inline"><a href="/{{ $board.Name }}/archive">[Archive]</a></li>
+  {{ end }}
   <li style="display: inline"><a href="#bottom">[Bottom]</a></li>
   <li style="display: inline"><a href="javascript:location.reload()">[Refresh]</a></li>
 </ul>
@@ -27,7 +29,9 @@
 <hr>
 <ul style="margin: 0; padding: 0; display: inline">
   <li style="display: inline"><a href="/{{ $board.Name }}/catalog">[Catalog]</a></li>
+  {{ if showArchive }}
   <li style="display: inline"><a href="/{{ $board.Name }}/archive">[Archive]</a></li>
+  {{ end }}
   <li style="display: inline"><a id="bottom" href="#top">[Top]</a></li>
   <li style="display: inline"><a href="javascript:location.reload()">[Refresh]</a></li>
 </ul>
