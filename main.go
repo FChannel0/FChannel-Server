@@ -2590,7 +2590,7 @@ func RouteProxy(req *http.Request) (*http.Response, error) {
 		CheckError(err, "error parsing tor proxy url")
 
 		proxyTransport := &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
-		client := &http.Client{ Transport: proxyTransport, Timeout: time.Second * 30 }
+		client := &http.Client{ Transport: proxyTransport, Timeout: time.Second * 10 }
 		return client.Do(req)
 	}
 
@@ -2834,7 +2834,11 @@ func RouteImages(w http.ResponseWriter, media string) {
 
 	CheckError(err, "error with Route Images req")
 
-	resp, err := http.DefaultClient.Do(req)
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	resp, err := client.Do(req)
 
 	if err != nil || resp.StatusCode == 404 {
 		fileBytes, err := ioutil.ReadFile("./static/notfound.png")
