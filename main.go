@@ -69,7 +69,7 @@ func main() {
 
 	FollowingBoards = GetActorFollowingDB(db, Domain)
 
-	StartupArchive(db)
+	go StartupArchive(db)
 
 	go CheckInactive(db)
 
