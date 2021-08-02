@@ -2946,7 +2946,7 @@ func StartupArchive(db *sql.DB) {
 func CheckInactive(db *sql.DB) {
 	for true {
 		CheckInactiveInstances(db)
-		time.Sleep(48 * time.Hour)
+		time.Sleep(24 * time.Hour)
 	}
 }
 
@@ -2976,9 +2976,10 @@ func CheckInactiveInstances(db *sql.DB) map[string]string {
 		instances[instance] = instance
 	}
 
+	re := regexp.MustCompile(Domain + `(.+)?`)
 	for _, e := range instances {
 		actor := GetActor(e)
-		if actor.Id == "" {
+		if actor.Id == "" && !re.MatchString(e) {
 			AddInstanceToInactiveDB(db, e)
 		} else {
 			DeleteInstanceFromInactiveDB(db, e)

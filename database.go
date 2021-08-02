@@ -1826,7 +1826,7 @@ func DeleteInstanceFromInactiveDB(db *sql.DB, instance string) {
 
 func IsInactiveTimestamp(db *sql.DB, timeStamp string) bool {
 	stamp, _ := time.Parse(time.RFC3339, timeStamp)
-	if time.Now().Sub(stamp).Hours() > 24 {
+	if time.Now().UTC().Sub(stamp).Hours() > 48 {
 		return true
 	}
 
