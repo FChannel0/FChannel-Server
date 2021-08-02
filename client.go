@@ -1019,7 +1019,7 @@ func ShortExcerpt(post ObjectBase) string {
 	var returnString string
 
 	if post.Name != "" {
-		returnString = post.Name + ": " + post.Content;
+		returnString = post.Name + "| " + post.Content;
 	} else {
 		returnString = post.Content;
 	}
@@ -1032,12 +1032,13 @@ func ShortExcerpt(post ObjectBase) string {
 		returnString = match[0] + "..."
 	}
 
-	re = regexp.MustCompile(`(^.+:)`)
+	re = regexp.MustCompile(`(^.+\|)`)
 
 	match = re.FindStringSubmatch(returnString)
 
 	if len(match) > 0 {
 		returnString = strings.Replace(returnString, match[0], "<b>" + match[0] + "</b>", 1)
+		returnString = strings.Replace(returnString, "|", ":", 1)
 	}
 
 	return returnString

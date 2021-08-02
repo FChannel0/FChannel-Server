@@ -71,6 +71,8 @@ func main() {
 
 	StartupArchive(db)
 
+	go CheckInactive(db)
+
 	Boards = GetBoardCollection(db)
 
 	// root actor is used to follow remote feeds that are not local
@@ -1864,7 +1866,6 @@ func GetActor(id string) Actor {
 		resp, err := RouteProxy(req)
 
 		if err != nil {
-			fmt.Println("error with getting actor resp " + id)
 			return respActor
 		}
 
@@ -1874,7 +1875,9 @@ func GetActor(id string) Actor {
 
 		err = json.Unmarshal(body, &respActor)
 
-		CheckError(err, "error getting actor from body")
+		if err != nil {
+			return respActor
+		}
 
 		ActorCache[actor + "@" + instance] = respActor
 	}
@@ -2213,10 +2216,7 @@ func MakeActivityRequest(db *sql.DB, activity Activity) {
 					_, err = RouteProxy(req)
 
 					if err != nil {
-						fmt.Println("error with sending activity resp to actor " + instance + " instance marked as inactive and will be removed from following and followers in 24 hrs")
-						AddInstanceToInactiveDB(db, instance)
-					} else {
-						DeleteInstanceFromInactiveDB(db, instance)
+						fmt.Println("error with sending activity resp to actor " + instance)
 					}
 				}
 			}
@@ -2941,4 +2941,49 @@ func StartupArchive(db *sql.DB) {
 	for _, e := range FollowingBoards {
 		ArchivePosts(db, GetActorFromDB(db, e.Id))
 	}
+}
+
+func CheckInactive(db *sql.DB) {
+	for true {
+		CheckInactiveInstances(db)
+		time.Sleep(48 * time.Hour)
+	}
+}
+
+func CheckInactiveInstances(db *sql.DB) map[string]string {
+	instances := make(map[string]string)
+	query := `select following from following`
+	rows, err := db.Query(query)
+
+	CheckError(err, "cold not select instances from following")
+
+	defer rows.Close()
+	for rows.Next() {
+		var instance string
+		rows.Scan(&instance)
+		instances[instance] = instance
+	}
+
+	query = `select follower from follower`
+	rows, err = db.Query(query)
+
+	CheckError(err, "cold not select instances from follower")
+
+	defer rows.Close()
+	for rows.Next() {
+		var instance string
+		rows.Scan(&instance)
+		instances[instance] = instance
+	}
+
+	for _, e := range instances {
+		actor := GetActor(e)
+		if actor.Id == "" {
+			AddInstanceToInactiveDB(db, e)
+		} else {
+			DeleteInstanceFromInactiveDB(db, e)
+		}
+	}
+
+	return instances
 }

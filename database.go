@@ -1834,7 +1834,7 @@ func IsInactiveTimestamp(db *sql.DB, timeStamp string) bool {
 }
 
 func ArchivePosts(db *sql.DB, actor Actor) {
-	if actor.Id != "" {
+	if actor.Id != "" && actor.Id != Domain {
 		col := GetAllActorArchiveDB(db, actor.Id, 165)
 		for _, e := range col.OrderedItems {
 			for _, k := range e.Replies.OrderedItems {
@@ -1901,7 +1901,6 @@ func GetActorCollectionDBType(db *sql.DB, actorId string, nType string) Collecti
 		post.Replies = &replies
 
 		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCount(db, post)
-
 		post.Attachment = GetObjectAttachment(db, attachID)
 
 		post.Preview = GetObjectPreview(db, previewID)
