@@ -550,13 +550,14 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	case "Delete":
 		for _, e := range activity.To {
 			actor := GetActorFromDB(db, e)
-			if actor.Id != "" {
+			if actor.Id != "" && actor.Id != Domain {
 				if activity.Object.Replies != nil {
 					for _, k := range activity.Object.Replies.OrderedItems {
 						TombstoneObject(db, k.Id)
 					}
 				}
 				TombstoneObject(db, activity.Object.Id)
+				UnArchiveLast(db, actor.Id)
 				break
 			}
 		}
