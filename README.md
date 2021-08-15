@@ -154,9 +154,15 @@ server {
 ### Docker
 
 A Dockerfile is provided, and an example `docker-compose.yml` exists to base your Docker setup on.
-You should use the `config-init.docker` file to configure it and it will work more or less out of the box with it.
+You should use the `config-init.docker` file to configure it and it will work more or less out of the box with it, you should just need some minor configuration changes to test it out.
 
-Nothing really has been tested because of #12 which should've been fixed but seems like it hasn't.
+You may need to set up your `config` like this to access the mod tools if you get stuck when logging in:
+```
+instance:fchan.xyz:PORT GOES HERE
+instanceport:PORT GOES HERE
+```
+
+See #12 for more details.
 
 # Support
 
