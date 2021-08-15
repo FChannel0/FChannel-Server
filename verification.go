@@ -411,12 +411,14 @@ func CreateNewCaptcha(db *sql.DB) {
 	}
 
 	cmd := exec.Command("convert", "-size", "200x98", pattern, "-transparent", "white", file)
+	cmd.Stderr = os.Stderr
 
 	err := cmd.Run()
 
 	CheckError(err, "error with captcha first pass")
 
 	cmd = exec.Command("convert", file, "-fill", "blue", "-pointsize", "62", "-annotate", "+0+70", captcha, "-tile", "pattern:left30", "-gravity", "center", "-transparent", "white", file)
+	cmd.Stderr = os.Stderr
 
 	err = cmd.Run()
 
@@ -425,6 +427,7 @@ func CreateNewCaptcha(db *sql.DB) {
 	rnd = fmt.Sprintf("%d", rand.Intn(24)-12)
 
 	cmd = exec.Command("convert", file, "-rotate", rnd, "-wave", "5x35", "-distort", "Arc", "20", "-wave", "2x35", "-transparent", "white", file)
+	cmd.Stderr = os.Stderr
 
 	err = cmd.Run()
 
