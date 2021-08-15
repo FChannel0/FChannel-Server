@@ -25,25 +25,25 @@ import (
 	"time"
 )
 
-var Port = ":" + GetConfigValue("instanceport")
-var TP = GetConfigValue("instancetp")
-var Instance = GetConfigValue("instance")
+var Port = ":" + GetConfigValue("instanceport", "3000")
+var TP = GetConfigValue("instancetp", "")
+var Instance = GetConfigValue("instance", "")
 var Domain = TP + "" + Instance
 
 var authReq = []string{"captcha", "email", "passphrase"}
 
 var supportedFiles = []string{"image/gif", "image/jpeg", "image/png", "image/webp", "image/apng", "video/mp4", "video/ogg", "video/webm", "audio/mpeg", "audio/ogg", "audio/wav", "audio/wave", "audio/x-wav"}
 
-var SiteEmail = GetConfigValue("emailaddress") //contact@fchan.xyz
-var SiteEmailPassword = GetConfigValue("emailpass")
-var SiteEmailServer = GetConfigValue("emailserver") //mail.fchan.xyz
-var SiteEmailPort = GetConfigValue("emailport")     //587
+var SiteEmail = GetConfigValue("emailaddress", "") //contact@fchan.xyz
+var SiteEmailPassword = GetConfigValue("emailpass", "")
+var SiteEmailServer = GetConfigValue("emailserver", "") //mail.fchan.xyz
+var SiteEmailPort = GetConfigValue("emailport", "")     //587
 
-var TorProxy = GetConfigValue("torproxy") //127.0.0.1:9050
+var TorProxy = GetConfigValue("torproxy", "") //127.0.0.1:9050
 
-var PublicIndexing = strings.ToLower(GetConfigValue("publicindex"))
+var PublicIndexing = strings.ToLower(GetConfigValue("publicindex", "false"))
 
-var Salt = GetConfigValue("instancesalt")
+var Salt = GetConfigValue("instancesalt", "")
 
 var activitystreams = "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
 
@@ -77,8 +77,8 @@ func main() {
 
 	// root actor is used to follow remote feeds that are not local
 	//name, prefname, summary, auth requirements, restricted
-	if GetConfigValue("instancename") != "" {
-		CreateNewBoardDB(db, *CreateNewActor("", GetConfigValue("instancename"), GetConfigValue("instancesummary"), authReq, false))
+	if GetConfigValue("instancename", "") != "" {
+		CreateNewBoardDB(db, *CreateNewActor("", GetConfigValue("instancename", ""), GetConfigValue("instancesummary", ""), authReq, false))
 		if PublicIndexing == "true" {
 			AddInstanceToIndex(Domain)
 		}
@@ -1445,11 +1445,11 @@ func CheckError(e error, m string) error {
 
 func ConnectDB() *sql.DB {
 
-	host := GetConfigValue("dbhost")
-	port, _ := strconv.Atoi(GetConfigValue("dbport"))
-	user := GetConfigValue("dbuser")
-	password := GetConfigValue("dbpass")
-	dbname := GetConfigValue("dbname")
+	host := GetConfigValue("dbhost", "localhost")
+	port, _ := strconv.Atoi(GetConfigValue("dbport", "5432"))
+	user := GetConfigValue("dbuser", "postgres")
+	password := GetConfigValue("dbpass", "password")
+	dbname := GetConfigValue("dbname", "server")
 
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s "+
 		"dbname=%s sslmode=disable", host, port, user, password, dbname)
@@ -2250,7 +2250,7 @@ func GetCollectionFromID(id string) Collection {
 	return nColl
 }
 
-func GetConfigValue(value string) string {
+func GetConfigValue(value string, ifnone string) string {
 	file, err := os.Open("config")
 
 	CheckError(err, "there was an error opening the config file")
@@ -2266,7 +2266,7 @@ func GetConfigValue(value string) string {
 		}
 	}
 
-	return ""
+	return ifnone
 }
 
 func PrintAdminAuth(db *sql.DB) {
