@@ -6,16 +6,16 @@ import _ "github.com/lib/pq"
 
 func WriteObjectToCache(db *sql.DB, obj ObjectBase) ObjectBase {
 
-	if(IsPostBlacklist(db, obj.Content)){
+	if IsPostBlacklist(db, obj.Content) {
 		fmt.Println("\n\nBlacklist post blocked\n\n")
 		return obj
 	}
-	
+
 	if len(obj.Attachment) > 0 {
 		if obj.Preview.Href != "" {
 			WritePreviewToCache(db, *obj.Preview)
 		}
-		
+
 		for i, _ := range obj.Attachment {
 			WriteAttachmentToCache(db, obj.Attachment[i])
 			WriteActivitytoCacheWithAttachment(db, obj, obj.Attachment[i], *obj.Preview)
@@ -38,19 +38,19 @@ func WriteObjectToCache(db *sql.DB, obj ObjectBase) ObjectBase {
 
 func WriteActorObjectToCache(db *sql.DB, obj ObjectBase) ObjectBase {
 
-	if(IsPostBlacklist(db, obj.Content)){
+	if IsPostBlacklist(db, obj.Content) {
 		return obj
 	}
-	
+
 	if len(obj.Attachment) > 0 {
-		
+
 		if IsIDLocal(db, obj.Id) {
 			return obj
 		}
 		if obj.Preview.Href != "" {
 			WritePreviewToCache(db, *obj.Preview)
 		}
-		
+
 		for i, _ := range obj.Attachment {
 			WriteAttachmentToCache(db, obj.Attachment[i])
 			WriteActivitytoCacheWithAttachment(db, obj, obj.Attachment[i], *obj.Preview)
@@ -83,7 +83,7 @@ func WriteActivitytoCache(db *sql.DB, obj ObjectBase) {
 
 	CheckError(err, "error selecting  obj id from cache")
 
-	var id string 
+	var id string
 	defer rows.Close()
 	rows.Next()
 	rows.Scan(&id)
@@ -98,16 +98,16 @@ func WriteActivitytoCache(db *sql.DB, obj ObjectBase) {
 
 	query = `insert into cacheactivitystream (id, type, name, content, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)	
-	
-	if e != nil{
+	_, e := db.Exec(query, obj.Id, obj.Type, obj.Name, obj.Content, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)
+
+	if e != nil {
 		fmt.Println("error inserting new activity cache")
-		panic(e)			
-	}	
+		panic(e)
+	}
 }
 
 func WriteActivitytoCacheWithAttachment(db *sql.DB, obj ObjectBase, attachment ObjectBase, preview NestedObjectBase) {
-	
+
 	obj.Name = EscapeString(obj.Name)
 	obj.Content = EscapeString(obj.Content)
 	obj.AttributedTo = EscapeString(obj.AttributedTo)
@@ -118,7 +118,7 @@ func WriteActivitytoCacheWithAttachment(db *sql.DB, obj ObjectBase, attachment O
 
 	CheckError(err, "error selecting activity with attachment obj id cache")
 
-	var id string 
+	var id string
 	defer rows.Close()
 	rows.Next()
 	rows.Scan(&id)
@@ -129,16 +129,16 @@ func WriteActivitytoCacheWithAttachment(db *sql.DB, obj ObjectBase, attachment O
 
 	if obj.Updated == "" {
 		obj.Updated = obj.Published
-	}	
+	}
 
 	query = `insert into cacheactivitystream (id, type, name, content, attachment, preview, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, attachment.Id, preview.Id, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)	
-	
-	if e != nil{
+	_, e := db.Exec(query, obj.Id, obj.Type, obj.Name, obj.Content, attachment.Id, preview.Id, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)
+
+	if e != nil {
 		fmt.Println("error inserting new activity with attachment cache")
-		panic(e)			
-	}	
+		panic(e)
+	}
 }
 
 func WriteAttachmentToCache(db *sql.DB, obj ObjectBase) {
@@ -149,7 +149,7 @@ func WriteAttachmentToCache(db *sql.DB, obj ObjectBase) {
 
 	CheckError(err, "error selecting attachment obj id cache")
 
-	var id string 
+	var id string
 	defer rows.Close()
 	rows.Next()
 	rows.Scan(&id)
@@ -160,15 +160,15 @@ func WriteAttachmentToCache(db *sql.DB, obj ObjectBase) {
 
 	if obj.Updated == "" {
 		obj.Updated = obj.Published
-	}	
-	
+	}
+
 	query = `insert into cacheactivitystream (id, type, name, href, published, updated, attributedTo, mediatype, size) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-	
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)	
-	
-	if e != nil{
+
+	_, e := db.Exec(query, obj.Id, obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)
+
+	if e != nil {
 		fmt.Println("error inserting new attachment cache")
-		panic(e)			
+		panic(e)
 	}
 }
 
@@ -180,7 +180,7 @@ func WritePreviewToCache(db *sql.DB, obj NestedObjectBase) {
 
 	CheckError(err, "error selecting preview obj id cache")
 
-	var id string 
+	var id string
 	defer rows.Close()
 	rows.Next()
 	rows.Scan(&id)
@@ -191,22 +191,22 @@ func WritePreviewToCache(db *sql.DB, obj NestedObjectBase) {
 
 	if obj.Updated == "" {
 		obj.Updated = obj.Published
-	}	
-	
+	}
+
 	query = `insert into cacheactivitystream (id, type, name, href, published, updated, attributedTo, mediatype, size) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-	
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)
-	
-	if e != nil{
+
+	_, e := db.Exec(query, obj.Id, obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)
+
+	if e != nil {
 		fmt.Println("error inserting new preview cache")
-		panic(e)			
+		panic(e)
 	}
 }
 
 func WriteObjectReplyToCache(db *sql.DB, obj ObjectBase) {
-	
+
 	for i, e := range obj.InReplyTo {
-		if(i == 0 || IsReplyInThread(db, obj.InReplyTo[0].Id, e.Id)){
+		if i == 0 || IsReplyInThread(db, obj.InReplyTo[0].Id, e.Id) {
 
 			query := `select id from replies where id=$1`
 
@@ -214,7 +214,7 @@ func WriteObjectReplyToCache(db *sql.DB, obj ObjectBase) {
 
 			CheckError(err, "error selecting obj id cache reply")
 
-			var id string 
+			var id string
 			defer rows.Close()
 			rows.Next()
 			rows.Scan(&id)
@@ -222,14 +222,14 @@ func WriteObjectReplyToCache(db *sql.DB, obj ObjectBase) {
 			if id != "" {
 				return
 			}
-			
+
 			query = `insert into cachereplies (id, inreplyto) values ($1, $2)`
 
-			_, err = db.Exec(query, obj.Id, e.Id)			
-			
-			if err != nil{
+			_, err = db.Exec(query, obj.Id, e.Id)
+
+			if err != nil {
 				fmt.Println("error inserting replies cache")
-				panic(err)			
+				panic(err)
 			}
 		}
 	}
@@ -237,13 +237,13 @@ func WriteObjectReplyToCache(db *sql.DB, obj ObjectBase) {
 	if len(obj.InReplyTo) < 1 {
 		query := `insert into cachereplies (id, inreplyto) values ($1, $2)`
 
-		_, err := db.Exec(query, obj.Id, "")			
-		
-		if err != nil{
+		_, err := db.Exec(query, obj.Id, "")
+
+		if err != nil {
 			fmt.Println("error inserting replies cache")
-			panic(err)			
+			panic(err)
 		}
-	}	
+	}
 }
 
 func WriteObjectReplyCache(db *sql.DB, obj ObjectBase) {
@@ -257,7 +257,7 @@ func WriteObjectReplyCache(db *sql.DB, obj ObjectBase) {
 
 			CheckError(err, "error selecting obj id cache reply")
 
-			var inreplyto string 		
+			var inreplyto string
 			defer rows.Close()
 			rows.Next()
 			rows.Scan(&inreplyto)
@@ -265,14 +265,14 @@ func WriteObjectReplyCache(db *sql.DB, obj ObjectBase) {
 			if inreplyto != "" {
 				return
 			}
-			
+
 			query = `insert into cachereplies (id, inreplyto) values ($1, $2)`
 
-			_, err = db.Exec(query, e.Id, obj.Id)			
-			
-			if err != nil{
+			_, err = db.Exec(query, e.Id, obj.Id)
+
+			if err != nil {
 				fmt.Println("error inserting replies cache")
-				panic(err)			
+				panic(err)
 			}
 
 			if !IsObjectLocal(db, e.Id) {
@@ -280,7 +280,7 @@ func WriteObjectReplyCache(db *sql.DB, obj ObjectBase) {
 			}
 
 		}
-		return 
+		return
 	}
 }
 
@@ -293,7 +293,7 @@ func WriteActorToCache(db *sql.DB, actorID string) {
 	}
 }
 
-func DeleteActorCache(db *sql.DB, actorID string) { 
+func DeleteActorCache(db *sql.DB, actorID string) {
 	query := `select id from cacheactivitystream where id in (select id from cacheactivitystream where actor=$1)`
 
 	rows, err := db.Query(query, actorID)

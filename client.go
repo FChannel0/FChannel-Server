@@ -1,16 +1,16 @@
 package main
 
 import (
-	"net/http"
-	"html/template"
 	"database/sql"
-	_ "github.com/lib/pq"
-	"strings"
-	"strconv"
-	"sort"
-	"regexp"
-	"time"
 	"fmt"
+	_ "github.com/lib/pq"
+	"html/template"
+	"net/http"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
 )
 
 var Key *string = new(string)
@@ -19,85 +19,84 @@ var FollowingBoards []ObjectBase
 
 var Boards []Board
 
-type Board struct{
-	Name string
-	Actor Actor
-	Summary string
-	PrefName string
-	InReplyTo string
-	Location string
-	To string
-	RedirectTo string
-	Captcha string
+type Board struct {
+	Name        string
+	Actor       Actor
+	Summary     string
+	PrefName    string
+	InReplyTo   string
+	Location    string
+	To          string
+	RedirectTo  string
+	Captcha     string
 	CaptchaCode string
-	ModCred string
-	Domain string
-	TP string
-	Restricted bool
-	Post ObjectBase
+	ModCred     string
+	Domain      string
+	TP          string
+	Restricted  bool
+	Post        ObjectBase
 }
 
 type PageData struct {
-	Title string
+	Title             string
 	PreferredUsername string
-	Board Board
-	Pages []int
-	CurrentPage int
-	TotalPage int
-	Boards []Board
-	Posts []ObjectBase
-	Key string
-	PostId string
-	Instance Actor
-	InstanceIndex []ObjectBase
-	ReturnTo string
-	NewsItems []NewsItem
-	BoardRemainer []int
+	Board             Board
+	Pages             []int
+	CurrentPage       int
+	TotalPage         int
+	Boards            []Board
+	Posts             []ObjectBase
+	Key               string
+	PostId            string
+	Instance          Actor
+	InstanceIndex     []ObjectBase
+	ReturnTo          string
+	NewsItems         []NewsItem
+	BoardRemainer     []int
 }
 
 type AdminPage struct {
-	Title string
-	Board Board
-	Key string
-	Actor string
-	Boards []Board
-	Following []string
-	Followers []string
-	Reported []Report
-	Domain string
-	IsLocal bool
+	Title         string
+	Board         Board
+	Key           string
+	Actor         string
+	Boards        []Board
+	Following     []string
+	Followers     []string
+	Reported      []Report
+	Domain        string
+	IsLocal       bool
 	PostBlacklist []PostBlacklist
 	AutoSubscribe bool
 }
 
 type Report struct {
-	ID string
-	Count int
+	ID     string
+	Count  int
 	Reason string
 }
 
 type Removed struct {
-	ID string
-	Type string
+	ID    string
+	Type  string
 	Board string
 }
 
-
 type NewsItem struct {
-	Title string
+	Title   string
 	Content template.HTML
-	Time int
+	Time    int
 }
 
 type PostBlacklist struct {
-	Id int
+	Id    int
 	Regex string
 }
 
 func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	t := template.Must(template.New("").Funcs(template.FuncMap{
-		"mod": func(i, j int) bool { return i%j == 0 },
-		"sub": func (i, j int) int { return i - j },
+		"mod":            func(i, j int) bool { return i%j == 0 },
+		"sub":            func(i, j int) int { return i - j },
 		"unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/index.html"))
 
 	actor := GetActorFromDB(db, Domain)
@@ -115,20 +114,20 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	data.Board.Restricted = actor.Restricted
 	//almost certainly there is a better algorithm for this but the old one was wrong
 	//and I suck at math. This works at least.
-	data.BoardRemainer = make([]int, 3-(len(data.Boards) % 3))
-	if(len(data.BoardRemainer) == 3){
+	data.BoardRemainer = make([]int, 3-(len(data.Boards)%3))
+	if len(data.BoardRemainer) == 3 {
 		data.BoardRemainer = make([]int, 0)
 	}
 
 	data.InstanceIndex = GetCollectionFromReq("https://fchan.xyz/followers").Items
 	data.NewsItems = getNewsFromDB(db, 3)
 
-	t.ExecuteTemplate(w, "layout",  data)
+	t.ExecuteTemplate(w, "layout", data)
 }
 
 func NewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB, timestamp int) {
 	t := template.Must(template.New("").Funcs(template.FuncMap{
-		"sub": func (i, j int) int { return i - j },
+		"sub":            func(i, j int) int { return i - j },
 		"unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/news.html"))
 
 	actor := GetActorFromDB(db, Domain)
@@ -156,13 +155,13 @@ func NewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB, timestamp int) 
 
 	data.Title = actor.PreferredUsername + ": " + data.NewsItems[0].Title
 
-	t.ExecuteTemplate(w, "layout",  data)
+	t.ExecuteTemplate(w, "layout", data)
 }
 
 func AllNewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	t := template.Must(template.New("").Funcs(template.FuncMap{
-		"mod": func(i, j int) bool { return i%j == 0 },
-		"sub": func (i, j int) int { return i - j },
+		"mod":            func(i, j int) bool { return i%j == 0 },
+		"sub":            func(i, j int) int { return i - j },
 		"unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/anews.html"))
 
 	actor := GetActorFromDB(db, Domain)
@@ -180,10 +179,10 @@ func AllNewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	data.Board.Restricted = actor.Restricted
 	data.NewsItems = getNewsFromDB(db, 0)
 
-	t.ExecuteTemplate(w, "layout",  data)
+	t.ExecuteTemplate(w, "layout", data)
 }
 
-func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection){
+func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection) {
 	t := template.Must(template.New("").Funcs(template.FuncMap{
 		"proxy": func(url string) string {
 			return MediaProxy(url)
@@ -198,33 +197,32 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 			return ParseContent(db, board, op, content, thread)
 		},
 		"shortImg": func(url string) string {
-			return  ShortImg(url)
+			return ShortImg(url)
 		},
 		"convertSize": func(size int64) string {
-			return  ConvertSize(size)
+			return ConvertSize(size)
 		},
 		"isOnion": func(url string) bool {
-			return  IsOnion(url)
+			return IsOnion(url)
 		},
 		"showArchive": func() bool {
 			col := GetActorCollectionDBTypeLimit(db, collection.Actor.Id, "Archive", 1)
 
 			if len(col.OrderedItems) > 0 {
-					return true
+				return true
 			}
-			return false;
+			return false
 		},
 		"parseReplyLink": func(actorId string, op string, id string, content string) template.HTML {
 			actor := FingerActor(actorId)
 			title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
-			link := "<a href=\"" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id)  + "\" title=\"" + title + "\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
+			link := "<a href=\"" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id) + "\" title=\"" + title + "\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
 			return template.HTML(link)
 		},
-		"add": func (i, j int) int {
+		"add": func(i, j int) int {
 			return i + j
 		},
-		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/nposts.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
-
+		"sub": func(i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/nposts.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 
 	actor := collection.Actor
 
@@ -273,10 +271,10 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	returnData.Pages = pages
 	returnData.TotalPage = len(returnData.Pages) - 1
 
-	t.ExecuteTemplate(w, "layout",  returnData)
+	t.ExecuteTemplate(w, "layout", returnData)
 }
 
-func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection){
+func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection) {
 	t := template.Must(template.New("").Funcs(template.FuncMap{
 		"proxy": func(url string) string {
 			return MediaProxy(url)
@@ -288,17 +286,17 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 			return ParseAttachment(obj, catalog)
 		},
 		"isOnion": func(url string) bool {
-			return  IsOnion(url)
+			return IsOnion(url)
 		},
 		"showArchive": func() bool {
 			col := GetActorCollectionDBTypeLimit(db, collection.Actor.Id, "Archive", 1)
 
 			if len(col.OrderedItems) > 0 {
-					return true
+				return true
 			}
-			return false;
+			return false
 		},
-		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))
+		"sub": func(i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))
 
 	actor := collection.Actor
 
@@ -328,10 +326,10 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 
 	returnData.Posts = collection.OrderedItems
 
-	t.ExecuteTemplate(w, "layout",  returnData)
+	t.ExecuteTemplate(w, "layout", returnData)
 }
 
-func ArchiveGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection){
+func ArchiveGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection) {
 	t := template.Must(template.New("").Funcs(template.FuncMap{
 		"proxy": func(url string) string {
 			return MediaProxy(url)
@@ -345,8 +343,8 @@ func ArchiveGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 		"parseAttachment": func(obj ObjectBase, catalog bool) template.HTML {
 			return ParseAttachment(obj, catalog)
 		},
-		"mod": func(i, j int) bool { return i % j == 0 },
-		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/archive.html", "./static/bottom.html"))
+		"mod": func(i, j int) bool { return i%j == 0 },
+		"sub": func(i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/archive.html", "./static/bottom.html"))
 
 	actor := collection.Actor
 
@@ -376,10 +374,10 @@ func ArchiveGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 
 	returnData.Posts = collection.OrderedItems
 
-	t.ExecuteTemplate(w, "layout",  returnData)
+	t.ExecuteTemplate(w, "layout", returnData)
 }
 
-func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
+func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	t := template.Must(template.New("").Funcs(template.FuncMap{
 		"proxy": func(url string) string {
 			return MediaProxy(url)
@@ -394,21 +392,21 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 			return ParseContent(db, board, op, content, thread)
 		},
 		"shortImg": func(url string) string {
-			return  ShortImg(url)
+			return ShortImg(url)
 		},
 		"convertSize": func(size int64) string {
-			return  ConvertSize(size)
+			return ConvertSize(size)
 		},
 		"isOnion": func(url string) bool {
-			return  IsOnion(url)
+			return IsOnion(url)
 		},
 		"parseReplyLink": func(actorId string, op string, id string, content string) template.HTML {
 			actor := FingerActor(actorId)
 			title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
-			link := "<a href=\"" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id)  + "\" title=\"" + title + "\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
+			link := "<a href=\"" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id) + "\" title=\"" + title + "\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
 			return template.HTML(link)
 		},
-		"sub": func (i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/npost.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
+		"sub": func(i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/npost.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 
 	path := r.URL.Path
 	actor := GetActorFromPath(db, path, "/")
@@ -469,7 +467,7 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB){
 		returnData.PostId = shortURL(returnData.Board.To, returnData.Posts[0].Id)
 	}
 
-	t.ExecuteTemplate(w, "layout",  returnData)
+	t.ExecuteTemplate(w, "layout", returnData)
 }
 
 func GetBoardCollection(db *sql.DB) []Board {
@@ -565,7 +563,7 @@ func GetCaptchaCode(captcha string) string {
 	return code
 }
 
-func CreateLocalDeleteDB(db *sql.DB, id string, _type string)	{
+func CreateLocalDeleteDB(db *sql.DB, id string, _type string) {
 	query := `select id from removed where id=$1`
 
 	rows, err := db.Query(query, id)
@@ -681,7 +679,7 @@ func CloseLocalReportDB(db *sql.DB, id string, board string) {
 	CheckError(err, "Could not delete local report from db")
 }
 
-func GetActorFollowNameFromPath(path string) string{
+func GetActorFollowNameFromPath(path string) string {
 	var actor string
 
 	re := regexp.MustCompile("f\\w+-")
@@ -709,11 +707,11 @@ func GetActorsFollowFromName(actor Actor, name string) []string {
 	return followingActors
 }
 
-func GetActorsFollowPostFromId(db *sql.DB, actors []string, id string) Collection{
+func GetActorsFollowPostFromId(db *sql.DB, actors []string, id string) Collection {
 	var collection Collection
 
 	for _, e := range actors {
-		tempCol := GetObjectByIDFromDB(db, e + "/" + id)
+		tempCol := GetObjectByIDFromDB(db, e+"/"+id)
 		if len(tempCol.OrderedItems) > 0 {
 			collection = tempCol
 			return collection
@@ -724,19 +722,22 @@ func GetActorsFollowPostFromId(db *sql.DB, actors []string, id string) Collectio
 }
 
 type ObjectBaseSortDesc []ObjectBase
-func (a ObjectBaseSortDesc) Len() int { return len(a) }
+
+func (a ObjectBaseSortDesc) Len() int           { return len(a) }
 func (a ObjectBaseSortDesc) Less(i, j int) bool { return a[i].Updated > a[j].Updated }
-func (a ObjectBaseSortDesc) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ObjectBaseSortDesc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 type ObjectBaseSortAsc []ObjectBase
-func (a ObjectBaseSortAsc) Len() int { return len(a) }
+
+func (a ObjectBaseSortAsc) Len() int           { return len(a) }
 func (a ObjectBaseSortAsc) Less(i, j int) bool { return a[i].Published < a[j].Published }
-func (a ObjectBaseSortAsc) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ObjectBaseSortAsc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 type BoardSortAsc []Board
-func (a BoardSortAsc) Len() int { return len(a) }
+
+func (a BoardSortAsc) Len() int           { return len(a) }
 func (a BoardSortAsc) Less(i, j int) bool { return a[i].Name < a[j].Name }
-func (a BoardSortAsc) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a BoardSortAsc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 func MediaProxy(url string) string {
 	re := regexp.MustCompile("(.+)?" + Domain + "(.+)?")
@@ -762,7 +763,7 @@ func ParseAttachment(obj ObjectBase, catalog bool) template.HTML {
 	}
 
 	var media string
-	if(regexp.MustCompile(`image\/`).MatchString(obj.Attachment[0].MediaType)){
+	if regexp.MustCompile(`image\/`).MatchString(obj.Attachment[0].MediaType) {
 		media = "<img "
 		media += "id=\"img\" "
 		media += "main=\"1\" "
@@ -786,7 +787,7 @@ func ParseAttachment(obj ObjectBase, catalog bool) template.HTML {
 		return template.HTML(media)
 	}
 
-	if(regexp.MustCompile(`audio\/`).MatchString(obj.Attachment[0].MediaType)){
+	if regexp.MustCompile(`audio\/`).MatchString(obj.Attachment[0].MediaType) {
 		media = "<audio "
 		media += "controls=\"controls\" "
 		media += "preload=\"metadta\" "
@@ -806,7 +807,7 @@ func ParseAttachment(obj ObjectBase, catalog bool) template.HTML {
 		return template.HTML(media)
 	}
 
-	if(regexp.MustCompile(`video\/`).MatchString(obj.Attachment[0].MediaType)){
+	if regexp.MustCompile(`video\/`).MatchString(obj.Attachment[0].MediaType) {
 		media = "<video "
 		media += "controls=\"controls\" "
 		media += "preload=\"metadta\" "
@@ -841,7 +842,7 @@ func ParseContent(db *sql.DB, board Actor, op string, content string, thread Obj
 	nContent = strings.ReplaceAll(nContent, `/\&lt;`, ">")
 
 	return template.HTML(nContent)
-};
+}
 
 func ParseLinkComments(db *sql.DB, board Actor, op string, content string, thread ObjectBase) string {
 	re := regexp.MustCompile(`(>>(https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/)(f[A-Za-z0-9_.\-~]+-)?([A-Za-z0-9_.\-~]+)?#?([A-Za-z0-9_.\-~]+)?)`)
@@ -895,7 +896,7 @@ func ParseLinkComments(db *sql.DB, board Actor, op string, content string, threa
 		if isReply {
 			id := shortURL(board.Outbox, replyID)
 
-			content = strings.Replace(content, match[i][0], "<a class=\"reply\" style=\"" + style + "\" title=\"" + quoteTitle +  "\" href=\"/" + board.Name + "/" + shortURL(board.Outbox, op)  +  "#" + id + "\">&gt;&gt;" + id + ""  + isOP + "</a>", -1)
+			content = strings.Replace(content, match[i][0], "<a class=\"reply\" style=\""+style+"\" title=\""+quoteTitle+"\" href=\"/"+board.Name+"/"+shortURL(board.Outbox, op)+"#"+id+"\">&gt;&gt;"+id+""+isOP+"</a>", -1)
 
 		} else {
 
@@ -908,7 +909,7 @@ func ParseLinkComments(db *sql.DB, board Actor, op string, content string, threa
 			}
 
 			if actor.Id != "" {
-				content = strings.Replace(content, match[i][0], "<a class=\"reply\" style=\"" + style + "\" title=\"" + quoteTitle +  "\" href=\"" + link + "\">&gt;&gt;" + shortURL(board.Outbox, parsedLink)  + isOP + " →</a>", -1)
+				content = strings.Replace(content, match[i][0], "<a class=\"reply\" style=\""+style+"\" title=\""+quoteTitle+"\" href=\""+link+"\">&gt;&gt;"+shortURL(board.Outbox, parsedLink)+isOP+" →</a>", -1)
 			}
 		}
 	}
@@ -931,7 +932,7 @@ func ParseLinkTitle(actorName string, op string, content string) string {
 		}
 
 		link = ConvertHashLink(domain, link)
-		content = strings.Replace(content, match[i][0], ">>" + shortURL(actorName, link)  + isOP , 1)
+		content = strings.Replace(content, match[i][0], ">>"+shortURL(actorName, link)+isOP, 1)
 	}
 
 	content = strings.ReplaceAll(content, "'", "")
@@ -948,7 +949,7 @@ func ParseCommentQuotes(content string) string {
 
 	for i, _ := range match {
 		quote := strings.Replace(match[i][0], ">", "&gt;", 1)
-		line := re.ReplaceAllString(match[i][0], "<span class=\"quote\">" + quote + "</span>")
+		line := re.ReplaceAllString(match[i][0], "<span class=\"quote\">"+quote+"</span>")
 		content = strings.Replace(content, match[i][0], line, 1)
 	}
 
@@ -979,7 +980,7 @@ func ShortImg(url string) string {
 
 	fileName := re.ReplaceAllString(url, "")
 
-	if(len(fileName) > 26) {
+	if len(fileName) > 26 {
 		re := regexp.MustCompile(`(^.{26})`)
 
 		match := re.FindStringSubmatch(fileName)
@@ -993,35 +994,35 @@ func ShortImg(url string) string {
 		match = re.FindStringSubmatch(url)
 
 		if len(match) > 0 {
-			nURL = nURL  + "(...)" + match[0];
+			nURL = nURL + "(...)" + match[0]
 		}
 	}
 
-	return nURL;
+	return nURL
 }
 
 func ConvertSize(size int64) string {
 	var rValue string
 
-	convert := float32(size) / 1024.0;
+	convert := float32(size) / 1024.0
 
-	if(convert > 1024) {
-		convert = convert / 1024.0;
+	if convert > 1024 {
+		convert = convert / 1024.0
 		rValue = fmt.Sprintf("%.2f MB", convert)
 	} else {
 		rValue = fmt.Sprintf("%.2f KB", convert)
 	}
 
-		return rValue;
+	return rValue
 }
 
 func ShortExcerpt(post ObjectBase) string {
 	var returnString string
 
 	if post.Name != "" {
-		returnString = post.Name + "| " + post.Content;
+		returnString = post.Name + "| " + post.Content
 	} else {
-		returnString = post.Content;
+		returnString = post.Content
 	}
 
 	re := regexp.MustCompile(`(^(.|\r\n|\n){100})`)
@@ -1037,7 +1038,7 @@ func ShortExcerpt(post ObjectBase) string {
 	match = re.FindStringSubmatch(returnString)
 
 	if len(match) > 0 {
-		returnString = strings.Replace(returnString, match[0], "<b>" + match[0] + "</b>", 1)
+		returnString = strings.Replace(returnString, match[0], "<b>"+match[0]+"</b>", 1)
 		returnString = strings.Replace(returnString, "|", ":", 1)
 	}
 
@@ -1046,8 +1047,8 @@ func ShortExcerpt(post ObjectBase) string {
 
 func IsOnion(url string) bool {
 	re := regexp.MustCompile(`\.onion`)
-	if(re.MatchString(url)) {
-		return true;
+	if re.MatchString(url) {
+		return true
 	}
 
 	return false

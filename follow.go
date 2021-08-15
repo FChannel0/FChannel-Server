@@ -34,7 +34,6 @@ func GetActorFollowers(w http.ResponseWriter, db *sql.DB, id string) {
 	w.Write(enc)
 }
 
-
 func GetActorFollowingDB(db *sql.DB, id string) []ObjectBase {
 	var followingCollection []ObjectBase
 	query := `select following from following where id=$1`
@@ -164,7 +163,7 @@ func IsAlreadyFollowing(db *sql.DB, actor string, follow string) bool {
 		}
 	}
 
-	return false;
+	return false
 }
 
 func IsAlreadyFollower(db *sql.DB, actor string, follow string) bool {
@@ -176,7 +175,7 @@ func IsAlreadyFollower(db *sql.DB, actor string, follow string) bool {
 		}
 	}
 
-	return false;
+	return false
 }
 
 func SetActorFollowerDB(db *sql.DB, activity Activity) Activity {
@@ -202,7 +201,7 @@ func SetActorFollowerDB(db *sql.DB, activity Activity) Activity {
 		activity.Type = "Accept"
 		return activity
 	} else {
-			query = `insert into follower (id, follower) values ($1, $2)`
+		query = `insert into follower (id, follower) values ($1, $2)`
 		activity.Summary = activity.Object.Actor + " Follow " + activity.Actor.Id
 
 		_, err := db.Exec(query, activity.Actor.Id, activity.Object.Actor)
@@ -215,7 +214,6 @@ func SetActorFollowerDB(db *sql.DB, activity Activity) Activity {
 		activity.Type = "Accept"
 		return activity
 	}
-
 
 	return activity
 }
@@ -283,8 +281,7 @@ func SetActorFollowingDB(db *sql.DB, activity Activity) Activity {
 		return activity
 	}
 
-
-	return	activity
+	return activity
 }
 
 func AutoFollow(db *sql.DB, actor string) {

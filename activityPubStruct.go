@@ -11,17 +11,17 @@ type AtContextRaw struct {
 
 type ActivityRaw struct {
 	AtContextRaw
-	Type string `json:"type,omitempty"`
-	Id string `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`	
-	Summary string `json:"summary,omitempty"`
-	Auth string `json:"auth,omitempty"`		
-	ToRaw json.RawMessage `json:"to,omitempty"`	
-	BtoRaw json.RawMessage `json:"bto,omitempty"`	
-	CcRaw json.RawMessage `json:"cc,omitempty"`	
-	Published string `json:"published,omitempty"`
-	ActorRaw json.RawMessage `json:"actor,omitempty"`
-	ObjectRaw json.RawMessage `json:"object,omitempty"`	
+	Type      string          `json:"type,omitempty"`
+	Id        string          `json:"id,omitempty"`
+	Name      string          `json:"name,omitempty"`
+	Summary   string          `json:"summary,omitempty"`
+	Auth      string          `json:"auth,omitempty"`
+	ToRaw     json.RawMessage `json:"to,omitempty"`
+	BtoRaw    json.RawMessage `json:"bto,omitempty"`
+	CcRaw     json.RawMessage `json:"cc,omitempty"`
+	Published string          `json:"published,omitempty"`
+	ActorRaw  json.RawMessage `json:"actor,omitempty"`
+	ObjectRaw json.RawMessage `json:"object,omitempty"`
 }
 
 type AtContext struct {
@@ -29,7 +29,7 @@ type AtContext struct {
 }
 
 type AtContextArray struct {
-	Context []interface {} `json:"@context,omitempty"`
+	Context []interface{} `json:"@context,omitempty"`
 }
 
 type AtContextString struct {
@@ -69,133 +69,133 @@ type CcOjectString struct {
 }
 
 type Actor struct {
-	Type string `json:"type,omitempty"`
-	Id string `json:"id,omitempty"`	
-	Inbox string `json:"inbox,omitempty"`
-	Outbox string `json:"outbox,omitempty"`
-	Following string `json:"following,omitempty"`
-	Followers string `json:"followers,omitempty"`
-	Name string `json:"name,omitempty"`
-	PreferredUsername string `json:"preferredUsername,omitempty"`
-	PublicKey PublicKeyPem `json:"publicKey,omitempty"`
-	Summary string `json:"summary,omitempty"`
-	AuthRequirement []string `json:"authrequirement,omitempty"`
-	Restricted bool `json:"restricted"`	
+	Type              string       `json:"type,omitempty"`
+	Id                string       `json:"id,omitempty"`
+	Inbox             string       `json:"inbox,omitempty"`
+	Outbox            string       `json:"outbox,omitempty"`
+	Following         string       `json:"following,omitempty"`
+	Followers         string       `json:"followers,omitempty"`
+	Name              string       `json:"name,omitempty"`
+	PreferredUsername string       `json:"preferredUsername,omitempty"`
+	PublicKey         PublicKeyPem `json:"publicKey,omitempty"`
+	Summary           string       `json:"summary,omitempty"`
+	AuthRequirement   []string     `json:"authrequirement,omitempty"`
+	Restricted        bool         `json:"restricted"`
 }
 
 type PublicKeyPem struct {
-	Id string `json:"id,omitempty"`
-	Owner string `json:"owner,omitempty"`
-	PublicKeyPem string `json:"publicKeyPem,omitempty"`	
+	Id           string `json:"id,omitempty"`
+	Owner        string `json:"owner,omitempty"`
+	PublicKeyPem string `json:"publicKeyPem,omitempty"`
 }
 
 type Activity struct {
 	AtContext
-	Type string `json:"type,omitempty"`
-	Id string `json:"id,omitempty"`
-	Actor *Actor `json:"actor,omitempty"`		
-	Name string `json:"name,omitempty"`	
-	Summary string `json:"summary,omitempty"`
-	Auth string `json:"auth,omitempty"`	
-	To []string `json:"to, omitempty"`
-	Bto []string `json:"bto,omitempty"`	
-	Cc []string `json:"cc, omitempty"`
-	Published string `json:"published,omitempty"`
-	Object *ObjectBase `json:"object, omitempty"` 
+	Type      string      `json:"type,omitempty"`
+	Id        string      `json:"id,omitempty"`
+	Actor     *Actor      `json:"actor,omitempty"`
+	Name      string      `json:"name,omitempty"`
+	Summary   string      `json:"summary,omitempty"`
+	Auth      string      `json:"auth,omitempty"`
+	To        []string    `json:"to, omitempty"`
+	Bto       []string    `json:"bto,omitempty"`
+	Cc        []string    `json:"cc, omitempty"`
+	Published string      `json:"published,omitempty"`
+	Object    *ObjectBase `json:"object, omitempty"`
 }
 
 type ObjectBase struct {
-	Type string `json:"type,omitempty"`
-	Id string `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
-	Option []string `json:"option,omitempty"`
-	Alias string `json:"alias,omitempty"`	
-	AttributedTo string `json:"attributedTo,omitempty"`
-	TripCode string `json:"tripcode,omitempty"`	
-	Actor string `json:"actor,omitempty"`
-	Audience string `json:"audience,omitempty"`
-	ContentHTML template.HTML `json:"contenthtml,omitempty"`
-	Content string `json:"content,omitempty"`		
-	EndTime string `json:"endTime,omitempty"`
-	Generator string `json:"generator,omitempty"`
-	Icon string `json:"icon,omitempty"`
-	Image string `json:"image,omitempty"`
-	InReplyTo []ObjectBase `json:"inReplyTo,omitempty"`
-	Location string `json:"location,omitempty"`
-	Preview *NestedObjectBase `json:"preview,omitempty"`		
-	Published string `json:"published,omitempty"`
-	Updated string `json:"updated,omitempty"`	
-	Object *NestedObjectBase `json:"object,omitempty"`
-	Attachment []ObjectBase `json:"attachment,omitempty"`
-	Replies *CollectionBase `json:"replies,omitempty"`
-	StartTime string `json:"startTime,omitempty"`
-	Summary string `json:"summary,omitempty"`
-	Tag []ObjectBase `json:"tag,omitempty"`
-	Wallet []CryptoCur `json:"wallet,omitempty"`	
-	Deleted string `json:"deleted,omitempty"`	
-	Url []ObjectBase `json:"url,omitempty"`
-	Href string `json:"href,omitempty"`	
-	To []string `json:"to,omitempty"`
-	Bto []string `json:"bto,omitempty"`
-	Cc []string `json:"cc,omitempty"`
-	Bcc string `json:"Bcc,omitempty"`
-	MediaType string `json:"mediatype,omitempty"`
-	Duration string `json:"duration,omitempty"`
-	Size int64 `json:"size,omitempty"`
-	Sensitive bool `json:"sensitive,omitempty"` 
+	Type         string            `json:"type,omitempty"`
+	Id           string            `json:"id,omitempty"`
+	Name         string            `json:"name,omitempty"`
+	Option       []string          `json:"option,omitempty"`
+	Alias        string            `json:"alias,omitempty"`
+	AttributedTo string            `json:"attributedTo,omitempty"`
+	TripCode     string            `json:"tripcode,omitempty"`
+	Actor        string            `json:"actor,omitempty"`
+	Audience     string            `json:"audience,omitempty"`
+	ContentHTML  template.HTML     `json:"contenthtml,omitempty"`
+	Content      string            `json:"content,omitempty"`
+	EndTime      string            `json:"endTime,omitempty"`
+	Generator    string            `json:"generator,omitempty"`
+	Icon         string            `json:"icon,omitempty"`
+	Image        string            `json:"image,omitempty"`
+	InReplyTo    []ObjectBase      `json:"inReplyTo,omitempty"`
+	Location     string            `json:"location,omitempty"`
+	Preview      *NestedObjectBase `json:"preview,omitempty"`
+	Published    string            `json:"published,omitempty"`
+	Updated      string            `json:"updated,omitempty"`
+	Object       *NestedObjectBase `json:"object,omitempty"`
+	Attachment   []ObjectBase      `json:"attachment,omitempty"`
+	Replies      *CollectionBase   `json:"replies,omitempty"`
+	StartTime    string            `json:"startTime,omitempty"`
+	Summary      string            `json:"summary,omitempty"`
+	Tag          []ObjectBase      `json:"tag,omitempty"`
+	Wallet       []CryptoCur       `json:"wallet,omitempty"`
+	Deleted      string            `json:"deleted,omitempty"`
+	Url          []ObjectBase      `json:"url,omitempty"`
+	Href         string            `json:"href,omitempty"`
+	To           []string          `json:"to,omitempty"`
+	Bto          []string          `json:"bto,omitempty"`
+	Cc           []string          `json:"cc,omitempty"`
+	Bcc          string            `json:"Bcc,omitempty"`
+	MediaType    string            `json:"mediatype,omitempty"`
+	Duration     string            `json:"duration,omitempty"`
+	Size         int64             `json:"size,omitempty"`
+	Sensitive    bool              `json:"sensitive,omitempty"`
 }
 
 type CryptoCur struct {
-	Type string `json:"type,omitempty"`
+	Type    string `json:"type,omitempty"`
 	Address string `json:"address,omitempty"`
 }
 
 type NestedObjectBase struct {
 	AtContext
-	Type string `json:"type,omitempty"`
-	Id string `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
-	Alias string `json:"alias,omitempty"`	
-	AttributedTo string `json:"attributedTo,omitempty"`
-	TripCode string `json:"tripcode,omitempty"`		
-	Actor string `json:"actor,omitempty"`	
-	Audience string `json:"audience,omitempty"`
-	ContentHTML template.HTML `json:"contenthtml,omitempty"`
-	Content string `json:"content,omitempty"`	
-	EndTime string `json:"endTime,omitempty"`
-	Generator string `json:"generator,omitempty"`
-	Icon string `json:"icon,omitempty"`
-	Image string `json:"image,omitempty"`
-	InReplyTo []ObjectBase `json:"inReplyTo,omitempty"`
-	Location string `json:"location,omitempty"`
-	Preview ObjectBase `json:"preview,omitempty"`		
-	Published string `json:"published,omitempty"`
-	Attachment []ObjectBase `json:"attachment,omitempty"`
-	Replies *CollectionBase `json:"replies,omitempty"`
-	StartTime string `json:"startTime,omitempty"`
-	Summary string `json:"summary,omitempty"`
-	Tag []ObjectBase `json:"tag,omitempty"`
-	Updated string `json:"updated,omitempty"`
-	Deleted string `json:"deleted,omitempty"`	
-	Url []ObjectBase `json:"url,omitempty"`
-	Href string `json:"href,omitempty"`	
-	To []string `json:"to,omitempty"`
-	Bto []string `json:"bto,omitempty"`
-	Cc []string `json:"cc,omitempty"`
-	Bcc string `json:"Bcc,omitempty"`
-	MediaType string `json:"mediatype,omitempty"`
-	Duration string `json:"duration,omitempty"`
-	Size int64 `json:"size,omitempty"`																							
+	Type         string          `json:"type,omitempty"`
+	Id           string          `json:"id,omitempty"`
+	Name         string          `json:"name,omitempty"`
+	Alias        string          `json:"alias,omitempty"`
+	AttributedTo string          `json:"attributedTo,omitempty"`
+	TripCode     string          `json:"tripcode,omitempty"`
+	Actor        string          `json:"actor,omitempty"`
+	Audience     string          `json:"audience,omitempty"`
+	ContentHTML  template.HTML   `json:"contenthtml,omitempty"`
+	Content      string          `json:"content,omitempty"`
+	EndTime      string          `json:"endTime,omitempty"`
+	Generator    string          `json:"generator,omitempty"`
+	Icon         string          `json:"icon,omitempty"`
+	Image        string          `json:"image,omitempty"`
+	InReplyTo    []ObjectBase    `json:"inReplyTo,omitempty"`
+	Location     string          `json:"location,omitempty"`
+	Preview      ObjectBase      `json:"preview,omitempty"`
+	Published    string          `json:"published,omitempty"`
+	Attachment   []ObjectBase    `json:"attachment,omitempty"`
+	Replies      *CollectionBase `json:"replies,omitempty"`
+	StartTime    string          `json:"startTime,omitempty"`
+	Summary      string          `json:"summary,omitempty"`
+	Tag          []ObjectBase    `json:"tag,omitempty"`
+	Updated      string          `json:"updated,omitempty"`
+	Deleted      string          `json:"deleted,omitempty"`
+	Url          []ObjectBase    `json:"url,omitempty"`
+	Href         string          `json:"href,omitempty"`
+	To           []string        `json:"to,omitempty"`
+	Bto          []string        `json:"bto,omitempty"`
+	Cc           []string        `json:"cc,omitempty"`
+	Bcc          string          `json:"Bcc,omitempty"`
+	MediaType    string          `json:"mediatype,omitempty"`
+	Duration     string          `json:"duration,omitempty"`
+	Size         int64           `json:"size,omitempty"`
 }
 
 type CollectionBase struct {
-	Actor *Actor `json:"actor,omitempty"`
-	Summary string `json:"summary,omitempty"`
-	Type string `json:"type,omitempty"`
-	TotalItems int `json:"totalItems,omitempty"`
-	TotalImgs int `json:"totalImgs,omitempty"`
+	Actor        *Actor       `json:"actor,omitempty"`
+	Summary      string       `json:"summary,omitempty"`
+	Type         string       `json:"type,omitempty"`
+	TotalItems   int          `json:"totalItems,omitempty"`
+	TotalImgs    int          `json:"totalImgs,omitempty"`
 	OrderedItems []ObjectBase `json:"orderedItems,omitempty"`
-	Items []ObjectBase `json:"items,omitempty"`		
+	Items        []ObjectBase `json:"items,omitempty"`
 }
 
 type Collection struct {

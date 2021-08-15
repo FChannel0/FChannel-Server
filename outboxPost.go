@@ -23,18 +23,18 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	defer r.Body.Close()
 	if contentType == "multipart/form-data" || contentType == "application/x-www-form-urlencoded" {
 		r.ParseMultipartForm(5 << 20)
-		if(BoardHasAuthType(db, actor.Name, "captcha") && CheckCaptcha(db, r.FormValue("captcha"))) {
+		if BoardHasAuthType(db, actor.Name, "captcha") && CheckCaptcha(db, r.FormValue("captcha")) {
 			f, header, _ := r.FormFile("file")
 
-			if(header != nil) {
+			if header != nil {
 				defer f.Close()
-				if(header.Size > (7 << 20)){
+				if header.Size > (7 << 20) {
 					w.WriteHeader(http.StatusRequestEntityTooLarge)
 					w.Write([]byte("7MB max file size"))
 					return
 				}
 
-				if(IsMediaBanned(db, f)) {
+				if IsMediaBanned(db, f) {
 					fmt.Println("media banned")
 					http.Redirect(w, r, Domain, http.StatusSeeOther)
 					return
@@ -42,7 +42,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 				contentType, _ := GetFileContentType(f)
 
-				if(!SupportedMIMEType(contentType)) {
+				if !SupportedMIMEType(contentType) {
 					w.WriteHeader(http.StatusNotAcceptable)
 					w.Write([]byte("file type not supported"))
 					return
@@ -235,7 +235,7 @@ func GetObjectFromJson(obj []byte) ObjectBase {
 	return nObj
 }
 
-func GetActorFromJson(actor []byte) Actor{
+func GetActorFromJson(actor []byte) Actor {
 	var generic interface{}
 	var nActor Actor
 	err := json.Unmarshal(actor, &generic)
@@ -338,7 +338,7 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 		var tempFile = new(os.File)
 		obj.Attachment, tempFile = CreateAttachmentObject(file, header)
 
-		defer tempFile.Close();
+		defer tempFile.Close()
 
 		fileBytes, _ := ioutil.ReadAll(file)
 
@@ -348,7 +348,7 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 		if re.MatchString(obj.Attachment[0].MediaType) {
 			fileLoc := strings.ReplaceAll(obj.Attachment[0].Href, Domain, "")
 
-			cmd := exec.Command("exiv2", "rm", "." + fileLoc)
+			cmd := exec.Command("exiv2", "rm", "."+fileLoc)
 
 			err := cmd.Run()
 
@@ -433,7 +433,7 @@ func ParseOptions(r *http.Request, obj ObjectBase) ObjectBase {
 			} else if e == "nokosage" {
 				obj.Option = append(obj.Option, "nokosage")
 			} else if email.MatchString(e) {
-				obj.Option = append(obj.Option, "email:" + e)
+				obj.Option = append(obj.Option, "email:"+e)
 			} else if wallet.MatchString(e) {
 				obj.Option = append(obj.Option, "wallet")
 				var wallet CryptoCur
@@ -502,19 +502,19 @@ func GetActivityFromJson(r *http.Request, db *sql.DB) Activity {
 func CheckCaptcha(db *sql.DB, captcha string) bool {
 	parts := strings.Split(captcha, ":")
 
-	if strings.Trim(parts[0], " ") == "" || strings.Trim(parts[1], " ") == ""{
+	if strings.Trim(parts[0], " ") == "" || strings.Trim(parts[1], " ") == "" {
 		return false
 	}
 
-	path  := "public/" + parts[0] + ".png"
-	code  := GetCaptchaCodeDB(db, path)
+	path := "public/" + parts[0] + ".png"
+	code := GetCaptchaCodeDB(db, path)
 
 	if code != "" {
 		DeleteCaptchaCodeDB(db, path)
 		CreateNewCaptcha(db)
 	}
 
-	if (code == strings.ToUpper(parts[1])) {
+	if code == strings.ToUpper(parts[1]) {
 		return true
 	}
 
@@ -535,7 +535,7 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		return
 	}
 
-	switch(activity.Type) {
+	switch activity.Type {
 	case "Create":
 		for _, e := range activity.To {
 			if IsActorLocal(db, e) {
@@ -562,7 +562,6 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			}
 		}
 		break
-
 
 	case "Follow":
 		for _, e := range activity.To {

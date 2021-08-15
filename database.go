@@ -3,20 +3,20 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"html/template"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
-	"regexp"
 	"time"
-	"html/template"
 
 	_ "github.com/lib/pq"
 )
 
 func GetActorFromDB(db *sql.DB, id string) Actor {
-			 var nActor Actor
+	var nActor Actor
 
-			 query :=`select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary, publickeypem from actor where id=$1`
+	query := `select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary, publickeypem from actor where id=$1`
 
 	rows, err := db.Query(query, id)
 
@@ -32,7 +32,7 @@ func GetActorFromDB(db *sql.DB, id string) Actor {
 	}
 
 	nActor.PublicKey = GetActorPemFromDB(db, publicKeyPem)
-	if nActor.Id != "" && nActor.PublicKey.PublicKeyPem == ""{
+	if nActor.Id != "" && nActor.PublicKey.PublicKeyPem == "" {
 		err = CreatePublicKeyFromPrivate(db, &nActor, publicKeyPem)
 		CheckError(err, "error creating public key from private")
 	}
@@ -43,7 +43,7 @@ func GetActorFromDB(db *sql.DB, id string) Actor {
 func GetActorByNameFromDB(db *sql.DB, name string) Actor {
 	var nActor Actor
 
-	query :=`select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary, publickeypem from actor where name=$1`
+	query := `select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary, publickeypem from actor where name=$1`
 
 	rows, err := db.Query(query, name)
 
@@ -58,7 +58,7 @@ func GetActorByNameFromDB(db *sql.DB, name string) Actor {
 		CheckError(err, "error with actor from db scan ")
 	}
 
-	if nActor.Id != "" &&  nActor.PublicKey.PublicKeyPem == ""{
+	if nActor.Id != "" && nActor.PublicKey.PublicKeyPem == "" {
 		err = CreatePublicKeyFromPrivate(db, &nActor, publicKeyPem)
 		CheckError(err, "error creating public key from private")
 	}
@@ -66,7 +66,7 @@ func GetActorByNameFromDB(db *sql.DB, name string) Actor {
 	return nActor
 }
 
-func CreateNewBoardDB(db *sql.DB, actor Actor) Actor{
+func CreateNewBoardDB(db *sql.DB, actor Actor) Actor {
 
 	query := `insert into actor (type, id, name, preferedusername, inbox, outbox, following, followers, summary, restricted) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
@@ -77,7 +77,7 @@ func CreateNewBoardDB(db *sql.DB, actor Actor) Actor{
 	} else {
 		fmt.Println("board added")
 		for _, e := range actor.AuthRequirement {
-			query  = `insert into actorauth (type, board) values ($1, $2)`
+			query = `insert into actorauth (type, board) values ($1, $2)`
 			_, err := db.Exec(query, e, actor.Name)
 			CheckError(err, "auth exists")
 		}
@@ -85,20 +85,20 @@ func CreateNewBoardDB(db *sql.DB, actor Actor) Actor{
 		var verify Verify
 
 		verify.Identifier = actor.Id
-		verify.Code  = CreateKey(50)
-		verify.Type  = "admin"
+		verify.Code = CreateKey(50)
+		verify.Type = "admin"
 
 		CreateVerification(db, verify)
 
 		verify.Identifier = actor.Id
-		verify.Code  = CreateKey(50)
-		verify.Type  = "janitor"
+		verify.Code = CreateKey(50)
+		verify.Type = "janitor"
 
 		CreateVerification(db, verify)
 
 		verify.Identifier = actor.Id
-		verify.Code  = CreateKey(50)
-		verify.Type  = "post"
+		verify.Code = CreateKey(50)
+		verify.Type = "post"
 
 		CreateVerification(db, verify)
 
@@ -155,12 +155,12 @@ func GetBoards(db *sql.DB) []Actor {
 	CheckError(err, "could not get boards from db query")
 
 	defer rows.Close()
-	for rows.Next(){
+	for rows.Next() {
 		var actor = new(Actor)
 
 		err = rows.Scan(&actor.Type, &actor.Id, &actor.Name, &actor.PreferredUsername, &actor.Inbox, &actor.Outbox, &actor.Following, &actor.Followers)
 
-		if err !=nil{
+		if err != nil {
 			panic(err)
 		}
 
@@ -205,7 +205,7 @@ func WriteObjectUpdatesToDB(db *sql.DB, obj ObjectBase) {
 
 	_, e := db.Exec(query, time.Now().UTC().Format(time.RFC3339), obj.Id)
 
-	if e != nil{
+	if e != nil {
 		fmt.Println("error inserting updating inreplyto")
 		panic(e)
 	}
@@ -214,7 +214,7 @@ func WriteObjectUpdatesToDB(db *sql.DB, obj ObjectBase) {
 
 	_, e = db.Exec(query, time.Now().UTC().Format(time.RFC3339), obj.Id)
 
-	if e != nil{
+	if e != nil {
 		fmt.Println("error inserting updating cache inreplyto")
 		panic(e)
 	}
@@ -229,7 +229,7 @@ func WriteObjectReplyToLocalDB(db *sql.DB, id string, replyto string) {
 
 	query = `select inreplyto from replies where id=$1`
 
-	rows, err := db.Query(query,replyto)
+	rows, err := db.Query(query, replyto)
 
 	CheckError(err, "Could not query select inreplyto")
 
@@ -259,7 +259,6 @@ func WriteObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 				UpdateObjectTypeDB(db, obj.Id, "Archive")
 			}
 		}
-
 
 		query := `select id from replies where id=$1 and inreplyto=$2`
 
@@ -336,7 +335,6 @@ func WriteActorObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 
 			_, err := db.Exec(query, obj.Id, e.Id)
 
-
 			CheckError(err, "error inserting replies db")
 		}
 	}
@@ -370,7 +368,7 @@ func WriteWalletToDB(db *sql.DB, obj ObjectBase) {
 			for _, e := range obj.Wallet {
 				query := `insert into wallet (id, type, address) values ($1, $2, $3)`
 
-				_, err := db.Exec(query, obj.Id ,e.Type, e.Address)
+				_, err := db.Exec(query, obj.Id, e.Type, e.Address)
 
 				CheckError(err, "error with write wallet query")
 			}
@@ -387,9 +385,9 @@ func WriteActivitytoDB(db *sql.DB, obj ObjectBase) {
 
 	query := `insert into activitystream (id, type, name, content, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)
+	_, e := db.Exec(query, obj.Id, obj.Type, obj.Name, obj.Content, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)
 
-	if e != nil{
+	if e != nil {
 		fmt.Println("error inserting new activity")
 		panic(e)
 	}
@@ -403,9 +401,9 @@ func WriteActivitytoDBWithAttachment(db *sql.DB, obj ObjectBase, attachment Obje
 
 	query := `insert into activitystream (id, type, name, content, attachment, preview, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Content, attachment.Id, preview.Id, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)
+	_, e := db.Exec(query, obj.Id, obj.Type, obj.Name, obj.Content, attachment.Id, preview.Id, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)
 
-	if e != nil{
+	if e != nil {
 		fmt.Println("error inserting new activity with attachment")
 		panic(e)
 	}
@@ -414,9 +412,9 @@ func WriteActivitytoDBWithAttachment(db *sql.DB, obj ObjectBase, attachment Obje
 func WriteAttachmentToDB(db *sql.DB, obj ObjectBase) {
 	query := `insert into activitystream (id, type, name, href, published, updated, attributedTo, mediatype, size) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)
+	_, e := db.Exec(query, obj.Id, obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)
 
-	if e != nil{
+	if e != nil {
 		fmt.Println("error inserting new attachment")
 		panic(e)
 	}
@@ -425,9 +423,9 @@ func WriteAttachmentToDB(db *sql.DB, obj ObjectBase) {
 func WritePreviewToDB(db *sql.DB, obj NestedObjectBase) {
 	query := `insert into activitystream (id, type, name, href, published, updated, attributedTo, mediatype, size) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
-	_, e := db.Exec(query, obj.Id ,obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)
+	_, e := db.Exec(query, obj.Id, obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)
 
-	if e != nil{
+	if e != nil {
 		fmt.Println("error inserting new attachment")
 		panic(e)
 	}
@@ -447,11 +445,11 @@ func GetActivityFromDB(db *sql.DB, id string) Collection {
 	CheckError(err, "error query object from db")
 
 	defer rows.Close()
-	for rows.Next(){
+	for rows.Next() {
 		var post ObjectBase
 		var actor Actor
 		var attachID string
-		var previewID	string
+		var previewID string
 
 		err = rows.Scan(&nColl.Actor.Id, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
 
@@ -484,13 +482,13 @@ func GetObjectFromDBPage(db *sql.DB, id string, page int) Collection {
 
 	query := `select count (x.id) over(), x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc limit 15 offset $2`
 
-	rows, err := db.Query(query, id, page * 15)
+	rows, err := db.Query(query, id, page*15)
 
 	CheckError(err, "error query object from db")
 
 	var count int
 	defer rows.Close()
-	for rows.Next(){
+	for rows.Next() {
 		var post ObjectBase
 		var actor Actor
 		var attachID string
@@ -533,7 +531,7 @@ func GetActorObjectCollectionFromDB(db *sql.DB, actorId string) Collection {
 	CheckError(err, "error query object from db")
 
 	defer rows.Close()
-	for rows.Next(){
+	for rows.Next() {
 		var post ObjectBase
 		var actor Actor
 		var attachID string
@@ -575,7 +573,7 @@ func GetObjectFromDB(db *sql.DB, id string) Collection {
 	CheckError(err, "error query object from db")
 
 	defer rows.Close()
-	for rows.Next(){
+	for rows.Next() {
 		var post ObjectBase
 		var actor Actor
 		var attachID string
@@ -626,7 +624,7 @@ func GetObjectFromDBFromID(db *sql.DB, id string) Collection {
 	CheckError(err, "error query object from db")
 
 	defer rows.Close()
-	for rows.Next(){
+	for rows.Next() {
 		var post ObjectBase
 		var actor Actor
 		var attachID string
@@ -668,7 +666,7 @@ func GetObjectFromDBCatalog(db *sql.DB, id string) Collection {
 	CheckError(err, "error query object from db")
 
 	defer rows.Close()
-	for rows.Next(){
+	for rows.Next() {
 		var post ObjectBase
 		var actor Actor
 		var attachID string
@@ -709,7 +707,7 @@ func GetObjectByIDFromDB(db *sql.DB, postID string) Collection {
 	CheckError(err, "error query object from db")
 
 	defer rows.Close()
-	for rows.Next(){
+	for rows.Next() {
 		var post ObjectBase
 		var actor Actor
 		var attachID string
@@ -987,7 +985,7 @@ func GetObjectAttachment(db *sql.DB, id string) []ObjectBase {
 
 	query := `select x.id, x.type, x.name, x.href, x.mediatype, x.size, x.published from (select id, type, name, href, mediatype, size, published from activitystream where id=$1 union select id, type, name, href, mediatype, size, published from cacheactivitystream where id=$1) as x`
 
-	rows, err := db.Query(query,  id)
+	rows, err := db.Query(query, id)
 
 	CheckError(err, "could not select object attachment query")
 
@@ -996,7 +994,7 @@ func GetObjectAttachment(db *sql.DB, id string) []ObjectBase {
 		var attachment = new(ObjectBase)
 
 		err = rows.Scan(&attachment.Id, &attachment.Type, &attachment.Name, &attachment.Href, &attachment.MediaType, &attachment.Size, &attachment.Published)
-		if err !=nil{
+		if err != nil {
 			fmt.Println("error with attachment db query")
 			panic(err)
 		}
@@ -1025,7 +1023,7 @@ func GetObjectPreview(db *sql.DB, id string) *NestedObjectBase {
 	return &preview
 }
 
-func GetObjectPostsTotalDB(db *sql.DB, actor Actor) int{
+func GetObjectPostsTotalDB(db *sql.DB, actor Actor) int {
 
 	count := 0
 	query := `select count(id) from activitystream where actor=$1 and id in (select id from replies where inreplyto='' and type='Note')`
@@ -1043,7 +1041,7 @@ func GetObjectPostsTotalDB(db *sql.DB, actor Actor) int{
 	return count
 }
 
-func GetObjectImgsTotalDB(db *sql.DB, actor Actor) int{
+func GetObjectImgsTotalDB(db *sql.DB, actor Actor) int {
 
 	count := 0
 	query := `select count(attachment) from activitystream where actor=$1 and id in (select id from replies where inreplyto='' and type='Note' )`
@@ -1075,10 +1073,10 @@ func DeletePreviewFromFile(db *sql.DB, id string) {
 		var href string
 
 		err := rows.Scan(&href)
-		href = strings.Replace(href, Domain + "/", "", 1)
+		href = strings.Replace(href, Domain+"/", "", 1)
 		CheckError(err, "error scanning delete attachment")
 
-		if(href != "static/notfound.png") {
+		if href != "static/notfound.png" {
 			_, err = os.Stat(href)
 			if err == nil {
 				os.Remove(href)
@@ -1101,10 +1099,10 @@ func RemovePreviewFromFile(db *sql.DB, id string) {
 		var href string
 
 		err := rows.Scan(&href)
-		href = strings.Replace(href, Domain + "/", "", 1)
+		href = strings.Replace(href, Domain+"/", "", 1)
 		CheckError(err, "error scanning delete attachment")
 
-		if(href != "static/notfound.png") {
+		if href != "static/notfound.png" {
 			_, err = os.Stat(href)
 			if err == nil {
 				os.Remove(href)
@@ -1128,10 +1126,10 @@ func DeleteAttachmentFromFile(db *sql.DB, id string) {
 		var href string
 
 		err := rows.Scan(&href)
-		href = strings.Replace(href, Domain + "/", "", 1)
+		href = strings.Replace(href, Domain+"/", "", 1)
 		CheckError(err, "error scanning delete preview")
 
-		if(href != "static/notfound.png") {
+		if href != "static/notfound.png" {
 			_, err = os.Stat(href)
 			if err == nil {
 				os.Remove(href)
@@ -1186,13 +1184,13 @@ func TombstoneAttachmentFromDB(db *sql.DB, id string) {
 
 	var query = `update activitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select attachment from activitystream where id=$3)`
 
-	_, err := db.Exec(query, Domain + "/static/notfound.png", datetime, id)
+	_, err := db.Exec(query, Domain+"/static/notfound.png", datetime, id)
 
 	CheckError(err, "error with tombstone attachment")
 
 	query = `update cacheactivitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select attachment from cacheactivitystream where id=$3)`
 
-	_, err = db.Exec(query, Domain + "/static/notfound.png", datetime, id)
+	_, err = db.Exec(query, Domain+"/static/notfound.png", datetime, id)
 
 	CheckError(err, "error with tombstone cache attachment")
 }
@@ -1216,13 +1214,13 @@ func TombstonePreviewFromDB(db *sql.DB, id string) {
 
 	var query = `update activitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select preview from activitystream where id=$3)`
 
-	_, err := db.Exec(query, Domain + "/static/notfound.png", datetime, id)
+	_, err := db.Exec(query, Domain+"/static/notfound.png", datetime, id)
 
 	CheckError(err, "error with tombstone preview")
 
 	query = `update cacheactivitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select preview from cacheactivitystream where id=$3)`
 
-	_, err = db.Exec(query, Domain + "/static/notfound.png", datetime, id)
+	_, err = db.Exec(query, Domain+"/static/notfound.png", datetime, id)
 
 	CheckError(err, "error with tombstone cache preview")
 }
@@ -1241,7 +1239,7 @@ func DeletePreviewFromDB(db *sql.DB, id string) {
 	CheckError(err, "error with delete cache preview")
 }
 
-func DeleteObjectRepliedTo(db *sql.DB, id string){
+func DeleteObjectRepliedTo(db *sql.DB, id string) {
 	query := `delete from replies where id=$1`
 	_, err := db.Exec(query, id)
 
@@ -1264,7 +1262,7 @@ func TombstoneObjectFromDB(db *sql.DB, id string) {
 }
 
 func DeleteObjectFromDB(db *sql.DB, id string) {
- var query = `delete from activitystream where id=$1`
+	var query = `delete from activitystream where id=$1`
 
 	_, err := db.Exec(query, id)
 
@@ -1393,18 +1391,18 @@ func SetObjectRepliesFromDB(db *sql.DB, id string, _type string) {
 }
 
 func SetObject(db *sql.DB, id string, _type string) {
-	SetAttachmentFromDB(db, id, _type);
-	SetPreviewFromDB(db, id, _type);
-	SetObjectFromDB(db, id, _type);
+	SetAttachmentFromDB(db, id, _type)
+	SetPreviewFromDB(db, id, _type)
+	SetObjectFromDB(db, id, _type)
 }
 
 func SetObjectAndReplies(db *sql.DB, id string, _type string) {
-	SetAttachmentFromDB(db, id, _type);
-	SetPreviewFromDB(db, id, _type);
-	SetObjectRepliesFromDB(db, id, _type);
-	SetAttachmentRepliesFromDB(db, id, _type);
-	SetPreviewRepliesFromDB(db, id, _type);
-	SetObjectFromDB(db, id, _type);
+	SetAttachmentFromDB(db, id, _type)
+	SetPreviewFromDB(db, id, _type)
+	SetObjectRepliesFromDB(db, id, _type)
+	SetAttachmentRepliesFromDB(db, id, _type)
+	SetPreviewRepliesFromDB(db, id, _type)
+	SetObjectFromDB(db, id, _type)
 }
 
 func DeleteObject(db *sql.DB, id string) {
@@ -1438,7 +1436,7 @@ func TombstoneObjectAndReplies(db *sql.DB, id string) {
 	TombstoneObjectFromDB(db, id)
 }
 
-func GetRandomCaptcha(db *sql.DB) string{
+func GetRandomCaptcha(db *sql.DB) string {
 	query := `select identifier from verification where type='captcha' order by random() limit 1`
 
 	rows, err := db.Query(query)
@@ -1457,7 +1455,7 @@ func GetRandomCaptcha(db *sql.DB) string{
 	return verify
 }
 
-func GetCaptchaTotal(db *sql.DB) int{
+func GetCaptchaTotal(db *sql.DB) int {
 	query := `select count(*) from verification where type='captcha'`
 
 	rows, err := db.Query(query)
@@ -1467,8 +1465,8 @@ func GetCaptchaTotal(db *sql.DB) int{
 	defer rows.Close()
 
 	var count int
-	for rows.Next(){
-		if err := rows.Scan(&count); err != nil{
+	for rows.Next() {
+		if err := rows.Scan(&count); err != nil {
 			CheckError(err, "could not get captcha total")
 		}
 	}
@@ -1587,7 +1585,7 @@ func GetActorPemFromDB(db *sql.DB, pemID string) PublicKeyPem {
 	rows.Next()
 	rows.Scan(&pem.Id, &pem.Owner, &pem.PublicKeyPem)
 	f, err := os.ReadFile(pem.PublicKeyPem)
-	if err != nil{
+	if err != nil {
 		pem.PublicKeyPem = ""
 		return pem
 	}
@@ -1597,7 +1595,7 @@ func GetActorPemFromDB(db *sql.DB, pemID string) PublicKeyPem {
 	return pem
 }
 
-func GetActorPemFileFromDB(db *sql.DB, pemID string) string{
+func GetActorPemFileFromDB(db *sql.DB, pemID string) string {
 	query := `select file from publickeypem where id=$1`
 	rows, err := db.Query(query, pemID)
 
@@ -1629,20 +1627,19 @@ func getNewsFromDB(db *sql.DB, limit int) []NewsItem {
 	var news []NewsItem
 
 	var query string
-	if(limit > 0) {
-		query =`select title, content, time from newsItem order by time desc limit $1`
+	if limit > 0 {
+		query = `select title, content, time from newsItem order by time desc limit $1`
 	} else {
-		query =`select title, content, time from newsItem order by time desc`
+		query = `select title, content, time from newsItem order by time desc`
 	}
 
 	var rows *sql.Rows
 	var err error
-	if(limit > 0) {
+	if limit > 0 {
 		rows, err = db.Query(query, limit)
 	} else {
 		rows, err = db.Query(query)
 	}
-
 
 	if CheckError(err, "could not get news from db query") != nil {
 		return news
@@ -1755,10 +1752,10 @@ func DeleteRegexBlacklistDB(db *sql.DB, id int) {
 	CheckError(err, "error with delete from postblacklist")
 }
 
-func GetActorAutoSubscribeDB(db *sql.DB, id string) bool{
+func GetActorAutoSubscribeDB(db *sql.DB, id string) bool {
 	query := `select autosubscribe from actor where id=$1`
 
-	rows, err:= db.Query(query, id)
+	rows, err := db.Query(query, id)
 
 	CheckError(err, "error with getting actor auto subscribe status from db")
 
@@ -1766,7 +1763,6 @@ func GetActorAutoSubscribeDB(db *sql.DB, id string) bool{
 	defer rows.Close()
 	rows.Next()
 	rows.Scan(&subscribed)
-
 
 	return subscribed
 }
@@ -1802,12 +1798,12 @@ func AddInstanceToInactiveDB(db *sql.DB, instance string) {
 	} else {
 		if IsInactiveTimestamp(db, timeStamp) {
 			query := `delete from following where following like $1`
-			_, err:= db.Exec(query, "%" + instance + "%")
+			_, err := db.Exec(query, "%"+instance+"%")
 
 			CheckError(err, "error deleting inactive instance following")
 
 			query = `delete from follower where follower like $1`
-			_, err= db.Exec(query, "%" + instance + "%")
+			_, err = db.Exec(query, "%"+instance+"%")
 
 			CheckError(err, "error deleting inactive instance follower")
 
@@ -1856,7 +1852,7 @@ func GetAllActorArchiveDB(db *sql.DB, id string, offset int) Collection {
 	CheckError(err, "error query object from db")
 
 	defer rows.Close()
-	for rows.Next(){
+	for rows.Next() {
 		var post ObjectBase
 
 		err = rows.Scan(&post.Id, &post.Updated)
@@ -1884,7 +1880,7 @@ func GetActorCollectionDBType(db *sql.DB, actorId string, nType string) Collecti
 	CheckError(err, "error query object from db archive")
 
 	defer rows.Close()
-	for rows.Next(){
+	for rows.Next() {
 		var post ObjectBase
 		var actor Actor
 		var attachID string
@@ -1924,7 +1920,7 @@ func GetActorCollectionDBTypeLimit(db *sql.DB, actorId string, nType string, lim
 	CheckError(err, "error query object from db archive")
 
 	defer rows.Close()
-	for rows.Next(){
+	for rows.Next() {
 		var post ObjectBase
 		var actor Actor
 		var attachID string

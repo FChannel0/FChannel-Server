@@ -1,13 +1,12 @@
 package main
 
-
 import (
+	"bufio"
 	"fmt"
-	"net/http"												 
-	"bufio"													 
-	"os"
-	"strings"	
 	"github.com/gomodule/redigo/redis"
+	"net/http"
+	"os"
+	"strings"
 )
 
 var cache redis.Conn
@@ -20,7 +19,7 @@ func InitCache() {
 	cache = conn
 }
 
-func CheckSession(w http.ResponseWriter, r *http.Request) (interface{}, error){
+func CheckSession(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 
 	c, err := r.Cookie("session_token")
 
@@ -29,15 +28,15 @@ func CheckSession(w http.ResponseWriter, r *http.Request) (interface{}, error){
 			w.WriteHeader(http.StatusUnauthorized)
 			return nil, err
 		}
-		
+
 		w.WriteHeader(http.StatusBadRequest)
 		return nil, err
 	}
-	
+
 	sessionToken := c.Value
 
 	response, err := cache.Do("GET", sessionToken)
-	
+
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return nil, err
@@ -50,7 +49,7 @@ func CheckSession(w http.ResponseWriter, r *http.Request) (interface{}, error){
 	return response, nil
 }
 
-func GetClientKey() string{
+func GetClientKey() string {
 	file, err := os.Open("clientkey")
 
 	CheckError(err, "could not open client key in file")
