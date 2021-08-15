@@ -12,7 +12,7 @@ import (
 var cache redis.Conn
 
 func InitCache() {
-	conn, err := redis.DialURL("redis://localhost")
+	conn, err := redis.DialURL(GetConfigValue("redis"))
 	if err != nil {
 		panic(err)
 	}

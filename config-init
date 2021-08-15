@@ -36,3 +36,6 @@ publicindex:false
 ## add your instance salt here for secure tripcodes
 
 instancesalt:
+
+## connect to this redis server
+redis:redis://localhost
