@@ -11,8 +11,8 @@ function getCookie(key) {
 
 function setTheme(name) {
 	for (let i = 0, tags = document.getElementsByTagName("link"); i < tags.length; i++) {
-		if (tags[i].type = "text/css" && tags[i].title) {
-			tags[i].disabled = !(tags[i].title == name);
+		if (tags[i].type === "text/css" && tags[i].title) {
+			tags[i].disabled = !(tags[i].title === name);
 		}
 	}
 
