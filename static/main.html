@@ -8,10 +8,11 @@
     <meta property="og:locale" content="en_US" />
     <meta property="og:type" content="website" />
     <link rel="icon" type="image/png"  href="/static/favicon.png">
-    <link rel="stylesheet" type="text/css" href="/static/css/style.css">
+    <link rel="stylesheet" type="text/css" href="/static/css/style.css" title="default">
+    <link rel="alternate stylesheet" type="text/css" href="/static/css/gruvbox.css" title="gruvbox">
     {{ template "header" . }}
   </head>
-  <body {{ if not .Board.Restricted }}class="nsfw"{{ end }}>
+  <body {{ if not .Board.Restricted }}class="nsfw"{{ end }} onload="applyTheme()">
     <ul style="display: inline; padding:0;">
       {{ $l := len .Boards }}
       <li style="display: inline;">[<a href="/">Home</a>]</li>
@@ -41,8 +42,10 @@
       <a href="/">[Home]</a><a href="/static/rules.html">[Rules]</a><a href="/static/faq.html">[FAQ]</a>
       <p>All trademarks and copyrights on this page are owned by their respective parties.</p>
     </div>
+
+    <script src="/static/js/themes.js"></script>
+{{ template "script" . }}
   </body>
 </html>
 
-{{ template "script" . }}
 {{ end }}
