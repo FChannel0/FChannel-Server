@@ -216,7 +216,7 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 		"parseReplyLink": func(actorId string, op string, id string, content string) template.HTML {
 			actor := FingerActor(actorId)
 			title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
-			link := "<a href=\"" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id) + "\" title=\"" + title + "\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
+			link := "<a href=\"" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id) + "\" title=\"" + title + "\" class=\"replyLink\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
 			return template.HTML(link)
 		},
 		"add": func(i, j int) int {
@@ -403,7 +403,7 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		"parseReplyLink": func(actorId string, op string, id string, content string) template.HTML {
 			actor := FingerActor(actorId)
 			title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
-			link := "<a href=\"" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id) + "\" title=\"" + title + "\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
+			link := "<a href=\"" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id) + "\" title=\"" + title + "\" class=\"replyLink\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
 			return template.HTML(link)
 		},
 		"sub": func(i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/npost.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
@@ -886,17 +886,12 @@ func ParseLinkComments(db *sql.DB, board Actor, op string, content string, threa
 			}
 		}
 
-		var style string
-		if board.Restricted {
-			style = "color: #af0a0f;"
-		}
-
 		//replace link with quote format
 		replyID, isReply := IsReplyToOP(db, op, parsedLink)
 		if isReply {
 			id := shortURL(board.Outbox, replyID)
 
-			content = strings.Replace(content, match[i][0], "<a class=\"reply\" style=\""+style+"\" title=\""+quoteTitle+"\" href=\"/"+board.Name+"/"+shortURL(board.Outbox, op)+"#"+id+"\">&gt;&gt;"+id+""+isOP+"</a>", -1)
+			content = strings.Replace(content, match[i][0], "<a class=\"reply\" title=\""+quoteTitle+"\" href=\"/"+board.Name+"/"+shortURL(board.Outbox, op)+"#"+id+"\">&gt;&gt;"+id+""+isOP+"</a>", -1)
 
 		} else {
 
@@ -909,7 +904,7 @@ func ParseLinkComments(db *sql.DB, board Actor, op string, content string, threa
 			}
 
 			if actor.Id != "" {
-				content = strings.Replace(content, match[i][0], "<a class=\"reply\" style=\""+style+"\" title=\""+quoteTitle+"\" href=\""+link+"\">&gt;&gt;"+shortURL(board.Outbox, parsedLink)+isOP+" →</a>", -1)
+				content = strings.Replace(content, match[i][0], "<a class=\"reply\" title=\""+quoteTitle+"\" href=\""+link+"\">&gt;&gt;"+shortURL(board.Outbox, parsedLink)+isOP+" →</a>", -1)
 			}
 		}
 	}

@@ -67,6 +67,19 @@ body.nsfw {
 	background-color: #f0c0b0;
 }
 
-.tripcode {
+.title {
+	color: #0f0c5d;
+}
+
+.name, .tripcode {
 	color: #117743;
+}
+
+a.reply {
+	color: #af0a0f;
+}
+
+.replyLink {
+	color: #000080;
+	font-size: 0.8em;
 }

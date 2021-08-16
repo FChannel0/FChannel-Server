@@ -1,0 +1,63 @@
+a, a:link, a:visited, a:active {
+	color: #b16286;
+	text-decoration: none
+}
+
+a.reply {
+	color: #cc241d;
+}
+
+a:hover.reply {
+	color: #fb4934;
+}
+
+body {
+	background: #282828;
+	color: #ebdbb2;
+
+	font-family: Iosevka, monospace, sans-serif;
+	font-size: 0.9em;
+}
+
+.popup-box {
+	border: 4px solid #928374;
+	background-color: #3c3836;
+}
+
+.box, .box-alt {
+	background-color: #3c3836;
+}
+
+.quote {
+	color: #98971a;
+}
+
+.post {
+	background-color: #1d2021;
+}
+
+:target > div > .post {
+	background-color: #504945;
+}
+
+.subject {
+	color: #458588;
+}
+
+.name {
+	color: #b8bb26;
+}
+
+.tripcode {
+	color: #689d6a;
+}
+
+h1,h2,h3,h4,h5,h6 {
+	color: #fb4934;
+	margin-bottom: 0.1em;
+}
+
+.replyLink {
+	color: #83a598;
+	font-size: 0.8em;
+}
