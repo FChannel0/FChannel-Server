@@ -8,81 +8,10 @@
     <meta property="og:locale" content="en_US" />
     <meta property="og:type" content="website" />
     <link rel="icon" type="image/png"  href="/static/favicon.png">
-    <style>
-      a, a:link, a:visited, a:hover, a:active {
-          text-decoration: none
-      }
-
-      a:link, a:visited,  a:active {
-          color: black;
-      }
-
-      a:hover {
-          color: #de0808;
-      }
-
-      body {
-          {{ if .Board.Restricted }}
-          background-color: #eef2fe;
-          color: black;
-          {{ else }}
-          background-color: #ffffee;
-          color: #820404
-          {{ end }}
-      }
-
-      .popup-box {
-          {{ if .Board.Restricted }}
-          border: 4px solid #d3caf0;
-          background-color: #eff5ff;
-          {{ else }}
-          border: 4px solid #f0e2d9;
-          background-color: #f9f9e0;
-          {{ end }}
-      }
-
-      .box {
-          {{ if .Board.Restricted }}
-          background-color: #eff5ff;
-          {{ else }}
-          background-color: #f9f9e0;
-          {{ end }}
-      }
-
-      .box-alt {
-          {{ if .Board.Restricted }}
-          background-color: #d3caf0;
-          {{ else }}
-          background-color: #f0e2d9;
-          {{ end }}
-      }
-
-      .quote {
-          color: #789922;
-      }
-
-      .post {
-          {{ if .Board.Restricted }}
-          background-color: #d5daf0;
-          {{ else }}
-          background-color: #f0e0d6;
-          {{ end }}
-      }
-
-      :target > div > .post {
-          {{ if .Board.Restricted }}
-          background-color: #d6bad0;
-          {{ else }}
-          background-color: #f0c0b0;
-          {{ end }}
-      }
-      .tripcode {
-          color: #117743;
-      }
-    </style>
+    <link rel="stylesheet" type="text/css" href="/static/css/style.css">
     {{ template "header" . }}
   </head>
-  <body>
+  <body {{ if not .Board.Restricted }}class="nsfw"{{ end }}>
     <ul style="display: inline; padding:0;">
       {{ $l := len .Boards }}
       <li style="display: inline;">[<a href="/">Home</a>]</li>
