@@ -1,0 +1,26 @@
+version: '3'
+services:
+  postgres:
+    image: postgres:13.4-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fchan
+      POSTGRES_PASSWORD: hackme
+      POSTGRES_DB: fchan
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+  redis:
+    image: redis:6.2-alpine
+    restart: unless-stopped
+  fchan:
+    build: ./
+    restart: unless-stopped
+    volumes:
+      - ./config:/app/config
+      - ./public/:/app/public/
+      - ./pem/:/app/pem/
+    ports:
+      - "3000:3000"
+    links:
+      - redis
+      - postgres

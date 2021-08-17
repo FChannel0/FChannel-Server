@@ -73,6 +73,8 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
 
   `instancesalt:put your salt string here` Used for secure tripcodes currently.
 
+  `redis:redis://localhost` Used for Redis. This should be `redis://localhost` in most cases.
+
 
   Currently e-mail is not implemented to do anything special, but the code is in place
 
@@ -151,7 +153,16 @@ server {
 
 ### Docker
 
-`Please consider submitting a pull request if you set up a FChannel instance with Docker with instructions on how to do so`
+A Dockerfile is provided, and an example `docker-compose.yml` exists to base your Docker setup on.
+You should use the `config-init.docker` file to configure it and it will work more or less out of the box with it, you should just need some minor configuration changes to test it out.
+
+You may need to set up your `config` like this to access the mod tools if you get stuck when logging in:
+```
+instance:fchan.xyz:PORT GOES HERE
+instanceport:PORT GOES HERE
+```
+
+See #12 for more details.
 
 # Support
 

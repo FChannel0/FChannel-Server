@@ -35,7 +35,7 @@ func GetCollectionFromPath(db *sql.DB, path string) Collection {
 
 	defer rows.Close()
 
-	for rows.Next(){
+	for rows.Next() {
 		var actor Actor
 		var post ObjectBase
 		var attachID string
@@ -72,7 +72,7 @@ func GetCollectionFromPath(db *sql.DB, path string) Collection {
 	return nColl
 }
 
-func GetObjectFromPath(db *sql.DB, path string) ObjectBase{
+func GetObjectFromPath(db *sql.DB, path string) ObjectBase {
 
 	var nObj ObjectBase
 

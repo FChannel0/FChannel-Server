@@ -11,7 +11,7 @@ func acceptActivity(header string) bool {
 	if strings.Contains(header, ";") {
 		split := strings.Split(header, ";")
 		accept = accept || activityRegexp.MatchString(split[0])
-		accept =  accept || strings.Contains(split[len(split)-1], "profile=\"https://www.w3.org/ns/activitystreams\"")
+		accept = accept || strings.Contains(split[len(split)-1], "profile=\"https://www.w3.org/ns/activitystreams\"")
 	} else {
 		accept = accept || activityRegexp.MatchString(header)
 	}

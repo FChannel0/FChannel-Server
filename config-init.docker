@@ -11,13 +11,14 @@ instancesummary:FChan is a federated image board instance.
 ## this will cause a lot of headaches if switched back and forth.
 ## Choose which one you are going to support and do not change it for best results.
 
-instancetp:https://
+instancetp:http://
 
-dbhost:localhost
+## postgres is at postgres and is setup with default credentials
+dbhost:postgres
 dbport:5432
-dbname:server
-dbuser:postgres
-dbpass:password
+dbname:fchan
+dbuser:fchan
+dbpass:hackme
 
 emailserver:
 emailport:
@@ -37,5 +38,5 @@ publicindex:false
 
 instancesalt:
 
-## connect to this redis server
-redis:redis://localhost
+## we have redis at "redis", so...
+redis:redis://redis
