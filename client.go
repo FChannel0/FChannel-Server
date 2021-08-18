@@ -123,6 +123,8 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	data.InstanceIndex = GetCollectionFromReq("https://fchan.xyz/followers").Items
 	data.NewsItems = getNewsFromDB(db, 3)
 
+	data.Themes = &Themes
+
 	t.ExecuteTemplate(w, "layout", data)
 }
 
@@ -156,6 +158,8 @@ func NewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB, timestamp int) 
 
 	data.Title = actor.PreferredUsername + ": " + data.NewsItems[0].Title
 
+	data.Themes = &Themes
+
 	t.ExecuteTemplate(w, "layout", data)
 }
 
@@ -179,6 +183,8 @@ func AllNewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	data.Board.Post.Actor = actor.Id
 	data.Board.Restricted = actor.Restricted
 	data.NewsItems = getNewsFromDB(db, 0)
+
+	data.Themes = &Themes
 
 	t.ExecuteTemplate(w, "layout", data)
 }
@@ -328,6 +334,8 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	returnData.Boards = Boards
 
 	returnData.Posts = collection.OrderedItems
+
+	returnData.Themes = &Themes
 
 	t.ExecuteTemplate(w, "layout", returnData)
 }

@@ -26,5 +26,15 @@ function applyTheme() {
 			tags[i].disabled = true;
 		}
 	}
-	setTheme(getCookie("theme") || "default");
+	let theme = getCookie("theme") || "default";
+	setTheme(theme);
+
+	// reflect this in the switcher
+	let switcher = document.getElementById("themeSwitcher");
+	for(var i = 0; i < switcher.options.length; i++) {
+		if (switcher.options[i].value === theme) {
+			switcher.selectedIndex = i;
+			break;
+		}
+	}
 }

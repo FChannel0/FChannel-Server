@@ -41,11 +41,14 @@
 
     {{ template "bottom" . }}
 
-    <select onchange="setTheme(this.options[this.selectedIndex].value)">
-	    {{ range .Themes }}
-	    <option value="{{.}}">{{.}}</option>
-	    {{ end }}
-    </select>
+    <div style="float: right;">
+      Theme:
+      <select id="themeSwitcher" onchange="setTheme(this.options[this.selectedIndex].value)">
+        {{ range .Themes }}
+        <option value="{{.}}">{{.}}</option>
+        {{ end }}
+      </select>
+    </div>
 
     <div align="center" style="width: 500px; margin:0 auto; margin-top: 50px;">
       <a href="/">[Home]</a><a href="/static/rules.html">[Rules]</a><a href="/static/faq.html">[FAQ]</a>
