@@ -1640,8 +1640,8 @@ func CreateObject(objType string) ObjectBase {
 	var nObj ObjectBase
 
 	nObj.Type = objType
-	nObj.Published = time.Now().UTC().Format(time.RFC3339)
-	nObj.Updated = time.Now().UTC().Format(time.RFC3339)
+	nObj.Published = time.Now().UTC()
+	nObj.Updated = time.Now().UTC()
 
 	return nObj
 }
@@ -1780,7 +1780,7 @@ func CreateAttachmentObject(file multipart.File, header *multipart.FileHeader) (
 	image.Href = Domain + "/" + tempFile.Name()
 	image.MediaType = contentType
 	image.Size = size
-	image.Published = time.Now().UTC().Format(time.RFC3339)
+	image.Published = time.Now().UTC()
 
 	nAttachment = append(nAttachment, image)
 
@@ -1812,7 +1812,7 @@ func ParseCommentForReplies(db *sql.DB, comment string, op string) []ObjectBase 
 		if isValid {
 			var reply = new(ObjectBase)
 			reply.Id = links[i]
-			reply.Published = time.Now().UTC().Format(time.RFC3339)
+			reply.Published = time.Now().UTC()
 			validLinks = append(validLinks, *reply)
 		}
 	}
@@ -2397,7 +2397,7 @@ func ResizeAttachmentToPreview(db *sql.DB) {
 		var mediatype string
 		var name string
 		var size int
-		var published string
+		var published time.Time
 
 		rows.Scan(&id, &href, &mediatype, &name, &size, &published)
 

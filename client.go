@@ -5,6 +5,7 @@ import (
 	"fmt"
 	_ "github.com/lib/pq"
 	"html/template"
+	"log"
 	"net/http"
 	"regexp"
 	"sort"
@@ -94,11 +95,27 @@ type PostBlacklist struct {
 	Regex string
 }
 
+func mod(i, j int) bool {
+	return i%j == 0
+}
+
+func sub(i, j int) int {
+	return i - j
+}
+
+func unixToReadable(u int) string {
+	return time.Unix(int64(u), 0).Format("Jan 02, 2006")
+}
+
+func timeToReadableLong(t time.Time) string {
+	return t.Format("01/02/06(Mon)03:04:05")
+}
+
 func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	t := template.Must(template.New("").Funcs(template.FuncMap{
-		"mod":            func(i, j int) bool { return i%j == 0 },
-		"sub":            func(i, j int) int { return i - j },
-		"unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/index.html"))
+		"mod":            mod,
+		"sub":            sub,
+		"unixtoreadable": unixToReadable}).ParseFiles("./static/main.html", "./static/index.html"))
 
 	actor := GetActorFromDB(db, Domain)
 
@@ -125,13 +142,17 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	data.Themes = &Themes
 
-	t.ExecuteTemplate(w, "layout", data)
+	err := t.ExecuteTemplate(w, "layout", data)
+	if err != nil {
+		// TODO: actual error handler
+		log.Printf("IndexGet: %s\n", err)
+	}
 }
 
 func NewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB, timestamp int) {
 	t := template.Must(template.New("").Funcs(template.FuncMap{
-		"sub":            func(i, j int) int { return i - j },
-		"unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/news.html"))
+		"sub":            mod,
+		"unixtoreadable": unixToReadable}).ParseFiles("./static/main.html", "./static/news.html"))
 
 	actor := GetActorFromDB(db, Domain)
 
@@ -160,14 +181,18 @@ func NewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB, timestamp int) 
 
 	data.Themes = &Themes
 
-	t.ExecuteTemplate(w, "layout", data)
+	err = t.ExecuteTemplate(w, "layout", data)
+	if err != nil {
+		// TODO: actual error handler
+		log.Printf("NewsGet: %s\n", err)
+	}
 }
 
 func AllNewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	t := template.Must(template.New("").Funcs(template.FuncMap{
-		"mod":            func(i, j int) bool { return i%j == 0 },
-		"sub":            func(i, j int) int { return i - j },
-		"unixtoreadable": func(u int) string { return time.Unix(int64(u), 0).Format("Jan 02, 2006") }}).ParseFiles("./static/main.html", "./static/anews.html"))
+		"mod":            mod,
+		"sub":            sub,
+		"unixtoreadable": unixToReadable}).ParseFiles("./static/main.html", "./static/anews.html"))
 
 	actor := GetActorFromDB(db, Domain)
 
@@ -186,7 +211,11 @@ func AllNewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	data.Themes = &Themes
 
-	t.ExecuteTemplate(w, "layout", data)
+	err := t.ExecuteTemplate(w, "layout", data)
+	if err != nil {
+		// TODO: actual error handler
+		log.Printf("AllNewsGet: %s\n", err)
+	}
 }
 
 func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection) {
@@ -229,7 +258,8 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 		"add": func(i, j int) int {
 			return i + j
 		},
-		"sub": func(i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/nposts.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
+		"timeToReadableLong": timeToReadableLong,
+		"sub":                sub}).ParseFiles("./static/main.html", "./static/nposts.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 
 	actor := collection.Actor
 
@@ -280,7 +310,11 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 
 	returnData.Themes = &Themes
 
-	t.ExecuteTemplate(w, "layout", returnData)
+	err := t.ExecuteTemplate(w, "layout", returnData)
+	if err != nil {
+		// TODO: actual error handler
+		log.Printf("OutboxGet: %s\n", err)
+	}
 }
 
 func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection) {
@@ -305,7 +339,7 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 			}
 			return false
 		},
-		"sub": func(i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))
+		"sub": sub}).ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))
 
 	actor := collection.Actor
 
@@ -337,7 +371,11 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 
 	returnData.Themes = &Themes
 
-	t.ExecuteTemplate(w, "layout", returnData)
+	err := t.ExecuteTemplate(w, "layout", returnData)
+	if err != nil {
+		// TODO: actual error handler
+		log.Printf("CatalogGet: %s\n", err)
+	}
 }
 
 func ArchiveGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection) {
@@ -354,8 +392,8 @@ func ArchiveGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 		"parseAttachment": func(obj ObjectBase, catalog bool) template.HTML {
 			return ParseAttachment(obj, catalog)
 		},
-		"mod": func(i, j int) bool { return i%j == 0 },
-		"sub": func(i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/archive.html", "./static/bottom.html"))
+		"mod": mod,
+		"sub": sub}).ParseFiles("./static/main.html", "./static/archive.html", "./static/bottom.html"))
 
 	actor := collection.Actor
 
@@ -387,7 +425,11 @@ func ArchiveGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 
 	returnData.Themes = &Themes
 
-	t.ExecuteTemplate(w, "layout", returnData)
+	err := t.ExecuteTemplate(w, "layout", returnData)
+	if err != nil {
+		// TODO: actual error handler
+		log.Printf("ArchiveGet: %s\n", err)
+	}
 }
 
 func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
@@ -419,7 +461,8 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			link := "<a href=\"" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id) + "\" title=\"" + title + "\" class=\"replyLink\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
 			return template.HTML(link)
 		},
-		"sub": func(i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/npost.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
+		"timeToReadableLong": timeToReadableLong,
+		"sub":                sub}).ParseFiles("./static/main.html", "./static/npost.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 
 	path := r.URL.Path
 	actor := GetActorFromPath(db, path, "/")
@@ -482,7 +525,11 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	returnData.Themes = &Themes
 
-	t.ExecuteTemplate(w, "layout", returnData)
+	err := t.ExecuteTemplate(w, "layout", returnData)
+	if err != nil {
+		// TODO: actual error handler
+		log.Printf("PostGet: %s\n")
+	}
 }
 
 func GetBoardCollection(db *sql.DB) []Board {
@@ -739,13 +786,13 @@ func GetActorsFollowPostFromId(db *sql.DB, actors []string, id string) Collectio
 type ObjectBaseSortDesc []ObjectBase
 
 func (a ObjectBaseSortDesc) Len() int           { return len(a) }
-func (a ObjectBaseSortDesc) Less(i, j int) bool { return a[i].Updated > a[j].Updated }
+func (a ObjectBaseSortDesc) Less(i, j int) bool { return a[i].Updated.After(a[j].Updated) }
 func (a ObjectBaseSortDesc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 type ObjectBaseSortAsc []ObjectBase
 
 func (a ObjectBaseSortAsc) Len() int           { return len(a) }
-func (a ObjectBaseSortAsc) Less(i, j int) bool { return a[i].Published < a[j].Published }
+func (a ObjectBaseSortAsc) Less(i, j int) bool { return a[i].Published.Before(a[j].Published) }
 func (a ObjectBaseSortAsc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 type BoardSortAsc []Board
