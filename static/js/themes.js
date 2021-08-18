@@ -20,5 +20,11 @@ function setTheme(name) {
 }
 
 function applyTheme() {
+	// HACK: disable all of the themes first. this for some reason makes things work.
+	for (let i = 0, tags = document.getElementsByTagName("link"); i < tags.length; i++) {
+		if (tags[i].type === "text/css" && tags[i].title) {
+			tags[i].disabled = true;
+		}
+	}
 	setTheme(getCookie("theme") || "default");
 }

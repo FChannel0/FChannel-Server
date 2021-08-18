@@ -53,6 +53,7 @@ type PageData struct {
 	ReturnTo          string
 	NewsItems         []NewsItem
 	BoardRemainer     []int
+	Themes            *[]string
 }
 
 type AdminPage struct {
@@ -271,6 +272,8 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	returnData.Pages = pages
 	returnData.TotalPage = len(returnData.Pages) - 1
 
+	returnData.Themes = &Themes
+
 	t.ExecuteTemplate(w, "layout", returnData)
 }
 
@@ -374,6 +377,8 @@ func ArchiveGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 
 	returnData.Posts = collection.OrderedItems
 
+	returnData.Themes = &Themes
+
 	t.ExecuteTemplate(w, "layout", returnData)
 }
 
@@ -466,6 +471,8 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	if len(returnData.Posts) > 0 {
 		returnData.PostId = shortURL(returnData.Board.To, returnData.Posts[0].Id)
 	}
+
+	returnData.Themes = &Themes
 
 	t.ExecuteTemplate(w, "layout", returnData)
 }

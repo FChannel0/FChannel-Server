@@ -8,8 +8,10 @@
     <meta property="og:locale" content="en_US" />
     <meta property="og:type" content="website" />
     <link rel="icon" type="image/png"  href="/static/favicon.png">
-    <link rel="stylesheet" type="text/css" href="/static/css/style.css" title="default">
-    <link rel="alternate stylesheet" type="text/css" href="/static/css/gruvbox.css" title="gruvbox">
+    <link rel="stylesheet" type="text/css" href="/static/css/themes/default.css" title="default">
+    {{ range .Themes }}
+    <link rel="alternate stylesheet" type="text/css" href="/static/css/themes/{{.}}.css" title="{{.}}">
+    {{ end }}
     {{ template "header" . }}
   </head>
   <body {{ if not .Board.Restricted }}class="nsfw"{{ end }} onload="applyTheme()">
@@ -38,6 +40,13 @@
     {{ template "content" . }}
 
     {{ template "bottom" . }}
+
+    <select onchange="setTheme(this.options[this.selectedIndex].value)">
+	    {{ range .Themes }}
+	    <option value="{{.}}">{{.}}</option>
+	    {{ end }}
+    </select>
+
     <div align="center" style="width: 500px; margin:0 auto; margin-top: 50px;">
       <a href="/">[Home]</a><a href="/static/rules.html">[Rules]</a><a href="/static/faq.html">[FAQ]</a>
       <p>All trademarks and copyrights on this page are owned by their respective parties.</p>

@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -51,6 +52,8 @@ var MediaHashs = make(map[string]string)
 
 var ActorCache = make(map[string]Actor)
 
+var Themes []string
+
 func main() {
 
 	CreatedNeededDirectories()
@@ -81,6 +84,22 @@ func main() {
 		CreateNewBoardDB(db, *CreateNewActor("", GetConfigValue("instancename", ""), GetConfigValue("instancesummary", ""), authReq, false))
 		if PublicIndexing == "true" {
 			AddInstanceToIndex(Domain)
+		}
+	}
+
+	// get list of themes
+	themes, err := ioutil.ReadDir("./static/css/themes")
+	if err != nil {
+		panic(err)
+	}
+
+	for _, f := range themes {
+		if f.Name() == "default" {
+			continue
+		}
+
+		if e := path.Ext(f.Name()); e == ".css" {
+			Themes = append(Themes, strings.TrimSuffix(f.Name(), e))
 		}
 	}
 
