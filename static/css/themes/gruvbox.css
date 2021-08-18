@@ -61,3 +61,38 @@ h1,h2,h3,h4,h5,h6 {
 	color: #83a598;
 	font-size: 0.8em;
 }
+
+#newpostbtn {
+	text-align: center;
+	margin-top: 80px;
+}
+
+input[type="text"] {
+  -webkit-appearance: none;
+  -webkit-border-radius: 0;
+
+}
+
+#postForm {
+	border: 4px solid #928374;
+	background-color: #3c3836;
+  margin: auto;
+}
+
+#postForm tr > td:first-child {
+	background-color: #504945;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+}
+
+#postForm input[type="text"],
+#postForm textarea {
+  box-sizing: border-box;
+  -webkit-box-sizing:border-box;
+  -moz-box-sizing: border-box;
+}
+
+#postForm #captcha {
+  display: block;
+  width: 100%;
+}

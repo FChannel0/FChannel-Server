@@ -2,29 +2,16 @@ function startNewPost(){
     var el = document.getElementById("newpostbtn");
     el.style="display:none;";
     el.setAttribute("state", "1");
-    document.getElementById("newpost").style = "display: block;";
+    document.getElementById("newpost").style = "";
+    sessionStorage.setItem("newpostState", true);
 }
 
 function stopNewPost(){
     var el = document.getElementById("newpostbtn");
     el.style="display:block;";
     el.setAttribute("state", "0");
-    document.getElementById("newpost").style = "display: hidden;";
-}
-
-function newpost()
-{
-    var state = document.getElementById("newpostbtn").getAttribute("state");
-    if(state === "0")
-    {
-        startNewPost();
-        sessionStorage.setItem("newpostState", true);
-    }
-    else
-    {
-        stopNewPost();
-        sessionStorage.setItem("newpostState", false);
-    }
+    document.getElementById("newpost").style = "display: none;";
+    sessionStorage.setItem("newpostState", false);
 }
 
 function shortURL(actorName, url)

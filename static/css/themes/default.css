@@ -83,3 +83,31 @@ a.reply {
 	color: #000080;
 	font-size: 0.8em;
 }
+
+#newpostbtn {
+	text-align: center;
+	margin-top: 80px;
+}
+
+#postForm {
+  margin: auto;
+}
+
+#postForm tr > td:first-child {
+	background-color: #98e;
+  border: 1px black;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+}
+
+#postForm input[type="text"],
+#postForm textarea {
+  box-sizing: border-box;
+  -webkit-box-sizing:border-box;
+  -moz-box-sizing: border-box;
+}
+
+#postForm #captcha {
+  display: block;
+  width: 100%;
+}
