@@ -70,29 +70,41 @@ h1,h2,h3,h4,h5,h6 {
 input[type="text"] {
   -webkit-appearance: none;
   -webkit-border-radius: 0;
-
 }
 
 #postForm {
 	border: 4px solid #928374;
 	background-color: #3c3836;
-  margin: auto;
+	margin: auto;
+
 }
 
 #postForm tr > td:first-child {
-	background-color: #504945;
+  background-color: #504945;
   padding-left: 0.5em;
   padding-right: 0.5em;
 }
 
 #postForm input[type="text"],
-#postForm textarea {
+#postForm textarea,
+#reply-name, #reply-options, #reply-comment {
   box-sizing: border-box;
   -webkit-box-sizing:border-box;
   -moz-box-sizing: border-box;
 }
 
+#reply-name, #reply-options, #reply-comment {
+	width: 100%;
+}
+
 #postForm #captcha {
   display: block;
   width: 100%;
+}
+
+.popup-box {
+	position: absolute;
+	width: min-content;
+	z-index: 9;
+	display: block;
 }

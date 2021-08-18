@@ -101,13 +101,25 @@ a.reply {
 }
 
 #postForm input[type="text"],
-#postForm textarea {
+#postForm textarea,
+#reply-name, #reply-options, #reply-comment {
   box-sizing: border-box;
   -webkit-box-sizing:border-box;
   -moz-box-sizing: border-box;
 }
 
+#reply-name, #reply-options, #reply-comment {
+	width: 100%;
+}
+
 #postForm #captcha {
   display: block;
   width: 100%;
+}
+
+.popup-box {
+	position: absolute;
+	width: min-content;
+	z-index: 9;
+	display: block;
 }
