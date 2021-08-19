@@ -20,6 +20,10 @@ body.nsfw {
 	color: #820404
 }
 
+h1, h2, h3, h4, h5, h6 {
+    color: #af0a0f;
+}
+
 .popup-box {
 	border: 4px solid #d3caf0;
 	background-color: #eff5ff;
@@ -122,4 +126,33 @@ a.reply {
 	width: min-content;
 	z-index: 9;
 	display: block;
+}
+
+/* TODO: rename */
+.box2 {
+	border: 4px solid #f0e2d9;
+	background-color: #f9f9e0;
+}
+
+.newsbox {
+    padding: 25px;
+    border: 4px solid #f0e2d9;
+    background-color: #f9f9e0;
+}
+
+.newsbox h2 {
+    margin: 0;
+    padding: 0;
+}
+
+.newsbox-news {
+    text-align: left;
+    margin-left: 25px; 
+    margin-top: 25px;
+    padding: 25px;
+}
+
+.newsbox-news p,
+.newsbox-news h3 {
+    margin: 0;
 }

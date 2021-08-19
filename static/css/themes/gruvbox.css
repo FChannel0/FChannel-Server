@@ -15,7 +15,7 @@ body {
 	background: #282828;
 	color: #ebdbb2;
 
-	font-family: Iosevka, monospace, sans-serif;
+	font-family: monospace, sans-serif;
 	font-size: 0.9em;
 }
 
@@ -107,4 +107,34 @@ input[type="text"] {
 	width: min-content;
 	z-index: 9;
 	display: block;
+}
+
+/* TODO: rename */
+.box2 {
+	border: 4px solid #928374;
+	background-color: #3c3836;
+}
+
+.newsbox {
+    padding: 25px;
+    border: 4px solid #928374;
+    background-color: #3c3836;
+}
+
+.newsbox h2 {
+    margin: 0;
+    padding: 0;
+}
+
+.newsbox-news {
+    text-align: left;
+    background-color: #504945;
+    margin-left: 25px; 
+    margin-top: 25px;
+    padding: 25px;
+}
+
+.newsbox-news p,
+.newsbox-news h3 {
+    margin: 0;
 }
