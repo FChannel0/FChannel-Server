@@ -70,7 +70,7 @@ type AdminPage struct {
 	IsLocal       bool
 	PostBlacklist []PostBlacklist
 	AutoSubscribe bool
-	Themes *[]string
+	Themes        *[]string
 }
 
 type Report struct {
@@ -535,7 +535,7 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	err := t.ExecuteTemplate(w, "layout", returnData)
 	if err != nil {
 		// TODO: actual error handler
-		log.Printf("PostGet: %s\n")
+		log.Printf("PostGet: %s\n", err)
 	}
 }
 

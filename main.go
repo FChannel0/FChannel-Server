@@ -13,6 +13,7 @@ import (
 	"html/template"
 	"io"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"mime/multipart"
 	"net/http"
@@ -24,7 +25,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"log"
 )
 
 var Port = ":" + GetConfigValue("instanceport", "3000")
@@ -631,7 +631,7 @@ func main() {
 
 			adminData.AutoSubscribe = GetActorAutoSubscribeDB(db, actor.Id)
 
-			adminData.Themes = &Themes;
+			adminData.Themes = &Themes
 
 			err := t.ExecuteTemplate(w, "layout", adminData)
 			if err != nil {
@@ -993,9 +993,6 @@ func main() {
 			http.Redirect(w, r, "/"+board, http.StatusSeeOther)
 			return
 		}
-
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))
 	})
 
 	http.HandleFunc("/deleteattach", func(w http.ResponseWriter, r *http.Request) {
@@ -1067,9 +1064,6 @@ func main() {
 			http.Redirect(w, r, OP, http.StatusSeeOther)
 			return
 		}
-
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))
 	})
 
 	http.HandleFunc("/marksensitive", func(w http.ResponseWriter, r *http.Request) {
@@ -1124,9 +1118,6 @@ func main() {
 			http.Redirect(w, r, OP, http.StatusSeeOther)
 			return
 		}
-
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))
 	})
 
 	http.HandleFunc("/remove", func(w http.ResponseWriter, r *http.Request) {
@@ -1181,9 +1172,6 @@ func main() {
 			http.Redirect(w, r, "/"+board, http.StatusSeeOther)
 			return
 		}
-
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))
 	})
 
 	http.HandleFunc("/removeattach", func(w http.ResponseWriter, r *http.Request) {
@@ -1228,9 +1216,6 @@ func main() {
 			http.Redirect(w, r, OP, http.StatusSeeOther)
 			return
 		}
-
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))
 	})
 
 	http.HandleFunc("/report", func(w http.ResponseWriter, r *http.Request) {

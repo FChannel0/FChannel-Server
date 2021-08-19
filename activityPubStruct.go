@@ -99,11 +99,11 @@ type Activity struct {
 	Name      string      `json:"name,omitempty"`
 	Summary   string      `json:"summary,omitempty"`
 	Auth      string      `json:"auth,omitempty"`
-	To        []string    `json:"to, omitempty"`
+	To        []string    `json:"to,omitempty"`
 	Bto       []string    `json:"bto,omitempty"`
-	Cc        []string    `json:"cc, omitempty"`
+	Cc        []string    `json:"cc,omitempty"`
 	Published time.Time   `json:"published,omitempty"`
-	Object    *ObjectBase `json:"object, omitempty"`
+	Object    *ObjectBase `json:"object,omitempty"`
 }
 
 type ObjectBase struct {
