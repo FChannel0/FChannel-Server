@@ -111,6 +111,10 @@ func timeToReadableLong(t time.Time) string {
 	return t.Format("01/02/06(Mon)03:04:05")
 }
 
+func timeToUnix(t time.Time) string {
+	return fmt.Sprint(t.Unix())
+}
+
 func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	t := template.Must(template.New("").Funcs(template.FuncMap{
 		"mod":            mod,
@@ -259,6 +263,7 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 			return i + j
 		},
 		"timeToReadableLong": timeToReadableLong,
+		"timeToUnix":         timeToUnix,
 		"sub":                sub}).ParseFiles("./static/main.html", "./static/nposts.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 
 	actor := collection.Actor
@@ -462,6 +467,7 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			return template.HTML(link)
 		},
 		"timeToReadableLong": timeToReadableLong,
+		"timeToUnix":         timeToUnix,
 		"sub":                sub}).ParseFiles("./static/main.html", "./static/npost.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
 
 	path := r.URL.Path

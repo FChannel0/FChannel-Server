@@ -30,6 +30,7 @@ var Port = ":" + GetConfigValue("instanceport", "3000")
 var TP = GetConfigValue("instancetp", "")
 var Instance = GetConfigValue("instance", "")
 var Domain = TP + "" + Instance
+var TorInstance = IsOnion(Instance)
 
 var authReq = []string{"captcha", "email", "passphrase"}
 
