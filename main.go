@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"log"
 )
 
 var Port = ":" + GetConfigValue("instanceport", "3000")
@@ -630,7 +631,13 @@ func main() {
 
 			adminData.AutoSubscribe = GetActorAutoSubscribeDB(db, actor.Id)
 
-			t.ExecuteTemplate(w, "layout", adminData)
+			adminData.Themes = &Themes;
+
+			err := t.ExecuteTemplate(w, "layout", adminData)
+			if err != nil {
+				// TODO: actual error handling
+				log.Printf("mod page: %s\n", err)
+			}
 
 		} else if admin || actor.Id == Domain {
 			t := template.Must(template.New("").Funcs(template.FuncMap{
@@ -665,7 +672,13 @@ func main() {
 
 			adminData.PostBlacklist = GetRegexBlacklistDB(db)
 
-			t.ExecuteTemplate(w, "layout", adminData)
+			adminData.Themes = &Themes
+
+			err := t.ExecuteTemplate(w, "layout", adminData)
+			if err != nil {
+				// TODO: actual error handling
+				log.Printf("mod page: %s\n", err)
+			}
 		}
 	})
 

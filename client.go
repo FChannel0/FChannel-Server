@@ -70,6 +70,7 @@ type AdminPage struct {
 	IsLocal       bool
 	PostBlacklist []PostBlacklist
 	AutoSubscribe bool
+	Themes *[]string
 }
 
 type Report struct {
