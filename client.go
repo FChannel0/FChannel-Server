@@ -109,7 +109,7 @@ func unixToReadable(u int) string {
 }
 
 func timeToReadableLong(t time.Time) string {
-	return t.Format("01/02/06(Mon)03:04:05")
+	return t.Format("01/02/06(Mon)15:04:05")
 }
 
 func timeToUnix(t time.Time) string {
