@@ -98,10 +98,14 @@ a.reply {
 }
 
 #postForm tr > td:first-child {
-	background-color: #98e;
+  background-color: #98e;
   border: 1px black;
   padding-left: 0.5em;
   padding-right: 0.5em;
+}
+
+.nsfw #postForm tr > td:first-child {
+  background-color: #ea8;
 }
 
 #postForm input[type="text"],
