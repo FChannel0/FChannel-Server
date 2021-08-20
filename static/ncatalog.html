@@ -17,14 +17,16 @@
 {{ define "content" }}
 {{ $board := .Board }}
 <hr>
-<ul style="margin: 0; padding: 0; display: inline">
-  <li style="display: inline"><a href="/{{ $board.Name }}">[Return]</a></li>
+
+<div class="navlinks">
+  [<a href="/{{ $board.Name }}/">Return</a>]
   {{ if showArchive }}
-  <li style="display: inline"><a href="/{{ $board.Name }}/archive">[Archive]</a></li>
+  [<a href="/{{ $board.Name }}/archive">Archive</a>]
   {{ end }}
-  <li style="display: inline"><a href="#bottom">[Bottom]</a></li>
-  <li style="display: inline"><a href="javascript:location.reload()">[Refresh]</a></li>
-</ul>
+  [<a href="#bottom">Bottom</a>]
+  [<a href="javascript:location.reload()">Refresh</a>]
+</div>
+
 <hr>
 
 <div style="padding: 10px; text-align: center;">
@@ -39,7 +41,12 @@
     <a href="/marksensitive?id={{ .Id }}&board={{ $board.Actor.Name }}">[Mark Sensitive]</a>
     {{ end }}
     <div id="hide-{{ .Id }}" style="display: none;">[Hide]</div>
-    <div id="sensitive-{{ .Id }}" style="display: none;"><div style="position: relative; text-align: center;"><img id="sensitive-img-{{ .Id }}" style="float: left; margin-right: 10px; margin-bottom: 10px; max-width: 180px; max-height: 180px;" src="/static/sensitive.png"><div id="sensitive-text-{{ .Id }}" style="width: 170px; position: absolute; margin-top: 75px; padding: 5px; background-color: black; color: white; cursor: default; ">NSFW Content</div></div></div>
+    <div id="sensitive-{{ .Id }}" style="display: none;">
+      <div style="position: relative; text-align: center;">
+	<img id="sensitive-img-{{ .Id }}" style="float: left; margin-right: 10px; margin-bottom: 10px; max-width: 180px; max-height: 180px;" src="/static/sensitive.png">
+	<div id="sensitive-text-{{ .Id }}" style="width: 170px; position: absolute; margin-top: 75px; padding: 5px; background-color: black; color: white; cursor: default; ">NSFW Content</div>
+      </div>
+    </div>
     <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/{{ short $board.Actor.Outbox .Id}}">
       <div id="media-{{ .Id }}" style="width:180px;"> {{ parseAttachment . true }}</div>
     </a>
@@ -67,33 +74,37 @@
         }
       </script>
       {{ end }}
-      <a id="{{ .Id }}-link" href="/{{ $board.Name }}/{{ short $board.Actor.Outbox .Id }}">
-      <div>
-        {{ $replies := .Replies }}
-        {{ if $replies }}
-        <span style="display: block;">R: {{ $replies.TotalItems }}{{ if $replies.TotalImgs }}/ A: {{ $replies.TotalImgs }}{{ end }}</span>
-        {{ end }}
-        {{ if .Name }}
-        <span style="display: block; color: #0f0c5d;"><b>{{ .Name }}</b></span>
-        {{ end }}
+      <a style="color: unset;" id="{{ .Id }}-link" href="/{{ $board.Name }}/{{ short $board.Actor.Outbox .Id }}">
+	<div style="display: block;">
+	    {{ $replies := .Replies }}
+	    {{ if $replies }}
+	    <span>R: {{ $replies.TotalItems }}{{ if $replies.TotalImgs }}/ A: {{ $replies.TotalImgs }}{{ end }}</span>
+	    {{ end }}
+	    {{ if .Name }}
+	    <br>
+	    <span class="subject"><b>{{ .Name }}</b></span>
+	    {{ end }}
 
-        {{ if .Content }}
-        <span style="display: block">{{.Content}}</span>
-        {{ end }}
-      </div>
+	    {{ if .Content }}
+	    <br>
+	    <span>{{.Content}}</span>
+	    {{ end }}
+	</div>
       </a>
   </div>
   {{ end }}
 </div>
 <hr>
-<ul style="margin: 0; padding: 0; display: inline">
-  <li style="display: inline"><a href="/{{ $board.Name }}">[Return]</a></li>
+
+<div class="navlinks">
+  [<a href="/{{ $board.Name }}/">Return</a>]
   {{ if showArchive }}
-  <li style="display: inline"><a href="/{{ $board.Name }}/archive">[Archive]</a></li>
+  [<a href="/{{ $board.Name }}/archive">Archive</a>]
   {{ end }}
-  <li style="display: inline"><a id="bottom" href="#top">[Top]</a></li>
-  <li style="display: inline"><a href="javascript:location.reload()">[Refresh]</a></li>
-</ul>
+  [<a href="#top">Top</a>]
+  [<a href="javascript:location.reload()">Refresh</a>]
+</div>
+
 <hr>
 {{ end }}
 {{ define "bottom" }}

@@ -175,16 +175,16 @@ func WriteObjectToDB(db *sql.DB, obj ObjectBase) ObjectBase {
 	if len(obj.Attachment) > 0 {
 		if obj.Preview.Href != "" {
 			obj.Preview.Id = fmt.Sprintf("%s/%s", obj.Actor, CreateUniqueID(db, obj.Actor))
-			obj.Preview.Published = time.Now().UTC().Format(time.RFC3339)
-			obj.Preview.Updated = time.Now().UTC().Format(time.RFC3339)
+			obj.Preview.Published = time.Now().UTC()
+			obj.Preview.Updated = time.Now().UTC()
 			obj.Preview.AttributedTo = obj.Id
 			WritePreviewToDB(db, *obj.Preview)
 		}
 
 		for i, _ := range obj.Attachment {
 			obj.Attachment[i].Id = fmt.Sprintf("%s/%s", obj.Actor, CreateUniqueID(db, obj.Actor))
-			obj.Attachment[i].Published = time.Now().UTC().Format(time.RFC3339)
-			obj.Attachment[i].Updated = time.Now().UTC().Format(time.RFC3339)
+			obj.Attachment[i].Published = time.Now().UTC()
+			obj.Attachment[i].Updated = time.Now().UTC()
 			obj.Attachment[i].AttributedTo = obj.Id
 			WriteAttachmentToDB(db, obj.Attachment[i])
 			WriteActivitytoDBWithAttachment(db, obj, obj.Attachment[i], *obj.Preview)

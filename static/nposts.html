@@ -15,33 +15,35 @@
 {{ define "content" }}
 {{ $board := .Board }}
 <hr>
-<ul style="margin: 0; padding: 0; display: inline">
-  <li style="display: inline"><a href="/{{ $board.Name }}/catalog">[Catalog]</a></li>
+<div class="navlinks">
+  [<a href="/{{ $board.Name }}/catalog">Catalog</a>]
   {{ if showArchive }}
-  <li style="display: inline"><a href="/{{ $board.Name }}/archive">[Archive]</a></li>
+  [<a href="/{{ $board.Name }}/archive">Archive</a>]
   {{ end }}
-  <li style="display: inline"><a href="#bottom">[Bottom]</a></li>
-  <li style="display: inline"><a href="javascript:location.reload()">[Refresh]</a></li>
-</ul>
+  [<a href="#bottom">Bottom</a>]
+  [<a href="javascript:location.reload()">Refresh</a>]
+</div>
 
 {{ template "posts" . }}
 
 <hr>
-<ul style="margin: 0; padding: 0; display: inline">
-  <li style="display: inline"><a href="/{{ $board.Name }}/catalog">[Catalog]</a></li>
+
+<div class="navlinks">
+  [<a href="/{{ $board.Name }}/catalog">Catalog</a>]
   {{ if showArchive }}
-  <li style="display: inline"><a href="/{{ $board.Name }}/archive">[Archive]</a></li>
+  [<a href="/{{ $board.Name }}/archive">Archive</a>]
   {{ end }}
-  <li style="display: inline"><a id="bottom" href="#top">[Top]</a></li>
-  <li style="display: inline"><a href="javascript:location.reload()">[Refresh]</a></li>
-</ul>
+  [<a href="#top" id="bottom">Top</a>]
+  [<a href="javascript:location.reload()">Refresh</a>]
+</div>
+
 <hr>
 {{ if gt .TotalPage 0 }}
 {{ $totalPage := .TotalPage }}
 <ul style="float: right; margin: 0; padding: 0; display: inline">
   {{ $page := .CurrentPage }}
   {{ if gt $page 0 }}
-  <li style="display: inline"><a href="/{{ $board.Name }}?page={{ sub $page 1 }}">[ < ]</a></li>
+  <li style="display: inline"><a href="/{{ $board.Name }}?page={{ sub $page 1 }}">[ &lt; ]</a></li>
   {{ end }}
   {{ range $i, $e := .Pages }}
   {{ if eq $i $page}}
@@ -51,7 +53,7 @@
   {{ end }}
   {{ end }}
   {{ if lt .CurrentPage .TotalPage }}
-  <li style="display: inline"><a href="/{{ $board.Name }}?page={{ add $page 1 }}">[ > ]</a></li>
+  <li style="display: inline"><a href="/{{ $board.Name }}?page={{ add $page 1 }}">[ &gt; ]</a></li>
   {{ end }}
 </ul>
 {{ end }}

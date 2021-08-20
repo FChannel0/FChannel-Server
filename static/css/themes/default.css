@@ -1,0 +1,162 @@
+a, a:link, a:visited, a:hover, a:active {
+	text-decoration: none
+}
+
+a:link, a:visited,  a:active {
+	color: black;
+}
+
+a:hover {
+	color: #de0808;
+}
+
+body {
+	background-color: #eef2fe;
+	color: black;
+}
+
+body.nsfw {
+	background-color: #ffffee;
+	color: #820404
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: #af0a0f;
+}
+
+.popup-box {
+	border: 4px solid #d3caf0;
+	background-color: #eff5ff;
+}
+
+.nsfw .popup-box {
+	border: 4px solid #f0e2d9;
+	background-color: #f9f9e0;
+}
+
+.box {
+	background-color: #eff5ff;
+}
+
+.nsfw .box {
+	background-color: #f9f9e0;
+}
+
+.box-alt {
+	background-color: #d3caf0;
+}
+
+.nsfw .box-alt {
+	background-color: #f0e2d9;
+}
+
+
+.quote {
+	color: #789922;
+}
+
+.post {
+	background-color: #d5daf0;
+}
+
+.nsfw .post {
+	background-color: #f0e0d6;
+}
+
+:target > div > .post {
+	background-color: #d6bad0;
+}
+
+.nsfw :target > div > .post {
+	background-color: #f0c0b0;
+}
+
+.title {
+	color: #0f0c5d;
+}
+
+.name, .tripcode {
+	color: #117743;
+}
+
+a.reply {
+	color: #af0a0f;
+}
+
+.replyLink {
+	color: #000080;
+	font-size: 0.8em;
+}
+
+#newpostbtn {
+	text-align: center;
+	margin-top: 80px;
+}
+
+#postForm {
+  margin: auto;
+}
+
+#postForm tr > td:first-child {
+  background-color: #98e;
+  border: 1px black;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+}
+
+.nsfw #postForm tr > td:first-child {
+  background-color: #ea8;
+}
+
+#postForm input[type="text"],
+#postForm textarea,
+#reply-name, #reply-options, #reply-comment {
+  box-sizing: border-box;
+  -webkit-box-sizing:border-box;
+  -moz-box-sizing: border-box;
+}
+
+#reply-name, #reply-options, #reply-comment {
+	width: 100%;
+}
+
+#postForm #captcha {
+  display: block;
+  width: 100%;
+}
+
+.popup-box {
+	position: absolute;
+	width: min-content;
+	z-index: 9;
+	display: block;
+}
+
+/* TODO: rename */
+.box2 {
+	border: 4px solid #f0e2d9;
+	background-color: #f9f9e0;
+}
+
+.newsbox {
+    padding: 25px;
+    border: 4px solid #f0e2d9;
+    background-color: #f9f9e0;
+}
+
+.newsbox h2 {
+    margin: 0;
+    padding: 0;
+}
+
+.newsbox-news {
+    text-align: left;
+    margin-left: 25px; 
+    margin-top: 25px;
+    padding: 25px;
+}
+
+.newsbox-news p,
+.newsbox-news h3 {
+    margin: 0;
+}

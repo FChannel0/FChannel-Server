@@ -214,8 +214,6 @@ func SetActorFollowerDB(db *sql.DB, activity Activity) Activity {
 		activity.Type = "Accept"
 		return activity
 	}
-
-	return activity
 }
 
 func SetActorFollowingDB(db *sql.DB, activity Activity) Activity {

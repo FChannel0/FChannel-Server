@@ -1,39 +1,59 @@
 {{ define "top" }}
 <div style="margin: 0 auto; width: 700px; margin-bottom: 100px;">
-  <h1 style="text-align: center; color: #af0a0f;">/{{ .Board.Name }}/ - {{ .Board.PrefName }}</h1>
+  <h1 style="text-align: center;">/{{ .Board.Name }}/ - {{ .Board.PrefName }}</h1>
   <p style="text-align: center;">{{ .Board.Summary }}</p>
   {{ $len := len .Posts }}
   {{ if eq $len 0 }}
   {{ if .Board.InReplyTo }}
-  <h3 id="newpostbtn"  state="0" style="text-align: center; margin-top: 80px; display: none;"><a href="javascript:newpost()">[Post a Reply]</a></h3>
+  <h3 id="newpostbtn"  state="0" style="display: none;"><a href="javascript:startNewPost()">[Post a Reply]</a></h3>
   {{ else  }}
-  <h3 id="newpostbtn"  state="0" style="text-align: center; margin-top: 80px; display: none;"><a href="javascript:newpost()">[Start a New Thread]</a></h3>
+  <h3 id="newpostbtn"  state="0" style="display: none;"><a href="javascript:startNewPost()">[Start a New Thread]</a></h3>
   {{ end }} <!-- end if inreplyto-->
   <div id="newpost">
-    <form onsubmit="sessionStorage.setItem('element-closed-reply', true)" id="new-post" action="/post" method="post" enctype="multipart/form-data" style="margin-left: 180px;">
-      <label for="name">Name:</label><br>
-      <input type="text" id="name" name="name" placeholder="Anonymous" maxlength="100"><br>
-      <label for="options">Options:</label><br>
-      <input type="text" id="options" name="options" maxlength="100" style="margin-right:10px">{{ if .Board.InReplyTo }}<input type="submit" value="Post">{{ end }}<br>
-      {{ if eq .Board.InReplyTo "" }}
-      <label for="subject">Subject:</label><br>
-      <input type="text" id="subject" name="subject" maxlength="100" style="margin-right:10px"><input type="submit" value="Post"><br>
-      {{ end }}
-      <label for="comment">Comment:</label><br>
-      <textarea rows="10" cols="50" id="comment" name="comment" maxlength="2000"></textarea><br>
+    <form onsubmit="sessionStorage.setItem('element-closed-reply', true)" id="new-post" action="/post" method="post" enctype="multipart/form-data">
+      <table id="postForm">
+        <tr>
+          <tr>
+            <td><label for="name">Name:</label></td>
+            <td><input type="text" id="name" name="name" placeholder="Anonymous" maxlength="100">
+                <a onclick="stopNewPost()" style="float: right;">[X]</a>
+            </td>
+          </tr>
+          <tr>
+            <td><label for="options">Options:</label></td>
+            <td><input type="text" id="options" name="options" maxlength="100" style="margin-right:10px">{{ if .Board.InReplyTo }}<input type="submit" value="Post">{{ end }}</td>
+          </tr>
+          {{ if eq .Board.InReplyTo "" }}
+          <tr>
+            <td><label for="subject">Subject:</label></td>
+            <td><input type="text" id="subject" name="subject" maxlength="100" style="margin-right:10px"><input type="submit" value="Post"></td>
+          </tr>
+          {{ end }}
+          <tr>
+            <td><label for="comment">Comment:</label></td>
+            <td><textarea rows="10" cols="50" id="comment" name="comment" maxlength="2000"></textarea></td>
+          </tr>
+          <tr>
+            <td><label for="file">Image</label></td>
+            <td><input type="file" id="file" name="file" {{ if gt $len 1 }} required {{ else }} {{ if eq $len 0 }} required {{ end }} {{ end }} >
+                <br><input type="checkbox" name="sensitive">Mark sensitive</input></td>
+          </tr>
+          <tr>
+            <td><label for="captcha">Captcha:</label></td>
+            <td>
+              <div style="height: 65px; display: inline;">
+                <img src="{{ .Board.Captcha }}">
+              </div>
+              <input type="text" id="captcha" name="captcha" autocomplete="off">
+            </td>
+          </tr>
+      </table>
+
       <input type="hidden" id="inReplyTo" name="inReplyTo" value="{{ .Board.InReplyTo }}">
       <input type="hidden" id="sendTo" name="sendTo" value="{{ .Board.To }}">
       <input type="hidden" id="boardName" name="boardName" value="{{ .Board.Name }}">
       <input type="hidden" id="captchaCode" name="captchaCode" value="{{ .Board.CaptchaCode }}">
       <input type="hidden" id="returnTo" name="returnTo" value="{{ .ReturnTo }}">
-      <input type="file" id="file" name="file" {{ if gt $len 1 }} required {{ else }} {{ if eq $len 0 }} required {{ end }} {{ end }} ><br><br>
-      <input type="checkbox" name="sensitive"><span>Mark attachment as sensitive</span><br><br>
-      <label stye="display: inline-block;" for="captcha">Captcha:</label>
-      <br>
-      <input style="display: inline-block;"  type="text" id="captcha" name="captcha" autocomplete="off"><br>
-      <div style="height: 65px;">
-        <img src="{{ .Board.Captcha }}">
-      </div>
     </form>
   </div>
 
@@ -41,37 +61,57 @@
 
   {{ if eq (index .Posts 0).Type "Note" }}
   {{ if .Board.InReplyTo }}
-  <h3 id="newpostbtn"  state="0" style="text-align: center; margin-top: 80px; display: none;"><a href="javascript:newpost()">[Post a Reply]</a></h3>
+  <h3 id="newpostbtn"  state="0" style="text-align: center; margin-top: 80px; display: none;"><a href="javascript:startNewPost()">[Post a Reply]</a></h3>
   {{ else  }}
-  <h3 id="newpostbtn"  state="0" style="text-align: center; margin-top: 80px; display: none;"><a href="javascript:newpost()">[Start a New Thread]</a></h3>
+  <h3 id="newpostbtn"  state="0" style="text-align: center; margin-top: 80px; display: none;"><a href="javascript:startNewPost()">[Start a New Thread]</a></h3>
   {{ end }} <!-- end if inreplyto-->
   {{ $len := len .Posts }}
   <div id="newpost">
-    <form onsubmit="sessionStorage.setItem('element-closed-reply', true)" id="new-post" action="/post" method="post" enctype="multipart/form-data" style="margin-left: 180px;">
-      <label for="name">Name:</label><br>
-      <input type="text" id="name" name="name" placeholder="Anonymous" maxlength="100"><br>
-      <label for="options">Options:</label><br>
-      <input type="text" id="options" name="options" maxlength="100" style="margin-right:10px">{{ if .Board.InReplyTo }}<input type="submit" value="Post">{{ end }}<br>
-      {{ if eq .Board.InReplyTo "" }}
-      <label for="subject">Subject:</label><br>
-      <input type="text" id="subject" name="subject" maxlength="100" style="margin-right:10px"><input type="submit" value="Post"><br>
-      {{ end }}
-      <label for="comment">Comment:</label><br>
-      <textarea rows="10" cols="50" id="comment" name="comment" maxlength="2000"></textarea><br>
+    <form onsubmit="sessionStorage.setItem('element-closed-reply', true)" id="new-post" action="/post" method="post" enctype="multipart/form-data">
+      <table id="postForm">
+        <tr>
+          <tr>
+            <td><label for="name">Name:</label></td>
+            <td><input type="text" id="name" name="name" placeholder="Anonymous" maxlength="100">
+                <a onclick="stopNewPost()" style="float: right;">[X]</a>
+          </tr>
+          <tr>
+            <td><label for="options">Options:</label></td>
+            <td><input type="text" id="options" name="options" maxlength="100" style="margin-right:10px">{{ if .Board.InReplyTo }}<input type="submit" value="Post">{{ end }}</td>
+          </tr>
+          {{ if eq .Board.InReplyTo "" }}
+          <tr>
+            <td><label for="subject">Subject:</label></td>
+            <td><input type="text" id="subject" name="subject" maxlength="100" style="margin-right:10px"><input type="submit" value="Post"></td>
+          </tr>
+          {{ end }}
+          <tr>
+            <td><label for="comment">Comment:</label></td>
+            <td><textarea rows="10" cols="50" id="comment" name="comment" maxlength="2000"></textarea></td>
+          </tr>
+          <tr>
+            <td><label for="file">Image</label></td>
+            <td><input type="file" id="file" name="file" {{ if gt $len 1 }} required {{ else }} {{ if eq $len 0 }} required {{ end }} {{ end }} >
+                <br><input type="checkbox" name="sensitive">Mark sensitive</input></td>
+          </tr>
+          <tr>
+            <td><label for="captcha">Captcha:</label></td>
+            <td>
+              <div style="height: 65px; display: inline;">
+                <img src="{{ .Board.Captcha }}">
+              </div>
+              <input type="text" id="captcha" name="captcha" autocomplete="off">
+            </td>
+          </tr>
+      </table>
+
       <input type="hidden" id="inReplyTo" name="inReplyTo" value="{{ .Board.InReplyTo }}">
       <input type="hidden" id="sendTo" name="sendTo" value="{{ .Board.To }}">
       <input type="hidden" id="boardName" name="boardName" value="{{ .Board.Name }}">
       <input type="hidden" id="captchaCode" name="captchaCode" value="{{ .Board.CaptchaCode }}">
-      <input type="hidden" id="returnTo" name="returnTo" value="{{ .ReturnTo }}">
-      <input type="file" id="file" name="file" {{ if gt $len 1 }} required {{ else }} {{ if eq $len 0 }} required {{ end }} {{ end }} ><br><br>
-      <input type="checkbox" name="sensitive"><span>Mark attachment as sensitive</span><br><br>
-      <label stye="display: inline-block;" for="captcha">Captcha:</label>
-      <br>
-      <input style="display: inline-block;"  type="text" id="captcha" name="captcha" autocomplete="off"><br>
-      <div style="height: 65px;">
-        <img src="{{ .Board.Captcha }}">
-      </div>
-    </form>
+      <input type="hidden" id="returnTo" name="returnTo" value="{{ .ReturnTo }}">    </form>
+  </div>
+
   </div>
   {{ else }}
   <h1 style="text-align: center;">Archived Post</h1>

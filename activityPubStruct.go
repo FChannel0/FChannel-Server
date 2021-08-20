@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"encoding/json"
 	"html/template"
 )
@@ -19,7 +21,7 @@ type ActivityRaw struct {
 	ToRaw     json.RawMessage `json:"to,omitempty"`
 	BtoRaw    json.RawMessage `json:"bto,omitempty"`
 	CcRaw     json.RawMessage `json:"cc,omitempty"`
-	Published string          `json:"published,omitempty"`
+	Published time.Time       `json:"published,omitempty"`
 	ActorRaw  json.RawMessage `json:"actor,omitempty"`
 	ObjectRaw json.RawMessage `json:"object,omitempty"`
 }
@@ -97,11 +99,11 @@ type Activity struct {
 	Name      string      `json:"name,omitempty"`
 	Summary   string      `json:"summary,omitempty"`
 	Auth      string      `json:"auth,omitempty"`
-	To        []string    `json:"to, omitempty"`
+	To        []string    `json:"to,omitempty"`
 	Bto       []string    `json:"bto,omitempty"`
-	Cc        []string    `json:"cc, omitempty"`
-	Published string      `json:"published,omitempty"`
-	Object    *ObjectBase `json:"object, omitempty"`
+	Cc        []string    `json:"cc,omitempty"`
+	Published time.Time   `json:"published,omitempty"`
+	Object    *ObjectBase `json:"object,omitempty"`
 }
 
 type ObjectBase struct {
@@ -123,8 +125,8 @@ type ObjectBase struct {
 	InReplyTo    []ObjectBase      `json:"inReplyTo,omitempty"`
 	Location     string            `json:"location,omitempty"`
 	Preview      *NestedObjectBase `json:"preview,omitempty"`
-	Published    string            `json:"published,omitempty"`
-	Updated      string            `json:"updated,omitempty"`
+	Published    time.Time         `json:"published,omitempty"`
+	Updated      time.Time         `json:"updated,omitempty"`
 	Object       *NestedObjectBase `json:"object,omitempty"`
 	Attachment   []ObjectBase      `json:"attachment,omitempty"`
 	Replies      *CollectionBase   `json:"replies,omitempty"`
@@ -169,13 +171,13 @@ type NestedObjectBase struct {
 	InReplyTo    []ObjectBase    `json:"inReplyTo,omitempty"`
 	Location     string          `json:"location,omitempty"`
 	Preview      ObjectBase      `json:"preview,omitempty"`
-	Published    string          `json:"published,omitempty"`
+	Published    time.Time       `json:"published,omitempty"`
 	Attachment   []ObjectBase    `json:"attachment,omitempty"`
 	Replies      *CollectionBase `json:"replies,omitempty"`
 	StartTime    string          `json:"startTime,omitempty"`
 	Summary      string          `json:"summary,omitempty"`
 	Tag          []ObjectBase    `json:"tag,omitempty"`
-	Updated      string          `json:"updated,omitempty"`
+	Updated      time.Time       `json:"updated,omitempty"`
 	Deleted      string          `json:"deleted,omitempty"`
 	Url          []ObjectBase    `json:"url,omitempty"`
 	Href         string          `json:"href,omitempty"`

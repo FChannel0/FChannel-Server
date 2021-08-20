@@ -1,20 +1,20 @@
 {{ define "bottom" }}
 <div id="reply-box" class="popup-box" style="display: none;">
-  <div id="reply-header" style="display: inline-block; width: 370px; z-index: 0; cursor: move;"></div><div id="reply-close" style="display: inline-block; float: right;"><a href="javascript:closeReply()">[X]</a></div>
+  <div id="reply-header" style="display: inline-block; z-index: 0; cursor: move;"></div><div id="reply-close" style="display: inline-block; float: right;"><a href="javascript:closeReply()">[X]</a></div>
   <form onsubmit="sessionStorage.setItem('element-closed-reply', true)"  id="reply-post" action="/post" method="post" enctype="multipart/form-data">
     <input id="reply-name" name="name" size="43" type="text" placeholder="Name" maxlength="100">
     <input id="reply-options" name="options" size="43" type="text" placeholder="Options" maxlength="100">
-    <textarea id="reply-comment" name="comment" rows="12" cols="54" style="width: 396px;" maxlength="2000" oninput="sessionStorage.setItem('element-reply-comment', document.getElementById('reply-comment').value)"></textarea>
+    <textarea id="reply-comment" name="comment" rows="12" cols="54" maxlength="2000" oninput="sessionStorage.setItem('element-reply-comment', document.getElementById('reply-comment').value)"></textarea>
     <input id="reply-file" name="file" type="file">
-    <input id="reply-submit" type="submit" value="Reply" style="float: right;"><br><br>
+    <input id="reply-submit" type="submit" value="Reply" style="float: right;">
     <input type="hidden" id="inReplyTo-box" name="inReplyTo" value="{{ .Board.InReplyTo }}">
     <input type="hidden" id="sendTo" name="sendTo" value="{{ .Board.To }}">
     <input type="hidden" id="boardName" name="boardName" value="{{ .Board.Name }}">
     <input type="hidden" id="captchaCode" name="captchaCode" value="{{ .Board.CaptchaCode }}">
-    <input type="hidden" id="returnTo" name="returnTo" value="{{ .ReturnTo }}">
-    <input type="checkbox" name="sensitive"><span>Mark attachment as sensitive</span><br><br>    
+    <input type="hidden" id="returnTo" name="returnTo" value="{{ .ReturnTo }}"><br>
+    <input type="checkbox" name="sensitive"><span>Mark attachment as sensitive</span><br>
     <div style="width: 202px; margin: 0 auto; padding-top: 12px;">
-      <label for="captcha">Captcha:</label><br>      
+      <label for="captcha">Captcha:</label><br>
       <input style="display: inline-block;"  type="text" id="captcha" name="captcha" autocomplete="off"><br>
     </div>
     <div style="width: 230px; margin: 0 auto;">
@@ -23,19 +23,20 @@
   </form>
 </div>
 
-<div id="report-box" class="popup-box" style="display: none; ">
-  <div id="report-header" style="text-align: center; display: inline-block; width: 370px; z-index: 0; cursor: move;"></div><div id="report-close" style="display: inline-block; float: right;"><a href="javascript:closeReport()">[X]</a></div>
+<div id="report-box" class="popup-box" style="display: none;">
+  <div id="report-header" style="text-align: center; display: inline-block; z-index: 0; cursor: move;"></div><div id="report-close" style="display: inline-block; float: right;"><a href="javascript:closeReport()">[X]</a></div>
   <form onsubmit="sessionStorage.setItem('element-closed-report', true)" id="report-post" action="/report" method="post">
-    <label for="comment">Reason:</label>
+    <label for="comment">Reason:</label><br>
     <textarea id="report-comment" name="comment" rows="12" cols="54" style="width: 396px;" maxlength="100" oninput="sessionStorage.setItem('element-report-comment', document.getElementById('report-comment').value)"></textarea>
+    <br>
     <input id="report-submit" type="submit" value="Report" style="float: right;">
     <input type="hidden" id="report-inReplyTo-box" name="id" value="{{ .Board.InReplyTo }}">
     <input type="hidden" id="sendTo" name="sendTo" value="{{ .Board.To }}">
     <input type="hidden" id="boardName" name="board" value="{{ .Board.Name }}">
-    <input type="hidden" name="close" value="0">    
+    <input type="hidden" name="close" value="0">
     <input type="hidden" id="captchaCode" name="captchaCode" value="{{ .Board.CaptchaCode }}">
     <div style="width: 202px; margin: 0 auto; padding-top: 12px;">
-      <label for="captcha">Captcha:</label><br>      
+      <label for="captcha">Captcha:</label><br>
       <input style="display: inline-block;"  type="text" id="captcha" name="captcha" autocomplete="off"><br>
     </div>
     <div style="width: 230px; margin: 0 auto;">

@@ -2,29 +2,16 @@ function startNewPost(){
     var el = document.getElementById("newpostbtn");
     el.style="display:none;";
     el.setAttribute("state", "1");
-    document.getElementById("newpost").style = "display: block;";
+    document.getElementById("newpost").style = "";
+    sessionStorage.setItem("newpostState", true);
 }
 
 function stopNewPost(){
     var el = document.getElementById("newpostbtn");
     el.style="display:block;";
     el.setAttribute("state", "0");
-    document.getElementById("newpost").style = "display: hidden;";
-}
-
-function newpost()
-{
-    var state = document.getElementById("newpostbtn").getAttribute("state");
-    if(state === "0")
-    {
-        startNewPost();
-        sessionStorage.setItem("newpostState", true);
-    }
-    else
-    {
-        stopNewPost();
-        sessionStorage.setItem("newpostState", false);
-    }
+    document.getElementById("newpost").style = "display: none;";
+    sessionStorage.setItem("newpostState", false);
 }
 
 function shortURL(actorName, url)
@@ -182,7 +169,7 @@ function quote(actorName, opid, id)
         var h = document.getElementById(id + "-content").offsetTop - 348;
     }
 
-    const boxStyle = "display: block; position: absolute; width: 400px; height: 600px; z-index: 9; top: " + h + "px; left: " + w + "px; padding: 5px;";
+    const boxStyle = "top: " + h + "px; left: " + w + "px;";
     box.setAttribute("style", boxStyle);
     sessionStorage.setItem("element-reply-style", boxStyle);
     sessionStorage.setItem("reply-top", h);
@@ -202,7 +189,6 @@ function quote(actorName, opid, id)
     sessionStorage.setItem("element-reply-comment", comment.value);
 
     dragElement(header);
-
 }
 
 function report(actorName, id)
@@ -216,7 +202,7 @@ function report(actorName, id)
     var w = window.innerWidth / 2 - 200;
     var h = document.getElementById(id + "-content").offsetTop - 348;
 
-    const boxStyle = "display: block; position: absolute; width: 400px; height: 480px; z-index: 9; top: " + h + "px; left: " + w + "px; padding: 5px;";
+    const boxStyle = "top: " + h + "px; left: " + w + "px;";
     box.setAttribute("style", boxStyle);
     sessionStorage.setItem("element-report-style", boxStyle);
     sessionStorage.setItem("report-top", h);

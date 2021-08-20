@@ -92,7 +92,7 @@ func WriteActivitytoCache(db *sql.DB, obj ObjectBase) {
 		return
 	}
 
-	if obj.Updated == "" {
+	if obj.Updated.IsZero() {
 		obj.Updated = obj.Published
 	}
 
@@ -127,7 +127,7 @@ func WriteActivitytoCacheWithAttachment(db *sql.DB, obj ObjectBase, attachment O
 		return
 	}
 
-	if obj.Updated == "" {
+	if obj.Updated.IsZero() {
 		obj.Updated = obj.Published
 	}
 
@@ -158,7 +158,7 @@ func WriteAttachmentToCache(db *sql.DB, obj ObjectBase) {
 		return
 	}
 
-	if obj.Updated == "" {
+	if obj.Updated.IsZero() {
 		obj.Updated = obj.Published
 	}
 
@@ -189,7 +189,7 @@ func WritePreviewToCache(db *sql.DB, obj NestedObjectBase) {
 		return
 	}
 
-	if obj.Updated == "" {
+	if obj.Updated.IsZero() {
 		obj.Updated = obj.Published
 	}
 

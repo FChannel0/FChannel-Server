@@ -13,12 +13,14 @@ import (
 	"html/template"
 	"io"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -29,6 +31,7 @@ var Port = ":" + GetConfigValue("instanceport", "3000")
 var TP = GetConfigValue("instancetp", "")
 var Instance = GetConfigValue("instance", "")
 var Domain = TP + "" + Instance
+var TorInstance = IsOnion(Instance)
 
 var authReq = []string{"captcha", "email", "passphrase"}
 
@@ -50,6 +53,8 @@ var activitystreams = "application/ld+json; profile=\"https://www.w3.org/ns/acti
 var MediaHashs = make(map[string]string)
 
 var ActorCache = make(map[string]Actor)
+
+var Themes []string
 
 func main() {
 
@@ -81,6 +86,22 @@ func main() {
 		CreateNewBoardDB(db, *CreateNewActor("", GetConfigValue("instancename", ""), GetConfigValue("instancesummary", ""), authReq, false))
 		if PublicIndexing == "true" {
 			AddInstanceToIndex(Domain)
+		}
+	}
+
+	// get list of themes
+	themes, err := ioutil.ReadDir("./static/css/themes")
+	if err != nil {
+		panic(err)
+	}
+
+	for _, f := range themes {
+		if f.Name() == "default" {
+			continue
+		}
+
+		if e := path.Ext(f.Name()); e == ".css" {
+			Themes = append(Themes, strings.TrimSuffix(f.Name(), e))
 		}
 	}
 
@@ -610,7 +631,13 @@ func main() {
 
 			adminData.AutoSubscribe = GetActorAutoSubscribeDB(db, actor.Id)
 
-			t.ExecuteTemplate(w, "layout", adminData)
+			adminData.Themes = &Themes
+
+			err := t.ExecuteTemplate(w, "layout", adminData)
+			if err != nil {
+				// TODO: actual error handling
+				log.Printf("mod page: %s\n", err)
+			}
 
 		} else if admin || actor.Id == Domain {
 			t := template.Must(template.New("").Funcs(template.FuncMap{
@@ -645,7 +672,13 @@ func main() {
 
 			adminData.PostBlacklist = GetRegexBlacklistDB(db)
 
-			t.ExecuteTemplate(w, "layout", adminData)
+			adminData.Themes = &Themes
+
+			err := t.ExecuteTemplate(w, "layout", adminData)
+			if err != nil {
+				// TODO: actual error handling
+				log.Printf("mod page: %s\n", err)
+			}
 		}
 	})
 
@@ -960,9 +993,6 @@ func main() {
 			http.Redirect(w, r, "/"+board, http.StatusSeeOther)
 			return
 		}
-
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))
 	})
 
 	http.HandleFunc("/deleteattach", func(w http.ResponseWriter, r *http.Request) {
@@ -1034,9 +1064,6 @@ func main() {
 			http.Redirect(w, r, OP, http.StatusSeeOther)
 			return
 		}
-
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))
 	})
 
 	http.HandleFunc("/marksensitive", func(w http.ResponseWriter, r *http.Request) {
@@ -1091,9 +1118,6 @@ func main() {
 			http.Redirect(w, r, OP, http.StatusSeeOther)
 			return
 		}
-
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))
 	})
 
 	http.HandleFunc("/remove", func(w http.ResponseWriter, r *http.Request) {
@@ -1148,9 +1172,6 @@ func main() {
 			http.Redirect(w, r, "/"+board, http.StatusSeeOther)
 			return
 		}
-
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))
 	})
 
 	http.HandleFunc("/removeattach", func(w http.ResponseWriter, r *http.Request) {
@@ -1195,9 +1216,6 @@ func main() {
 			http.Redirect(w, r, OP, http.StatusSeeOther)
 			return
 		}
-
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))
 	})
 
 	http.HandleFunc("/report", func(w http.ResponseWriter, r *http.Request) {
@@ -1621,8 +1639,8 @@ func CreateObject(objType string) ObjectBase {
 	var nObj ObjectBase
 
 	nObj.Type = objType
-	nObj.Published = time.Now().UTC().Format(time.RFC3339)
-	nObj.Updated = time.Now().UTC().Format(time.RFC3339)
+	nObj.Published = time.Now().UTC()
+	nObj.Updated = time.Now().UTC()
 
 	return nObj
 }
@@ -1761,7 +1779,7 @@ func CreateAttachmentObject(file multipart.File, header *multipart.FileHeader) (
 	image.Href = Domain + "/" + tempFile.Name()
 	image.MediaType = contentType
 	image.Size = size
-	image.Published = time.Now().UTC().Format(time.RFC3339)
+	image.Published = time.Now().UTC()
 
 	nAttachment = append(nAttachment, image)
 
@@ -1793,7 +1811,7 @@ func ParseCommentForReplies(db *sql.DB, comment string, op string) []ObjectBase 
 		if isValid {
 			var reply = new(ObjectBase)
 			reply.Id = links[i]
-			reply.Published = time.Now().UTC().Format(time.RFC3339)
+			reply.Published = time.Now().UTC()
 			validLinks = append(validLinks, *reply)
 		}
 	}
@@ -2378,7 +2396,7 @@ func ResizeAttachmentToPreview(db *sql.DB) {
 		var mediatype string
 		var name string
 		var size int
-		var published string
+		var published time.Time
 
 		rows.Scan(&id, &href, &mediatype, &name, &size, &published)
 
