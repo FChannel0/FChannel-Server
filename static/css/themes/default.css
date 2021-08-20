@@ -126,7 +126,8 @@ a.reply {
 }
 
 .popup-box {
-	position: absolute;
+	position: fixed;
+	min-width: 300px;
 	width: min-content;
 	z-index: 9;
 	display: block;
@@ -163,4 +164,34 @@ a.reply {
 #stopTablePost {
 	float: right;
 	display: none;
+}
+
+#boardGrid {
+	display: grid;
+	grid-auto-columns: 1fr;
+	border: 4px solid #820404;
+	background-color: #f9f9e0;
+}
+
+#boardGridHeader {
+	border-bottom: 2px solid #820404;
+	display: inline-grid;
+}
+
+.boardGridCell {
+	white-space: nowrap;
+	display: inline-grid;
+	text-align: left;
+	padding: 5px;
+	border-top: 2px solid #820404;
+	border-left: 2px solid #820404;
+}
+
+/* these may or may not work. my CSS is poor so i just kinda did stuff until it worked. */
+.boardGridCell:nth-child(-n+4) {
+	border-top: none;
+}
+
+.boardGridCell:nth-child(3n+2) {
+	border-left: none;
 }
