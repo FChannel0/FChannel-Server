@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png"  href="/static/favicon.png">
     <link rel="stylesheet" type="text/css" href="/static/css/themes/default.css" title="default">
     {{ range .Themes }}
-    <link rel="alternate stylesheet" type="text/css" href="/static/css/themes/{{.}}.css" title="{{.}}">
+    <link rel="alternate stylesheet" type="text/css" href="/static/css/themes/{{.}}.css" title="{{.}}" disabled>
     {{ end }}
     {{ template "header" . }}
   </head>
@@ -41,9 +41,11 @@
 
     {{ template "bottom" . }}
 
+    <br>
     <div style="float: right;">
       Theme:
       <select id="themeSwitcher" onchange="setTheme(this.options[this.selectedIndex].value)">
+        <option value="default">default</option>
         {{ range .Themes }}
         <option value="{{.}}">{{.}}</option>
         {{ end }}

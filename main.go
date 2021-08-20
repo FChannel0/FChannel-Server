@@ -96,7 +96,7 @@ func main() {
 	}
 
 	for _, f := range themes {
-		if f.Name() == "default" {
+		if f.Name() == "default.css" {
 			continue
 		}
 

@@ -2,6 +2,7 @@ function startNewPost(){
     var el = document.getElementById("newpostbtn");
     el.style="display:none;";
     el.setAttribute("state", "1");
+    document.getElementById("stopTablePost").style="";
     document.getElementById("newpost").style = "";
     sessionStorage.setItem("newpostState", true);
 }

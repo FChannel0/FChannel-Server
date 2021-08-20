@@ -151,7 +151,6 @@ a.reply {
 
 .newsbox-news {
     text-align: left;
-    margin-left: 25px; 
     margin-top: 25px;
     padding: 25px;
 }
@@ -159,4 +158,9 @@ a.reply {
 .newsbox-news p,
 .newsbox-news h3 {
     margin: 0;
+}
+
+#stopTablePost {
+	float: right;
+	display: none;
 }

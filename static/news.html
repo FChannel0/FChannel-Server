@@ -1,6 +1,6 @@
 {{ define "header" }}
 <title>{{ .Title }}</title>
-<meta name="description" content="{{ .PreferredUsername }} is a federated image board based on ActivityPub. The current version of the code running on the server is still a work-in-progress product, expect a bumpy ride for the time being. Get the server code here: https://github.com/FChannel0.">    
+<meta name="description" content="{{ .PreferredUsername }} is a federated image board based on ActivityPub. The current version of the code running on the server is still a work-in-progress product, expect a bumpy ride for the time being. Get the server code here: https://github.com/FChannel0.">
 
 <meta property="og:locale" content="en_US" />
 <meta property="og:type" content="website" />
@@ -18,12 +18,14 @@
 
 {{ define "top" }}{{ end }}
 {{ define "content" }}
-<div style="text-align: left; max-width: 800px; margin: 0 auto;">
+<div class="newsbox" style="text-align: left; max-width: 800px; margin: 0 auto;margin-top: 50px;padding-top:0;">
 
   {{ range .NewsItems }}
+  <div class="newsbox-news">
   <p><h1>{{unixtoreadable .Time}} - {{.Title}}</h1><br>{{.Content}}</p>
+  </div>
   {{ end }}
-  
+
 </div>
 {{ end }}
 {{ define "bottom" }}{{ end }}

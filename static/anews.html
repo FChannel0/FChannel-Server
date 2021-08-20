@@ -1,6 +1,6 @@
 {{ define "header" }}
 <title>{{ .Title }}</title>
-<meta name="description" content="{{ .PreferredUsername }} is a federated image board based on ActivityPub. The current version of the code running on the server is still a work-in-progress product, expect a bumpy ride for the time being. Get the server code here: https://github.com/FChannel0.">    
+<meta name="description" content="{{ .PreferredUsername }} is a federated image board based on ActivityPub. The current version of the code running on the server is still a work-in-progress product, expect a bumpy ride for the time being. Get the server code here: https://github.com/FChannel0.">
 
 <meta property="og:locale" content="en_US" />
 <meta property="og:type" content="website" />
@@ -21,23 +21,17 @@
 <div style="text-align: center; max-width: 800px; margin: 0 auto;">
   <h1>{{ .Title }}</h1>
 
-  <div style="margin-top:50px;">
-  <table style="text-align: left;">
-    
+  <div class="newsbox" style="margin-top:50px;padding-top:0;">
     {{ range $i, $e := .NewsItems }}
-    <tr>
-      <td>
-        <div class="box" style="width:800px; padding: 25px; margin-bottom: 25px;">
-          {{ if $.Board.ModCred }}<a href="/{{ $.Key }}/newsdelete/{{ $e.Time }}">[Delete] </a>{{end}}
-          <a href="/news/{{.Time}}">{{unixtoreadable $e.Time}} - {{$e.Title}}</a>
-          <br><p style="margin-left: 25px;">{{$e.Content}}</p>
-        </div>
-      </td>
-    </tr>
+    <div class="newsbox-news">
+      <h3><a href="/news/{{.Time}}">{{unixtoreadable $e.Time}} - {{$e.Title}}</a>{{ if $.Board.ModCred }} <a href="/{{ $.Key }}/newsdelete/{{ $e.Time }}">[Delete] </a>{{end}}</h3>
+      <br>
+
+      <p>{{$e.Content}}</p>
+    </div>
     {{ end }}
-  </table>
   </div>
-  
+
 </div>
 {{ end }}
 {{ define "bottom" }}{{ end }}

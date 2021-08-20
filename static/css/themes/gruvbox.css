@@ -107,6 +107,7 @@ input[type="text"] {
 	width: min-content;
 	z-index: 9;
 	display: block;
+	min-width: 300px;
 }
 
 /* TODO: rename */
@@ -129,7 +130,6 @@ input[type="text"] {
 .newsbox-news {
     text-align: left;
     background-color: #504945;
-    margin-left: 25px; 
     margin-top: 25px;
     padding: 25px;
 }
@@ -137,4 +137,9 @@ input[type="text"] {
 .newsbox-news p,
 .newsbox-news h3 {
     margin: 0;
+}
+
+#stopTablePost {
+	float: right;
+	display: none;
 }
