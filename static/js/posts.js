@@ -3,12 +3,13 @@ function startNewPost(){
     el.style="display:none;";
     el.setAttribute("state", "1");
     document.getElementById("newpost").style = "";
+    document.getElementById("stopTablePost").style = "display:unset;";
     sessionStorage.setItem("newpostState", true);
 }
 
 function stopNewPost(){
     var el = document.getElementById("newpostbtn");
-    el.style="display:block;";
+    el.style="display:block;margin-bottom:100px;";
     el.setAttribute("state", "0");
     document.getElementById("newpost").style = "display: none;";
     sessionStorage.setItem("newpostState", false);

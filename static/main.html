@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png"  href="/static/favicon.png">
     <link rel="stylesheet" type="text/css" href="/static/css/themes/default.css" title="default">
     {{ range .Themes }}
-    <link rel="alternate stylesheet" type="text/css" href="/static/css/themes/{{.}}.css" title="{{.}}">
+    <link rel="alternate stylesheet" type="text/css" href="/static/css/themes/{{.}}.css" title="{{.}}" disabled>
     {{ end }}
     {{ template "header" . }}
   </head>
@@ -41,18 +41,19 @@
 
     {{ template "bottom" . }}
 
+    <div align="center" style="width: 500px; margin:0 auto; margin-top: 50px;">
+      <a href="/">[Home]</a><a href="/static/rules.html">[Rules]</a><a href="/static/faq.html">[FAQ]</a>
+      <p>All trademarks and copyrights on this page are owned by their respective parties.</p>
+    </div>
+
     <div style="float: right;">
       Theme:
       <select id="themeSwitcher" onchange="setTheme(this.options[this.selectedIndex].value)">
+        <option value="default">default</option>
         {{ range .Themes }}
         <option value="{{.}}">{{.}}</option>
         {{ end }}
       </select>
-    </div>
-
-    <div align="center" style="width: 500px; margin:0 auto; margin-top: 50px;">
-      <a href="/">[Home]</a><a href="/static/rules.html">[Rules]</a><a href="/static/faq.html">[FAQ]</a>
-      <p>All trademarks and copyrights on this page are owned by their respective parties.</p>
     </div>
 
     <script src="/static/js/themes.js"></script>

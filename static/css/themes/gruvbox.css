@@ -103,7 +103,8 @@ input[type="text"] {
 }
 
 .popup-box {
-	position: absolute;
+	position: fixed;
+	min-width: 300px;
 	width: min-content;
 	z-index: 9;
 	display: block;
@@ -129,7 +130,6 @@ input[type="text"] {
 .newsbox-news {
     text-align: left;
     background-color: #504945;
-    margin-left: 25px; 
     margin-top: 25px;
     padding: 25px;
 }
@@ -137,4 +137,39 @@ input[type="text"] {
 .newsbox-news p,
 .newsbox-news h3 {
     margin: 0;
+}
+
+#stopTablePost {
+	float: right;
+	display: none;
+}
+
+#boardGrid {
+	display: grid;
+	grid-auto-columns: 1fr;
+	border: 4px solid #928374;
+	background-color: #3c3836;
+}
+
+#boardGridHeader {
+	border-bottom: 2px solid #928374;
+	display: inline-grid;
+}
+
+.boardGridCell {
+	white-space: nowrap;
+	display: inline-grid;
+	text-align: left;
+	padding: 5px;
+	border-top: 2px solid #928374;
+	border-left: 2px solid #928374;
+}
+
+/* these may or may not work. my CSS is poor so i just kinda did stuff until it worked. */
+.boardGridCell:nth-child(-n+4) {
+	border-top: none;
+}
+
+.boardGridCell:nth-child(3n+2) {
+	border-left: none;
 }

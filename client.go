@@ -156,7 +156,7 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 func NewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB, timestamp int) {
 	t := template.Must(template.New("").Funcs(template.FuncMap{
-		"sub":            mod,
+		"sub":            sub,
 		"unixtoreadable": unixToReadable}).ParseFiles("./static/main.html", "./static/news.html"))
 
 	actor := GetActorFromDB(db, Domain)
