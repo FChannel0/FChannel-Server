@@ -309,7 +309,7 @@ func main() {
 		w.Write([]byte("404 no path"))
 	})
 
-	http.HandleFunc("/news/", func(w http.ResponseWriter, r *http.Request){
+	http.HandleFunc("/news/", func(w http.ResponseWriter, r *http.Request) {
 		timestamp := r.URL.Path[6:]
 
 		if (len(timestamp) < 2) {
@@ -330,7 +330,7 @@ func main() {
 		}
 	})
 
-	http.HandleFunc("/post", func(w http.ResponseWriter, r *http.Request){
+	http.HandleFunc("/post", func(w http.ResponseWriter, r *http.Request) {
 
 		r.ParseMultipartForm(10 << 20)
 
@@ -436,7 +436,7 @@ func main() {
 
 			obj = ParseOptions(r, obj)
 			for _, e := range obj.Option {
-				if(e == "noko" || e == "nokosage"){
+				if (e == "noko" || e == "nokosage") {
 					http.Redirect(w, r, Domain + "/" + r.FormValue("boardName") + "/" + shortURL(r.FormValue("sendTo"), string(body)) , http.StatusMovedPermanently)
 					return
 				}
@@ -463,7 +463,7 @@ func main() {
 		id, _ := GetPasswordFromSession(r)
 		actor := GetActorFromPath(db, r.URL.Path, "/" + *Key + "/")
 
-		if (actor.Id == "") {
+		if actor.Id == "" {
 			actor = GetActorFromDB(db, Domain)
 		}
 
@@ -515,7 +515,7 @@ func main() {
 				}
 
 				//follow all of boards followers
-			} else if followers.MatchString(follow){
+			} else if followers.MatchString(follow) {
 				followersActor := FingerActor(follow)
 				col := GetActorCollection(followersActor.Followers)
 
@@ -542,7 +542,7 @@ func main() {
 					return
 				}
 
-				if FingerActor(follow).Id != ""{
+				if FingerActor(follow).Id != "" {
 					MakeActivityRequestOutbox(db, followActivity)
 				}
 			}
@@ -707,7 +707,7 @@ func main() {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	})
 
-	http.HandleFunc("/" + *Key + "/newsdelete/", func(w http.ResponseWriter, r *http.Request){
+	http.HandleFunc("/" + *Key + "/newsdelete/", func(w http.ResponseWriter, r *http.Request) {
 
 		actor := GetActorFromDB(db, Domain)
 
@@ -729,7 +729,7 @@ func main() {
 		}
 	})
 
-	http.HandleFunc("/verify", func(w http.ResponseWriter, r *http.Request){
+	http.HandleFunc("/verify", func(w http.ResponseWriter, r *http.Request) {
 		if (r.Method == "POST") {
 			r.ParseForm()
 			identifier := r.FormValue("id")
@@ -757,7 +757,7 @@ func main() {
 
 			body := string(rBody)
 
-			if(resp.StatusCode != 200) {
+			if (resp.StatusCode != 200) {
 				t := template.Must(template.ParseFiles("./static/verify.html"))
 				t.Execute(w, "wrong password " + verify.Code)
 			} else {
@@ -791,7 +791,7 @@ func main() {
 
 		_, auth := GetPasswordFromSession(r)
 
-		if (id == "" || auth == "") {
+		if id == "" || auth == "" {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(""))
 			return
@@ -875,13 +875,13 @@ func main() {
 		w.Write([]byte(""))
 	})
 
-	http.HandleFunc("/delete", func(w http.ResponseWriter, r *http.Request){
+	http.HandleFunc("/delete", func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Query().Get("id")
 		board := r.URL.Query().Get("board")
 
 		_, auth := GetPasswordFromSession(r)
 
-		if (id == "" || auth == "") {
+		if id == "" || auth == "" {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(""))
 			return
@@ -940,7 +940,7 @@ func main() {
 			TombstoneObjectAndReplies(db, id)
 		}
 
-		if IsIDLocal(db, id){
+		if IsIDLocal(db, id) {
 			go DeleteObjectRequest(db, id)
 		}
 
@@ -966,14 +966,14 @@ func main() {
 		w.Write([]byte(""))
 	})
 
-	http.HandleFunc("/deleteattach", func(w http.ResponseWriter, r *http.Request){
+	http.HandleFunc("/deleteattach", func(w http.ResponseWriter, r *http.Request) {
 
 		id := r.URL.Query().Get("id")
 		board := r.URL.Query().Get("board")
 
 		_, auth := GetPasswordFromSession(r)
 
-		if (id == "" || auth == "") {
+		if id == "" || auth == "" {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(""))
 			return
@@ -1040,7 +1040,7 @@ func main() {
 		w.Write([]byte(""))
 	})
 
-	http.HandleFunc("/marksensitive", func(w http.ResponseWriter, r *http.Request){
+	http.HandleFunc("/marksensitive", func(w http.ResponseWriter, r *http.Request) {
 
 		id := r.URL.Query().Get("id")
 		board := r.URL.Query().Get("board")
@@ -1097,7 +1097,7 @@ func main() {
 		w.Write([]byte(""))
 	})
 
-	http.HandleFunc("/remove", func(w http.ResponseWriter, r *http.Request){
+	http.HandleFunc("/remove", func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Query().Get("id")
 		manage := r.URL.Query().Get("manage")
 		board := r.URL.Query().Get("board")
@@ -1105,7 +1105,7 @@ func main() {
 		actor := col.OrderedItems[0].Actor
 		_, auth := GetPasswordFromSession(r)
 
-		if (id == "" || auth == "") {
+		if id == "" || auth == "" {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(""))
 			return
@@ -1134,7 +1134,7 @@ func main() {
 			SetObjectAndReplies(db, id, "Removed")
 		}
 
-		if(manage == "t") {
+		if (manage == "t") {
 			http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)
 			return
 		} else if !isOP {
@@ -1154,7 +1154,7 @@ func main() {
 		w.Write([]byte(""))
 	})
 
-	http.HandleFunc("/removeattach", func(w http.ResponseWriter, r *http.Request){
+	http.HandleFunc("/removeattach", func(w http.ResponseWriter, r *http.Request) {
 
 		id := r.URL.Query().Get("id")
 		manage := r.URL.Query().Get("manage")
@@ -1201,7 +1201,7 @@ func main() {
 		w.Write([]byte(""))
 	})
 
-	http.HandleFunc("/report", func(w http.ResponseWriter, r *http.Request){
+	http.HandleFunc("/report", func(w http.ResponseWriter, r *http.Request) {
 
 		r.ParseForm()
 
@@ -1220,7 +1220,7 @@ func main() {
 			return
 		}
 
-		if(close != "1" && !CheckCaptcha(db, captcha)) {
+		if (close != "1" && !CheckCaptcha(db, captcha)) {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("captcha required"))
 			return
@@ -1266,7 +1266,7 @@ func main() {
 		w.Write([]byte(""))
 	})
 
-	http.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request){
+	http.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
 		var verify Verify
 		defer r.Body.Close()
 
@@ -1290,7 +1290,7 @@ func main() {
 	http.HandleFunc("/.well-known/webfinger", func(w http.ResponseWriter, r *http.Request) {
 		acct := r.URL.Query()["resource"]
 
-		if(len(acct) < 1) {
+		if (len(acct) < 1) {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("resource needs a value"))
 			return
@@ -1300,7 +1300,7 @@ func main() {
 
 		actorDomain := strings.Split(acct[0], "@")
 
-		if(len(actorDomain) < 2) {
+		if (len(actorDomain) < 2) {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("accpets only subject form of acct:board@instance"))
 			return
@@ -1433,7 +1433,7 @@ func main() {
 	http.ListenAndServe(Port, nil)
 }
 
-func CheckError(e error, m string) error{
+func CheckError(e error, m string) error {
 	if e != nil {
 		fmt.Println()
 		fmt.Println(m)
@@ -1507,7 +1507,7 @@ func GetActorFromPath(db *sql.DB, location string, prefix string) Actor {
 
 	var actor string
 
-	if(len(match) < 1 ) {
+	if (len(match) < 1 ) {
 		actor = "/"
 	} else {
 		actor = strings.Replace(match[1], "/", "", -1)
@@ -1576,7 +1576,7 @@ func CreateUniqueID(db *sql.DB, actor string) string {
 	return newID
 }
 
-func CreateNewActor(board string, prefName string, summary string, authReq []string, restricted bool) *Actor{
+func CreateNewActor(board string, prefName string, summary string, authReq []string, restricted bool) *Actor {
 	actor := new(Actor)
 
 	var path string
@@ -1628,7 +1628,7 @@ func CreateObject(objType string) ObjectBase {
 	return nObj
 }
 
-func AddFollowersToActivity(db *sql.DB, activity Activity) Activity{
+func AddFollowersToActivity(db *sql.DB, activity Activity) Activity {
 
 	activity.To = append(activity.To, activity.Actor.Id)
 
@@ -2252,7 +2252,7 @@ func GetCollectionFromID(id string) Collection {
 	return nColl
 }
 
-func GetConfigValue(value string) string{
+func GetConfigValue(value string) string {
 	file, err := os.Open("config")
 
 	CheckError(err, "there was an error opening the config file")
@@ -2271,7 +2271,7 @@ func GetConfigValue(value string) string{
 	return ""
 }
 
-func PrintAdminAuth(db *sql.DB){
+func PrintAdminAuth(db *sql.DB) {
 	query := fmt.Sprintf("select identifier, code from boardaccess where board='%s' and type='admin'", Domain)
 
 	rows, err := db.Query(query)
@@ -2415,7 +2415,7 @@ func ResizeAttachmentToPreview(db *sql.DB) {
 
 			objFile := re.FindString(href)
 
-			if(id != "") {
+			if (id != "") {
 				cmd := exec.Command("convert", "." + objFile ,"-resize", "250x250>", "-strip",  "." + nHref)
 
 				err := cmd.Run()
@@ -2626,7 +2626,7 @@ func CreatedNeededDirectories() {
 }
 
 //looks for actor with pattern of board@instance
-func FingerActor(path string) Actor{
+func FingerActor(path string) Actor {
 
 	var nActor Actor
 
@@ -2656,7 +2656,7 @@ func FingerActor(path string) Actor{
 	return nActor
 }
 
-func FingerRequest(actor string, instance string) (*http.Response){
+func FingerRequest(actor string, instance string) (*http.Response) {
 	acct := "acct:" + actor + "@" + instance
 	req, err := http.NewRequest("GET", "http://" + instance + "/.well-known/webfinger?resource=" + acct, nil)
 
