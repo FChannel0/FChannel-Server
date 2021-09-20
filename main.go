@@ -336,13 +336,13 @@ func main() {
 
 		file, header, _ := r.FormFile("file")
 
-		if (IsPostBlacklist(db, r.FormValue("comment"))){
+		if (IsPostBlacklist(db, r.FormValue("comment"))) {
 			fmt.Println("\n\nBlacklist post blocked\n\n")
 			http.Redirect(w, r, Domain + "/", http.StatusMovedPermanently)
 			return
 		}
 
-		if (file != nil && header.Size > (7 << 20)){
+		if (file != nil && header.Size > (7 << 20)) {
 			w.Write([]byte("7MB max file size"))
 			return
 		}
@@ -354,7 +354,7 @@ func main() {
 
 
 		if (r.FormValue("inReplyTo") == "" || file == nil) {
-			if(r.FormValue("comment") == "" && r.FormValue("subject") == ""){
+			if (r.FormValue("comment") == "" && r.FormValue("subject") == "") {
 				w.Write([]byte("Comment or Subject required"))
 				return
 			}
