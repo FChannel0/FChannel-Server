@@ -170,9 +170,7 @@ func main() {
 		}
 
 		if mainInbox {
-			if method == "POST" {
-
-			} else {
+			if method != "POST" {
 				w.WriteHeader(http.StatusForbidden)
 				w.Write([]byte("404 no path"))
 			}
@@ -314,7 +312,7 @@ func main() {
 	http.HandleFunc("/news/", func(w http.ResponseWriter, r *http.Request){
 		timestamp := r.URL.Path[6:]
 
-		if(len(timestamp) < 2) {
+		if (len(timestamp) < 2) {
 			AllNewsGet(w, r, db)
 			return
 		}
@@ -338,41 +336,41 @@ func main() {
 
 		file, header, _ := r.FormFile("file")
 
-		if(IsPostBlacklist(db, r.FormValue("comment"))){
+		if (IsPostBlacklist(db, r.FormValue("comment"))){
 			fmt.Println("\n\nBlacklist post blocked\n\n")
 			http.Redirect(w, r, Domain + "/", http.StatusMovedPermanently)
 			return
 		}
 
-		if(file != nil && header.Size > (7 << 20)){
+		if (file != nil && header.Size > (7 << 20)){
 			w.Write([]byte("7MB max file size"))
 			return
 		}
 
-		if(r.FormValue("inReplyTo") == "" && file == nil) {
+		if (r.FormValue("inReplyTo") == "" && file == nil) {
 			w.Write([]byte("Media is required for new posts"))
 			return
 		}
 
 
-		if(r.FormValue("inReplyTo") == "" || file == nil) {
+		if (r.FormValue("inReplyTo") == "" || file == nil) {
 			if(r.FormValue("comment") == "" && r.FormValue("subject") == ""){
 				w.Write([]byte("Comment or Subject required"))
 				return
 			}
 		}
 
-		if(len(r.FormValue("comment")) > 2000) {
+		if (len(r.FormValue("comment")) > 2000) {
 			w.Write([]byte("Comment limit 2000 characters"))
 			return
 		}
 
-		if(len(r.FormValue("subject")) > 100 || len(r.FormValue("name")) > 100 || len(r.FormValue("options")) > 100) {
+		if (len(r.FormValue("subject")) > 100 || len(r.FormValue("name")) > 100 || len(r.FormValue("options")) > 100) {
 			w.Write([]byte("Name, Subject or Options limit 100 characters"))
 			return
 		}
 
-		if(r.FormValue("captcha") == "") {
+		if (r.FormValue("captcha") == "") {
 			w.Write([]byte("Incorrect Captcha"))
 			return
 		}
@@ -380,7 +378,7 @@ func main() {
 		b := bytes.Buffer{}
 		we := multipart.NewWriter(&b)
 
-		if(file != nil){
+		if (file != nil) {
 			var fw io.Writer
 
 			fw, err := we.CreateFormFile("file", header.Filename)
@@ -395,22 +393,22 @@ func main() {
 		reply := ParseCommentForReply(r.FormValue("comment"))
 
 		for key, r0 := range r.Form {
-			if(key == "captcha") {
+			if (key == "captcha") {
 				err := we.WriteField(key, r.FormValue("captchaCode") + ":" + r.FormValue("captcha"))
 				CheckError(err, "error with writing captcha field")
-			}else if(key == "name") {
+			} else if (key == "name") {
 				name, tripcode := CreateNameTripCode(r, db)
 				err := we.WriteField(key, name)
 				CheckError(err, "error with writing name field")
 				err = we.WriteField("tripcode", tripcode)
 				CheckError(err, "error with writing tripcode field")
-			}else{
+			} else {
 				err := we.WriteField(key, r0[0])
 				CheckError(err, "error with writing field")
 			}
 		}
 
-		if(r.FormValue("inReplyTo") == "" && reply != ""){
+		if (r.FormValue("inReplyTo") == "" && reply != "") {
 			err := we.WriteField("inReplyTo", reply)
 			CheckError(err, "error with writing inReplyTo field")
 		}
@@ -430,7 +428,7 @@ func main() {
 
 		defer resp.Body.Close()
 
-		if(resp.StatusCode == 200){
+		if (resp.StatusCode == 200) {
 
 			body, _ := ioutil.ReadAll(resp.Body)
 
@@ -444,7 +442,7 @@ func main() {
 				}
 			}
 
-			if(r.FormValue("returnTo") == "catalog"){
+			if (r.FormValue("returnTo") == "catalog") {
 				http.Redirect(w, r, Domain + "/" + r.FormValue("boardName") + "/catalog", http.StatusMovedPermanently)
 			} else {
 				http.Redirect(w, r, Domain + "/" + r.FormValue("boardName"), http.StatusMovedPermanently)
@@ -452,7 +450,7 @@ func main() {
 			return
 		}
 
-		if(resp.StatusCode == 403){
+		if (resp.StatusCode == 403) {
 			w.Write([]byte("Incorrect Captcha"))
 			return
 		}
@@ -465,7 +463,7 @@ func main() {
 		id, _ := GetPasswordFromSession(r)
 		actor := GetActorFromPath(db, r.URL.Path, "/" + *Key + "/")
 
-		if actor.Id == "" {
+		if (actor.Id == "") {
 			actor = GetActorFromDB(db, Domain)
 		}
 
@@ -550,7 +548,7 @@ func main() {
 			}
 
 			var redirect string
-			if(actor.Name != "main") {
+			if (actor.Name != "main") {
 				redirect = "/" + actor.Name
 			}
 
@@ -721,7 +719,7 @@ func main() {
 
 		tsint, err := strconv.Atoi(timestamp)
 
-		if(err != nil){
+		if (err != nil) {
 			w.WriteHeader(http.StatusForbidden)
 			w.Write([]byte("404 no path"))
 			return
@@ -732,7 +730,7 @@ func main() {
 	})
 
 	http.HandleFunc("/verify", func(w http.ResponseWriter, r *http.Request){
-		if(r.Method == "POST") {
+		if (r.Method == "POST") {
 			r.ParseForm()
 			identifier := r.FormValue("id")
 			code := r.FormValue("code")
@@ -793,7 +791,7 @@ func main() {
 
 		_, auth := GetPasswordFromSession(r)
 
-		if id == "" || auth == "" {
+		if (id == "" || auth == "") {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(""))
 			return
@@ -883,7 +881,7 @@ func main() {
 
 		_, auth := GetPasswordFromSession(r)
 
-		if id == "" || auth == "" {
+		if (id == "" || auth == "") {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(""))
 			return
@@ -908,7 +906,7 @@ func main() {
 			UnArchiveLast(db, actor.Id)
 
 
-			if(manage == "t"){
+			if (manage == "t") {
 				http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)
 				return
 			} else {
@@ -948,7 +946,7 @@ func main() {
 
 		UnArchiveLast(db, actor)
 
-		if(manage == "t"){
+		if (manage == "t") {
 			http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)
 			return
 		} else if !isOP {
@@ -975,7 +973,7 @@ func main() {
 
 		_, auth := GetPasswordFromSession(r)
 
-		if id == "" || auth == "" {
+		if (id == "" || auth == "") {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(""))
 			return
@@ -997,7 +995,7 @@ func main() {
 			DeletePreviewFromFile(db, id)
 			TombstonePreviewFromDB(db, id)
 
-			if(manage == "t"){
+			if (manage == "t") {
 				http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)
 				return
 			} else {
@@ -1107,7 +1105,7 @@ func main() {
 		actor := col.OrderedItems[0].Actor
 		_, auth := GetPasswordFromSession(r)
 
-		if id == "" || auth == "" {
+		if (id == "" || auth == "") {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(""))
 			return
@@ -1136,7 +1134,7 @@ func main() {
 			SetObjectAndReplies(db, id, "Removed")
 		}
 
-		if(manage == "t"){
+		if(manage == "t") {
 			http.Redirect(w, r, "/" + *Key + "/" + board , http.StatusSeeOther)
 			return
 		} else if !isOP {
@@ -2306,7 +2304,7 @@ func GetUniqueFilename(_type string) string {
 		if _, err := os.Stat("." + file); err == nil {
 			id   = RandomID(8)
 			file = "/public/" + id + "." + _type
-		}else{
+		} else {
 			return "/public/" + id + "." + _type
 		}
 	}
@@ -2455,7 +2453,7 @@ func ParseCommentForReply(comment string) string {
 		links = append(links, str)
 	}
 
-	if(len(links) > 0){
+	if (len(links) > 0) {
 		_, isValid := CheckValidActivity(strings.ReplaceAll(links[0], ">", ""))
 
 		if(isValid) {
@@ -2528,7 +2526,7 @@ func shortURL(actorName string, url string) string {
 	re = regexp.MustCompile(`\w+$`)
 	temp := re.ReplaceAllString(op, "")
 
-	if(temp == actor){
+	if (temp == actor) {
 		id := localShort(op)
 
 		re := regexp.MustCompile(`.+\/`)
@@ -2541,7 +2539,7 @@ func shortURL(actorName string, url string) string {
 		}
 
 		return id;
-	}else{
+	} else {
 		id := remoteShort(op)
 
 		re := regexp.MustCompile(`.+\/`)
@@ -2682,9 +2680,9 @@ func FingerRequest(actor string, instance string) (*http.Response){
 		CheckError(err, "error getting fingerrequet resp from json body")
 	}
 
-	if(len(finger.Links) > 0) {
+	if (len(finger.Links) > 0) {
 		for _, e := range finger.Links {
-			if(e.Type == "application/activity+json"){
+			if (e.Type == "application/activity+json") {
 				req, err := http.NewRequest("GET", e.Href, nil)
 
 				CheckError(err, "could not get finger request from id req")
@@ -2704,18 +2702,18 @@ func GetActorInstance(path string) (string, string) {
 	re := regexp.MustCompile(`([@]?([\w\d.-_]+)[@](.+))`)
 	atFormat := re.MatchString(path)
 
-	if(atFormat) {
+	if (atFormat) {
 		match := re.FindStringSubmatch(path)
-		if(len(match) > 2) {
+		if (len(match) > 2) {
 			return match[2], match[3]
 		}
 	}
 
 	re = regexp.MustCompile(`(https?://)(www)?([\w\d-_.:]+)(/|\s+|\r|\r\n)?$`)
 	mainActor := re.MatchString(path)
-	if(mainActor) {
+	if (mainActor) {
 		match := re.FindStringSubmatch(path)
-		if(len(match) > 2) {
+		if (len(match) > 2) {
 			return "main", match[3]
 		}
 	}
@@ -2723,9 +2721,9 @@ func GetActorInstance(path string) (string, string) {
 	re = regexp.MustCompile(`(https?://)?(www)?([\w\d-_.:]+)\/([\w\d-_.]+)(\/([\w\d-_.]+))?`)
 	httpFormat := re.MatchString(path)
 
-	if(httpFormat) {
+	if (httpFormat) {
 		match := re.FindStringSubmatch(path)
-		if(len(match) > 3) {
+		if (len(match) > 3) {
 			if match[4] == "users" {
 				return match[6], match[3]
 			}
