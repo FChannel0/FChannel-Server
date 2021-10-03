@@ -2840,7 +2840,7 @@ func RouteImages(w http.ResponseWriter, media string) {
 
 	resp, err := client.Do(req)
 
-	if err != nil || resp.StatusCode == 404 {
+	if err != nil || resp.StatusCode != 200 {
 		fileBytes, err := ioutil.ReadFile("./static/notfound.png")
 
 		CheckError(err, "could not get /static/notfound.png file bytes")
