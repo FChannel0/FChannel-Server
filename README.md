@@ -3,7 +3,7 @@
 FChannel is a [libre](https://en.wikipedia.org/wiki/Free_and_open-source_software), [self-hostable](https://en.wikipedia.org/wiki/Self-hosting_(web_services)), [federated](https://en.wikipedia.org/wiki/Federation_(information_technology)), [imageboard](https://en.wikipedia.org/wiki/Imageboard) platform that utilizes [ActivityPub](https://activitypub.rocks/).
 
 ~~There are currently several instances federated with each other, for a full list see: https://fchan.xyz~~
-[FChan](https:/fchan.xyz) is now down. See https://penchan.xyz for the next most active instance.
+[FChan](https://fchan.xyz) is now down. See https://penchan.xyz for the next most active instance.
 
 There is an anon testing FChannel instances on TOR/Loki/I2P. Find more information here: https://fchan.xyz/g/MORL0KUT
 
