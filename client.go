@@ -142,7 +142,7 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		data.BoardRemainer = make([]int, 0)
 	}
 
-	data.InstanceIndex = GetCollectionFromReq("https://fchan.xyz/followers").Items
+	//data.InstanceIndex = GetCollectionFromReq("https://fchan.xyz/followers").Items
 	data.NewsItems = getNewsFromDB(db, 3)
 
 	data.Themes = &Themes
