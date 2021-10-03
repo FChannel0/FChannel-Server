@@ -5,7 +5,7 @@ FChannel is a [libre](https://en.wikipedia.org/wiki/Free_and_open-source_softwar
 ~~There are currently several instances federated with each other, for a full list see: https://fchan.xyz~~
 [FChan](https://fchan.xyz) is now down. See https://penchan.xyz for the next most active instance.
 
-There is an anon testing FChannel instances on TOR/Loki/I2P. Find more information here: https://fchan.xyz/g/MORL0KUT
+There is an anon testing FChannel instances on TOR/Loki/I2P. Find more information here: ~~https://fchan.xyz/g/MORL0KUT~~ https://penchan.xyz/g/fg-MORL0KUT
 
 It is a testing environment, so the instances might come and go.
 
