@@ -6,13 +6,13 @@ FChannel is a [libre](https://en.wikipedia.org/wiki/Free_and_open-source_softwar
 [FChan](https://fchan.xyz) is now down.
 
 ## Current Available Instances:
-https://penchan.xyz/
-https://usagi.reisen/
-https://poopchan.org/
-https://yj61a9t1c4pp8cj8ao9gogeannjf7t5t37zk5cxs66cc96jgodpo.loki/
-http://kyogi7dxn3mr6a7eabaqh3jnxbbqbhty46aqstuhmqmokcxgr4vnbpid.onion/
-https://2hu-ch.org/ (Currently down)
-https://chan.clubcyberia.co/ (Currently down)
+- https://penchan.xyz/
+- https://usagi.reisen/
+- https://poopchan.org/
+- https://yj61a9t1c4pp8cj8ao9gogeannjf7t5t37zk5cxs66cc96jgodpo.loki/
+- http://kyogi7dxn3mr6a7eabaqh3jnxbbqbhty46aqstuhmqmokcxgr4vnbpid.onion/
+- https://2hu-ch.org/ (Currently down)
+- https://chan.clubcyberia.co/ (Currently down)
 
 There is an anon testing FChannel instances on TOR/Loki/I2P. Find more information here: ~~https://fchan.xyz/g/MORL0KUT~~ https://penchan.xyz/g/fg-MORL0KUT
 
