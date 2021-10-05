@@ -164,11 +164,7 @@ function quote(actorName, opid, id)
     var inReplyTo = document.getElementById("inReplyTo-box");
 
     var w = window.innerWidth / 2 - 200;
-    if(id == "reply") {
-        var h = document.getElementById(id + "-content").offsetTop - 548;
-    } else {
-        var h = document.getElementById(id + "-content").offsetTop - 348;
-    }
+    var h = 300; //document.getElementById(id + "-content").offsetTop - 348;
 
     const boxStyle = "top: " + h + "px; left: " + w + "px;";
     box.setAttribute("style", boxStyle);
@@ -201,7 +197,7 @@ function report(actorName, id)
     var inReplyTo = document.getElementById("report-inReplyTo-box");
 
     var w = window.innerWidth / 2 - 200;
-    var h = document.getElementById(id + "-content").offsetTop - 348;
+    var h = 300; //document.getElementById(id + "-content").offsetTop - 348;
 
     const boxStyle = "top: " + h + "px; left: " + w + "px;";
     box.setAttribute("style", boxStyle);
