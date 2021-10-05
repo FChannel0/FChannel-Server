@@ -44,11 +44,13 @@
 {{ $replies := (index .Posts 0).Replies }}
 <span style="float: right;">{{ $replies.TotalItems }} / {{ $replies.TotalImgs }}</span>
 
+<!--
 <div style="width: 500px; height: 22px;  margin: 0 auto; text-align: center;">
 {{ if eq (index .Posts 0).Type "Note" }}
 <span ><a id="reply-content" href="javascript:quote('{{ $board.Actor.Id }}', '{{ (index .Posts 0).Id }}', 'reply')">[Post a Reply]</a></span>
 {{ end }}
 </div>
+-->
 
 <hr>
 {{ end }}
