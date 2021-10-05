@@ -96,10 +96,6 @@ func main() {
 	}
 
 	for _, f := range themes {
-		if f.Name() == "default.css" {
-			continue
-		}
-
 		if e := path.Ext(f.Name()); e == ".css" {
 			Themes = append(Themes, strings.TrimSuffix(f.Name(), e))
 		}
@@ -633,7 +629,11 @@ func main() {
 
 			adminData.Themes = &Themes
 
-			err := t.ExecuteTemplate(w, "layout", adminData)
+			if cookie, err := r.Cookie("theme"); err == nil {
+				adminData.ThemeCookie = strings.SplitN(cookie.String(), "=", 2)[1]
+			}
+
+			err = t.ExecuteTemplate(w, "layout", adminData)
 			if err != nil {
 				// TODO: actual error handling
 				log.Printf("mod page: %s\n", err)
@@ -673,8 +673,11 @@ func main() {
 			adminData.PostBlacklist = GetRegexBlacklistDB(db)
 
 			adminData.Themes = &Themes
+			if cookie, err := r.Cookie("theme"); err == nil {
+				adminData.ThemeCookie = strings.SplitN(cookie.String(), "=", 2)[1]
+			}
 
-			err := t.ExecuteTemplate(w, "layout", adminData)
+			err = t.ExecuteTemplate(w, "layout", adminData)
 			if err != nil {
 				// TODO: actual error handling
 				log.Printf("mod page: %s\n", err)

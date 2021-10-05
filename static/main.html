@@ -8,9 +8,13 @@
     <meta property="og:locale" content="en_US" />
     <meta property="og:type" content="website" />
     <link rel="icon" type="image/png"  href="/static/favicon.png">
-    <link rel="stylesheet" type="text/css" href="/static/css/themes/default.css" title="default">
+    {{ if gt (len .ThemeCookie) 0 }}
+      <link rel="stylesheet" type="text/css" href="/static/css/themes/{{.ThemeCookie}}.css" title="selected theme">
+    {{ else }}
+      <link rel="stylesheet" type="text/css" href="/static/css/themes/default.css" title="default">
+    {{ end }}
     {{ range .Themes }}
-    <link rel="alternate stylesheet" type="text/css" href="/static/css/themes/{{.}}.css" title="{{.}}" disabled>
+      <link rel="alternate stylesheet" type="text/css" href="/static/css/themes/{{.}}.css" title="{{.}}" disabled>
     {{ end }}
     {{ template "header" . }}
   </head>
@@ -49,7 +53,6 @@
     <div style="float: right;">
       Theme:
       <select id="themeSwitcher" onchange="setTheme(this.options[this.selectedIndex].value)">
-        <option value="default">default</option>
         {{ range .Themes }}
         <option value="{{.}}">{{.}}</option>
         {{ end }}
