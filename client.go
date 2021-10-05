@@ -54,7 +54,9 @@ type PageData struct {
 	ReturnTo          string
 	NewsItems         []NewsItem
 	BoardRemainer     []int
-	Themes            *[]string
+
+	Themes      *[]string
+	ThemeCookie string
 }
 
 type AdminPage struct {
@@ -70,7 +72,9 @@ type AdminPage struct {
 	IsLocal       bool
 	PostBlacklist []PostBlacklist
 	AutoSubscribe bool
-	Themes        *[]string
+
+	Themes      *[]string
+	ThemeCookie string
 }
 
 type Report struct {
@@ -146,6 +150,9 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	data.NewsItems = getNewsFromDB(db, 3)
 
 	data.Themes = &Themes
+	if cookie, err := r.Cookie("theme"); err == nil {
+		data.ThemeCookie = strings.SplitN(cookie.String(), "=", 2)[1]
+	}
 
 	err := t.ExecuteTemplate(w, "layout", data)
 	if err != nil {
@@ -185,6 +192,9 @@ func NewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB, timestamp int) 
 	data.Title = actor.PreferredUsername + ": " + data.NewsItems[0].Title
 
 	data.Themes = &Themes
+	if cookie, err := r.Cookie("theme"); err == nil {
+		data.ThemeCookie = strings.SplitN(cookie.String(), "=", 2)[1]
+	}
 
 	err = t.ExecuteTemplate(w, "layout", data)
 	if err != nil {
@@ -215,6 +225,9 @@ func AllNewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	data.NewsItems = getNewsFromDB(db, 0)
 
 	data.Themes = &Themes
+	if cookie, err := r.Cookie("theme"); err == nil {
+		data.ThemeCookie = strings.SplitN(cookie.String(), "=", 2)[1]
+	}
 
 	err := t.ExecuteTemplate(w, "layout", data)
 	if err != nil {
@@ -315,6 +328,9 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	returnData.TotalPage = len(returnData.Pages) - 1
 
 	returnData.Themes = &Themes
+	if cookie, err := r.Cookie("theme"); err == nil {
+		returnData.ThemeCookie = strings.SplitN(cookie.String(), "=", 2)[1]
+	}
 
 	err := t.ExecuteTemplate(w, "layout", returnData)
 	if err != nil {
@@ -376,6 +392,9 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	returnData.Posts = collection.OrderedItems
 
 	returnData.Themes = &Themes
+	if cookie, err := r.Cookie("theme"); err == nil {
+		returnData.ThemeCookie = strings.SplitN(cookie.String(), "=", 2)[1]
+	}
 
 	err := t.ExecuteTemplate(w, "layout", returnData)
 	if err != nil {
@@ -430,6 +449,9 @@ func ArchiveGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	returnData.Posts = collection.OrderedItems
 
 	returnData.Themes = &Themes
+	if cookie, err := r.Cookie("theme"); err == nil {
+		returnData.ThemeCookie = strings.SplitN(cookie.String(), "=", 2)[1]
+	}
 
 	err := t.ExecuteTemplate(w, "layout", returnData)
 	if err != nil {
@@ -531,6 +553,9 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	}
 
 	returnData.Themes = &Themes
+	if cookie, err := r.Cookie("theme"); err == nil {
+		returnData.ThemeCookie = strings.SplitN(cookie.String(), "=", 2)[1]
+	}
 
 	err := t.ExecuteTemplate(w, "layout", returnData)
 	if err != nil {

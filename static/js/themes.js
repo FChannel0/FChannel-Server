@@ -1,5 +1,5 @@
 function setCookie(key, value, age) {
-	document.cookie = key + "=" + encodeURIComponent(value) + ";sameSite=strict;max-age=" + 60 * 60 * 24 * age + ";path=/";
+	document.cookie = key + "=" + encodeURIComponent(value) + ";sameSite=none;max-age=" + (60 * 60 * 24 * age) + ";path=/";
 }
 
 function getCookie(key) {
