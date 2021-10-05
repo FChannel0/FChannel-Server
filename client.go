@@ -257,7 +257,7 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 		"parseReplyLink": func(actorId string, op string, id string, content string) template.HTML {
 			actor := FingerActor(actorId)
 			title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
-			link := "<a href=\"" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id) + "\" title=\"" + title + "\" class=\"replyLink\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
+			link := "<a href=\"/" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id) + "\" title=\"" + title + "\" class=\"replyLink\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
 			return template.HTML(link)
 		},
 		"add": func(i, j int) int {
