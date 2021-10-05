@@ -2778,27 +2778,31 @@ func AddInstanceToIndex(actor string) {
 
 func AddInstanceToIndexDB(db *sql.DB, actor string) {
 
+	//sleep to be sure the webserver is fully initialized
+	//before making finger request
 	time.Sleep(15 * time.Second)
+
+	nActor := FingerActor(actor)
+
+	if nActor.Id == "" {
+		return
+	}
 
 	followers := GetCollectionFromID("https://fchan.xyz/followers")
 
 	var alreadyIndex = false
 	for _, e := range followers.Items {
-		if e.Id == actor {
+		if e.Id == nActor.Id {
 			alreadyIndex = true
 		}
 	}
 
-	checkActor := GetActor(actor)
+	if !alreadyIndex {
+		query := `insert into follower (id, follower) values ($1, $2)`
 
-	if checkActor.Id == actor {
-		if !alreadyIndex {
-			query := `insert into follower (id, follower) values ($1, $2)`
+		_, err := db.Exec(query, "https://fchan.xyz", nActor.Id)
 
-			_, err := db.Exec(query, "https://fchan.xyz", actor)
-
-			CheckError(err, "Error with add to index query")
-		}
+		CheckError(err, "Error with add to index query")
 	}
 }
 

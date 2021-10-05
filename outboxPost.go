@@ -537,14 +537,23 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	switch activity.Type {
 	case "Create":
+
 		for _, e := range activity.To {
 			if IsActorLocal(db, e) {
 				if !IsActorLocal(db, activity.Actor.Id) {
+
+					col := GetCollectionFromID(activity.Object.Id)
+
+					if len(col.OrderedItems) < 1 {
+						break
+					}
+
 					WriteObjectToCache(db, *activity.Object)
 					ArchivePosts(db, GetActorFromDB(db, e))
 				}
 			}
 		}
+
 		break
 
 	case "Delete":
