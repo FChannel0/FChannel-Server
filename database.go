@@ -221,15 +221,30 @@ func WriteObjectUpdatesToDB(db *sql.DB, obj ObjectBase) {
 }
 
 func WriteObjectReplyToLocalDB(db *sql.DB, id string, replyto string) {
-	query := `insert into replies (id, inreplyto) values ($1, $2)`
 
-	_, err := db.Exec(query, id, replyto)
+	query := `select id from replies where id=$1 and inreplyto=$2`
 
-	CheckError(err, "Could not insert local reply query")
+	rows, err := db.Query(query, id, replyto)
+
+	CheckError(err, "error selecting replies local db")
+
+	defer rows.Close()
+
+	var nID string
+	rows.Next()
+	rows.Scan(&nID)
+
+	if nID == "" {
+		query := `insert into replies (id, inreplyto) values ($1, $2)`
+
+		_, err := db.Exec(query, id, replyto)
+
+		CheckError(err, "Could not insert local reply query")
+	}
 
 	query = `select inreplyto from replies where id=$1`
 
-	rows, err := db.Query(query, replyto)
+	rows, err = db.Query(query, replyto)
 
 	CheckError(err, "Could not query select inreplyto")
 
