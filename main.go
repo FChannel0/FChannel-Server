@@ -2605,7 +2605,7 @@ func RouteProxy(req *http.Request) (*http.Response, error) {
 		CheckError(err, "error parsing tor proxy url")
 
 		proxyTransport := &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
-		client := &http.Client{Transport: proxyTransport, Timeout: time.Second * 10}
+		client := &http.Client{Transport: proxyTransport, Timeout: time.Second * 15}
 		return client.Do(req)
 	}
 
@@ -2815,7 +2815,7 @@ func GetCollectionFromReq(path string) Collection {
 
 	req.Header.Set("Accept", activitystreams)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := RouteProxy(req)
 
 	CheckError(err, "error getting resp from collection req")
 
