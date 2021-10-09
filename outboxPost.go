@@ -550,6 +550,7 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 					WriteObjectToCache(db, *activity.Object)
 					ArchivePosts(db, GetActorFromDB(db, e))
+					SendToFollowers(db, e, activity)
 				}
 			}
 		}
@@ -682,4 +683,27 @@ func IsMediaBanned(db *sql.DB, f multipart.File) bool {
 	}
 
 	return false
+}
+
+func SendToFollowers(db *sql.DB, actor string, activity Activity) {
+
+	nActor := GetActorFromDB(db, actor)
+	activity.Actor = &nActor
+
+	followers := GetActorFollowDB(db, actor)
+	var to []string
+
+	for _, e := range followers {
+		for _, k := range activity.To {
+			if e.Id != k {
+				to = append(to, e.Id)
+			}
+		}
+	}
+
+	activity.To = to
+
+	if len(activity.Object.InReplyTo) > 0 {
+		MakeActivityRequest(db, activity)
+	}
 }
