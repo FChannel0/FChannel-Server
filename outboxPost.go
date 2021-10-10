@@ -550,7 +550,7 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 					WriteObjectToCache(db, *activity.Object)
 					ArchivePosts(db, GetActorFromDB(db, e))
-					SendToFollowers(db, e, activity)
+					//SendToFollowers(db, e, activity)
 				}
 			}
 		}
