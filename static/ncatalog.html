@@ -18,14 +18,14 @@
 {{ $board := .Board }}
 <hr>
 
-<div class="navlinks">
-  [<a href="/{{ $board.Name }}/">Return</a>]
+<ul id="navlinks">
+  <li>[<a href="/{{ $board.Name }}/">Return</a>]</li>
   {{ if showArchive }}
-  [<a href="/{{ $board.Name }}/archive">Archive</a>]
+  <li>[<a href="/{{ $board.Name }}/archive">Archive</a>]</li>
   {{ end }}
-  [<a href="#bottom">Bottom</a>]
-  [<a href="javascript:location.reload()">Refresh</a>]
-</div>
+  <li>[<a href="#bottom">Bottom</a>]</li>
+  <li>[<a href="javascript:location.reload()">Refresh</a>]</li>
+</ul>
 
 <hr>
 
@@ -96,14 +96,14 @@
 </div>
 <hr>
 
-<div class="navlinks">
-  [<a href="/{{ $board.Name }}/">Return</a>]
+<ul id="navlinks">
+  <li>[<a href="/{{ $board.Name }}/">Return</a>]</li>
   {{ if showArchive }}
-  [<a href="/{{ $board.Name }}/archive">Archive</a>]
+  <li>[<a href="/{{ $board.Name }}/archive">Archive</a>]</li>
   {{ end }}
-  [<a href="#top">Top</a>]
-  [<a href="javascript:location.reload()">Refresh</a>]
-</div>
+  <li>[<a href="#top">Top</a>]</li>
+  <li>[<a href="javascript:location.reload()">Refresh</a>]</li>
+</ul>
 
 <hr>
 {{ end }}
