@@ -21,7 +21,7 @@ body.nsfw {
 }
 
 h1, h2, h3, h4, h5, h6 {
-    color: #af0a0f;
+	color: #af0a0f;
 }
 
 .popup-box {
@@ -81,7 +81,7 @@ h1, h2, h3, h4, h5, h6 {
 
 a.reply {
 	color: #af0a0f;
-    text-decoration: underline;
+	text-decoration: underline;
 }
 
 .replyLink {
@@ -117,13 +117,39 @@ a.reply {
   -moz-box-sizing: border-box;
 }
 
+#postForm input[type="text"],
+#postForm textarea,
 #reply-name, #reply-options, #reply-comment {
+  box-sizing: border-box;
+  -webkit-box-sizing:border-box;
+  -moz-box-sizing: border-box;
+}
+
+#reply-comment {
+	min-width: 300px;
+	width: 396px;
+	height: 200px;
+}
+
+#reply-name {
+	width: 75%;
+	float: left;
+}
+
+#reply-options {
+	width: 25%;
+	float: right;
+}
+
+#reply-header {
+	display: inline-block;
 	width: 100%;
+	cursor: move;
 }
 
 #postForm #captcha {
-  display: block;
-  width: 100%;
+	display: block;
+	width: 100%;
 }
 
 .popup-box {
@@ -195,4 +221,29 @@ a.reply {
 
 .boardGridCell:nth-child(3n+2) {
 	border-left: none;
+}
+
+#threadfooter {
+	width: 100%;
+	table-layout: fixed;
+	border-collapse: collapse;
+}
+
+#threadfooter td {
+	padding: 0;
+	margin: 0;
+}
+
+#threadfooter #threadStats {
+	float: right;
+}
+
+#navlinks, #boardlinks {
+	padding: 0;
+	margin: 0;
+}
+
+#navlinks > li,
+#boardlinks > li {
+	display: inline;
 }

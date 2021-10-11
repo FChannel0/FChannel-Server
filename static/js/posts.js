@@ -160,6 +160,7 @@ function quote(actorName, opid, id)
     sessionStorage.setItem("element-closed-reply", false);
     var box = document.getElementById("reply-box");
     var header = document.getElementById("reply-header");
+    var header_text = document.getElementById("reply-header-text");
     var comment = document.getElementById("reply-comment");
     var inReplyTo = document.getElementById("inReplyTo-box");
 
@@ -176,7 +177,7 @@ function quote(actorName, opid, id)
     if (inReplyTo.value != opid)
         comment.value = "";
 
-    header.innerText = "Replying to Thread No. " + shortURL(actorName, opid);
+    header_text.innerText = "Replying to Thread No. " + shortURL(actorName, opid);
     inReplyTo.value = opid;
     sessionStorage.setItem("element-reply-actor", actorName);
     sessionStorage.setItem("element-reply-id", inReplyTo.value);
@@ -305,12 +306,13 @@ const stateLoadHandler = function(event){
     if(sessionStorage.getItem("element-closed-reply") === "false"){
         var box = document.getElementById("reply-box");
         var header = document.getElementById("reply-header");
+        var header_text = document.getElementById("reply-header-text");
         var comment = document.getElementById("reply-comment");
         var inReplyTo = document.getElementById("inReplyTo-box");
 
         header.onmousedown = dragMouseDown;
         inReplyTo.value = parseInt(sessionStorage.getItem("element-reply-id"));
-        header.innerText = "Replying to Thread No. " + shortURL(sessionStorage.getItem("element-reply-actor"), sessionStorage.getItem("element-reply-id"));
+        header_text.innerText = "Replying to Thread No. " + shortURL(sessionStorage.getItem("element-reply-actor"), sessionStorage.getItem("element-reply-id"));
         comment.value = sessionStorage.getItem("element-reply-comment");
 
         pos1 = parseInt(sessionStorage.getItem("pos1"));
