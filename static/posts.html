@@ -10,13 +10,13 @@
 <div style="overflow: auto;">
   <div id="{{ short $board.Actor.Outbox .Id }}" style="overflow: visible; margin-bottom: 12px;">
     {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}
-    <a href="/delete?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Post]</a>
+    [<a href="/delete?id={{ .Id }}&board={{ $board.Actor.Name }}">Delete Post</a>]
     {{ end }}
     {{ if .Attachment }}
     {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}
-    <a href="/banmedia?id={{ .Id }}&board={{ $board.Actor.Name }}">[Ban Media]</a>
-    <a href="/deleteattach?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Attachment]</a>
-    <a href="/marksensitive?id={{ .Id }}&board={{ $board.Actor.Name }}">[Mark Sensitive]</a>
+    [<a href="/banmedia?id={{ .Id }}&board={{ $board.Actor.Name }}">Ban Media</a>]
+    [<a href="/deleteattach?id={{ .Id }}&board={{ $board.Actor.Name }}">Delete Attachment</a>]
+    [<a href="/marksensitive?id={{ .Id }}&board={{ $board.Actor.Name }}">Mark Sensitive</a>]
     {{ end }}
     <span style="display: block;">File: <a id="{{ .Id }}-img" href="{{ proxy (index .Attachment 0).Href}}">{{ shortImg (index .Attachment 0).Name  }}</a><span id="{{ .Id }}-size"> ({{ convertSize (index .Attachment 0).Size  }})</span></span>
     <div id="hide-{{ .Id }}" style="display: none;">[Hide]</div>
@@ -63,13 +63,13 @@
         <div style="float: left; display: block; margin-right: 5px;">&gt;&gt;</div>
         <div class="post" style="overflow: auto; padding: 5px; margin-bottom: 2px;">
           {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}
-          <a href="/delete?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Post]</a>
+          [<a href="/delete?id={{ .Id }}&board={{ $board.Actor.Name }}">Delete Post</a>]
           {{ end }}
           {{ if .Attachment }}
           {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}
-          <a href="/banmedia?id={{ .Id }}&board={{ $board.Actor.Name }}">[Ban Media]</a>
-          <a href="/deleteattach?id={{ .Id }}&board={{ $board.Actor.Name }}">[Delete Attachment]</a>
-          <a href="/marksensitive?id={{ .Id }}&board={{ $board.Actor.Name }}">[Mark Sensitive]</a>
+          [<a href="/banmedia?id={{ .Id }}&board={{ $board.Actor.Name }}">Ban Media</a>]
+          [<a href="/deleteattach?id={{ .Id }}&board={{ $board.Actor.Name }}">Delete Attachment</a>]
+          [<a href="/marksensitive?id={{ .Id }}&board={{ $board.Actor.Name }}">Mark Sensitive</a>]
           {{ end }}
           <span style="display: block;">File <a id="{{ .Id }}-img" href="{{ proxy (index .Attachment 0).Href}}">{{ shortImg (index .Attachment 0).Name  }}</a> <span id="{{ .Id }}-size">({{ convertSize (index .Attachment 0).Size  }})</span></span>
           <div id="hide-{{ .Id }}" style="display: none;">[Hide]</div>

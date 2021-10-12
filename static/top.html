@@ -5,9 +5,9 @@
   {{ $len := len .Posts }}
   {{ if eq $len 0 }}
   {{ if .Board.InReplyTo }}
-  <h3 id="newpostbtn"  state="0" style="display: none; margin-bottom:100px;"><a href="javascript:startNewPost()">[Post a Reply]</a></h3>
+  <h3 id="newpostbtn"  state="0" style="display: none; margin-bottom:100px;">[<a href="javascript:startNewPost()">Post a Reply</a>]</h3>
   {{ else  }}
-  <h3 id="newpostbtn"  state="0" style="display: none; margin-bottom:100px;"><a href="javascript:startNewPost()">[Start a New Thread]</a></h3>
+  <h3 id="newpostbtn"  state="0" style="display: none; margin-bottom:100px;">[<a href="javascript:startNewPost()">Start a New Thread</a>]</h3>
   {{ end }} <!-- end if inreplyto-->
   <div id="newpost">
     <form onsubmit="sessionStorage.setItem('element-closed-reply', true)" id="new-post" action="/post" method="post" enctype="multipart/form-data">
@@ -61,9 +61,9 @@
 
   {{ if eq (index .Posts 0).Type "Note" }}
   {{ if .Board.InReplyTo }}
-  <h3 id="newpostbtn"  state="0" style="text-align: center; margin-top: 80px; display: none; margin-bottom:100px;"><a href="javascript:startNewPost()">[Post a Reply]</a></h3>
+  <h3 id="newpostbtn"  state="0" style="text-align: center; margin-top: 80px; display: none; margin-bottom:100px;">[<a href="javascript:startNewPost()">Post a Reply</a>]</h3>
   {{ else  }}
-  <h3 id="newpostbtn"  state="0" style="text-align: center; margin-top: 80px; display: none; margin-bottom:100px;"><a href="javascript:startNewPost()">[Start a New Thread]</a></h3>
+  <h3 id="newpostbtn"  state="0" style="text-align: center; margin-top: 80px; display: none; margin-bottom:100px;">[<a href="javascript:startNewPost()">Start a New Thread</a>]</h3>
   {{ end }} <!-- end if inreplyto-->
   {{ $len := len .Posts }}
   <div id="newpost">
