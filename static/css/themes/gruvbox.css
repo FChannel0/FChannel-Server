@@ -5,7 +5,7 @@ a, a:link, a:visited, a:active {
 
 a.reply {
 	color: #cc241d;
-    text-decoration: underline;
+	text-decoration: 1px underline;
 }
 
 a:hover.reply {
