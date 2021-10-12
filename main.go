@@ -1875,7 +1875,7 @@ func GetActor(id string) Actor {
 	if ActorCache[actor+"@"+instance].Id != "" {
 		respActor = ActorCache[actor+"@"+instance]
 	} else {
-		req, err := http.NewRequest("GET", id, nil)
+		req, err := http.NewRequest("GET", strings.TrimSpace(id), nil)
 
 		CheckError(err, "error with getting actor req")
 
