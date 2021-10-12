@@ -21,11 +21,11 @@
 {{ $board := .Board }}
 
 <hr>
-<ul style="margin: 0; padding: 0; display: inline">
-  <li style="display: inline">[<a href="/{{ $board.Name }}">Return</a>]</li>
-  <li style="display: inline">[<a href="/{{ $board.Name }}/catalog">Catalog</a>]</li>
-  <li style="display: inline">[<a href="#bottom">Bottom</a>]</li>
-  <li style="display: inline">[<a href="javascript:location.reload()">Refresh</a>]</li>
+<ul id="navlinks">
+  <li>[<a href="/{{ $board.Name }}">Return</a>]</li>
+  <li>[<a href="/{{ $board.Name }}/catalog">Catalog</a>]</li>
+  <li>[<a href="#bottom">Bottom</a>]</li>
+  <li>[<a href="javascript:location.reload()">Refresh</a>]</li>
 </ul>
 <hr>
 
@@ -33,24 +33,28 @@
 
 <hr>
 
-<ul style="margin: 0; padding: 0; display: inline">
-  <li style="display: inline">[<a href="/{{ $board.Name }}">Return</a>]</li>
-  <li style="display: inline">[<a href="/{{ $board.Name }}/catalog">Catalog</a>]</li>
-  <li style="display: inline">[<a id="bottom" href="#top">Top</a>]</li>
-  <li style="display: inline">[<a href="javascript:location.reload()">Refresh</a>]</li>
-  <li style="display: inline"><input id="autoreload-checkbox" type="checkbox" onclick="autoTimer()"> Auto refresh <span id="autoreload-countdown" style="visibility: hidden;">0</span></li>
-</ul>
+<table id="threadfooter"><tr>
+	<td>
+		<ul id="navlinks">
+			<li>[<a href="/{{ $board.Name }}">Return</a>]</li>
+			<li>[<a href="/{{ $board.Name }}/catalog">Catalog</a>]</li>
+			<li>[<a id="bottom" href="#top">Top</a>]</li>
+			<li>[<a href="javascript:location.reload()">Refresh</a>]</li>
+			<li><input id="autoreload-checkbox" type="checkbox" onclick="autoTimer()"> Auto refresh <span id="autoreload-countdown" style="visibility: hidden;">0</span></li>
+		</ul>
+	</td>
 
-{{ $replies := (index .Posts 0).Replies }}
-<span style="float: right;">{{ $replies.TotalItems }} / {{ $replies.TotalImgs }}</span>
+	{{ if eq (index .Posts 0).Type "Note" }}
+	<td style="text-align: center;">
+		<span>[<a id="reply-content" href="javascript:quote('{{ $board.Actor.Id }}', '{{ (index .Posts 0).Id }}', 'reply')">Post a Reply</a>]</span>
+	</td>
+	{{ end }}
 
-<!--
-<div style="width: 500px; height: 22px;  margin: 0 auto; text-align: center;">
-{{ if eq (index .Posts 0).Type "Note" }}
-<span ><a id="reply-content" href="javascript:quote('{{ $board.Actor.Id }}', '{{ (index .Posts 0).Id }}', 'reply')">[Post a Reply]</a></span>
-{{ end }}
-</div>
--->
+	<td>
+		{{ $replies := (index .Posts 0).Replies }}
+		<span id="threadStats" data-total="{{ $replies.TotalItems }}" data-imgs="{{ $replies.TotalImgs }}">{{ $replies.TotalItems }} / {{ $replies.TotalImgs }}</span>
+	</td>
+</tr></table>
 
 <hr>
 {{ end }}

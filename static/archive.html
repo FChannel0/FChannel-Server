@@ -29,11 +29,11 @@
 {{ $board := .Board }}
 
 <hr>
-<ul style="margin: 0; padding: 0; display: inline;">
-  <li style="display: inline">[<a href="/{{ $board.Name }}">Return</a>]</li>
-  <li style="display: inline">[<a href="/{{ $board.Name }}/catalog">Catalog</a>]</li>
-  <li style="display: inline">[<a href="#bottom">Bottom</a>]</li>
-  <li style="display: inline">[<a href="javascript:location.reload()">Refresh</a>]</li>
+<ul id="navlinks">
+  <li>[<a href="/{{ $board.Name }}">Return</a>]</li>
+  <li>[<a href="/{{ $board.Name }}/catalog">Catalog</a>]</li>
+  <li>[<a href="#bottom">Bottom</a>]</li>
+  <li>[<a href="javascript:location.reload()">Refresh</a>]</li>
 </ul>
 <hr>
 
@@ -70,14 +70,14 @@
 </table>
 
 <hr>
-<div style="height: 22px;">
-     <ul style="position: absolute; left: 5px;  margin: 0; padding: 0; display: inline;">
-       <li style="display: inline">[<a href="/{{ $board.Name }}">Return</a>]</li>
-       <li style="display: inline">[<a href="/{{ $board.Name }}/catalog">Catalog</a>]</li>
-       <li style="display: inline">[<a id="bottom" href="#top">Top</a>]</li>
-       <li style="display: inline">[<a href="javascript:location.reload()">Refresh</a>]</li>
-     </ul>
-</div>
+
+<ul id="navlinks">
+  <li>[<a href="/{{ $board.Name }}">Return</a>]</li>
+  <li>[<a href="/{{ $board.Name }}/catalog">Catalog</a>]</li>
+  <li>[<a id="bottom" href="#top">Top</a>]</li>
+  <li>[<a href="javascript:location.reload()">Refresh</a>]</li>
+</ul>
+
 <hr>
 
 {{ end }}

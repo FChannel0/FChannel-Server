@@ -1,10 +1,13 @@
 {{ define "bottom" }}
 <div id="reply-box" class="popup-box" style="display: none;">
-  <div id="reply-header" style="display: inline-block; z-index: 0; cursor: move;"></div><div id="reply-close" style="display: inline-block; float: right;"><a href="javascript:closeReply()">[X]</a></div>
+  <div id="reply-header">
+    <span id="reply-header-text">...</span>
+    <div id="reply-close" style="display: inline-block; float: right;"><a href="javascript:closeReply()">[X]</a></div>
+  </div>
   <form onsubmit="sessionStorage.setItem('element-closed-reply', true)"  id="reply-post" action="/post" method="post" enctype="multipart/form-data">
-    <input id="reply-name" name="name" size="43" type="text" placeholder="Name" maxlength="100">
-    <input id="reply-options" name="options" size="43" type="text" placeholder="Options" maxlength="100">
-    <textarea id="reply-comment" name="comment" rows="12" cols="54" style="width: 396px;" maxlength="2000" oninput="sessionStorage.setItem('element-reply-comment', document.getElementById('reply-comment').value)"></textarea>
+    <input id="reply-name" name="name" type="text" placeholder="Name" maxlength="100">
+    <input id="reply-options" name="options" type="text" placeholder="Options" maxlength="100">
+    <textarea id="reply-comment" name="comment" maxlength="2000" oninput="sessionStorage.setItem('element-reply-comment', document.getElementById('reply-comment').value)"></textarea>
     <input id="reply-file" name="file" type="file">
     <input id="reply-submit" type="submit" value="Reply" style="float: right;">
     <input type="hidden" id="inReplyTo-box" name="inReplyTo" value="{{ .Board.InReplyTo }}">
