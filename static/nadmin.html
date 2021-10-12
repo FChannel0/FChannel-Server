@@ -18,8 +18,8 @@
     </select>
   </form>
   <ul style="display: inline-block; padding: 0;">
-    <li style="display: inline-block;"><a href="#news">[Create News]</a></li>    
-    <li style="display: inline-block;"><a href="#regex">[Post Blacklist]</a></li>
+    <li style="display: inline-block;">[<a href="#news">Create News</a>]</li>    
+    <li style="display: inline-block;">[<a href="#regex">Post Blacklist</a>]</li>
     <!-- <li style="display: inline-block;"><a href="javascript:show('followers')">Followers</a></li> -->
     <!-- <li style="display: inline-block;"><a href="#reported">Reported</a></li>             -->
   </ul>
@@ -36,7 +36,7 @@
     {{ $actor := .Actor }}
     {{ $key := .Key }}
     {{ range .Following }}
-    <li><a href="/{{ $key }}/follow?follow={{ . }}&actor={{ $actor }}">[Unfollow]</a><a href="{{ . }}">{{ . }}</a></li>
+    <li>[<a href="/{{ $key }}/follow?follow={{ . }}&actor={{ $actor }}">Unfollow</a>]<a href="{{ . }}">{{ . }}</a></li>
     {{ end }}
   </ul>
 </div>
@@ -71,7 +71,7 @@
   {{ if .PostBlacklist }}
   <ul style="display: inline-block; padding: 0; margin: 0; margin-top: 25px; list-style-type: none;">
     {{ range .PostBlacklist }}
-    <li>{{ .Regex }} <a href="/blacklist?remove={{ .Id }}">[remove]</a></li>
+    <li>{{ .Regex }} [<a href="/blacklist?remove={{ .Id }}">remove</a>]</li>
     {{ end }}
   </ul>
   {{ end }}
