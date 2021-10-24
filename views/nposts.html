@@ -1,0 +1,70 @@
+{{ define "header" }}
+<title>{{ .Title }}</title>
+<meta name="description" content="{{ .Board.Summary }}">
+<meta property="og:url" content="{{ .Board.Actor.Id }}">
+<meta property="og:site_name" content="{{ .Instance.PreferredUsername }}" />
+
+<meta property="og:title" content="{{ .Title }}">
+<meta property="og:description" content="{{ .Board.Summary }}">
+
+<meta name="twitter:title" content="{{ .Title }}">
+<meta name="twitter:description" content="{{ .Board.Summary }}">
+<meta name="twitter:card" content="summary_large_image">
+{{ end }}
+
+{{ template "partials/top" .page }}
+
+{{ $board := .page.Board }}
+<hr>
+<ul id="navlinks">
+  <li>[<a href="/{{ $board.Name }}/catalog">Catalog</a>]</li>
+  <!-- TODO: showArchive function needs to be fixed
+  \{\{ if showArchive }}
+  <li>[<a href="/{{ $board.Name }}/archive">Archive</a>]</li>
+  \{\{ end }}
+  -->
+  <li>[<a href="#bottom">Bottom</a>]</li>
+  <li>[<a href="javascript:location.reload()">Refresh</a>]</li>
+</ul>
+
+{{ template "partials/posts" .page }}
+
+<hr>
+
+<ul id="navlinks">
+  <li>[<a href="/{{ $board.Name }}/catalog">Catalog</a>]</li>
+  <!-- TODO: showArchive function needs to be fixed
+  \{\{ if showArchive }}
+  <li>[<a href="/{{ $board.Name }}/archive">Archive</a>]</li>
+  \{\{ end }}
+  -->
+  <li>[<a href="#top" id="bottom">Top</a>]</li>
+  <li>[<a href="javascript:location.reload()">Refresh</a>]</li>
+</ul>
+
+<hr>
+{{ if gt .page.TotalPage 0 }}
+{{ $totalPage := .page.TotalPage }}
+<ul style="float: right; margin: 0; padding: 0; display: inline">
+  {{ $page := .page.CurrentPage }}
+  {{ if gt $page 0 }}
+  <li style="display: inline">[<a href="/{{ $board.Name }}?page={{ sub $page 1 }}">&lt;</a>]</li>
+  {{ end }}
+  {{ range $i, $e := .page.Pages }}
+  {{ if eq $i $page}}
+  <li style="display: inline">[<a href="/{{ $board.Name }}?page={{ $i }}"><b>{{ $i }}</b></a>]</li>
+  {{ else }}
+  <li style="display: inline">[<a href="/{{ $board.Name }}?page={{ $i }}">{{ $i }}</a>]</li>
+  {{ end }}
+  {{ end }}
+  {{ if lt .page.CurrentPage .page.TotalPage }}
+  <li style="display: inline">[<a href="/{{ $board.Name }}?page={{ add $page 1 }}">&gt;</a>]</li>
+  {{ end }}
+</ul>
+{{ end }}
+
+{{ template "partials/bottom" .page }}
+
+{{ define "scripts" }}
+{{ template "partials/postscripts" . }}
+{{ end }}

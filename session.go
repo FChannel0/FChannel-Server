@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/gofiber/fiber/v2"
 	"github.com/gomodule/redigo/redis"
 	"net/http"
 	"os"
@@ -74,6 +75,29 @@ func GetPasswordFromSession(r *http.Request) (string, string) {
 	}
 
 	sessionToken := c.Value
+
+	response, err := cache.Do("GET", sessionToken)
+
+	if CheckError(err, "could not get session from cache") != nil {
+		return "", ""
+	}
+
+	token := fmt.Sprintf("%s", response)
+
+	parts := strings.Split(token, "|")
+
+	if len(parts) > 1 {
+		return parts[0], parts[1]
+	}
+
+	return "", ""
+}
+
+func GetPasswordFromCtx(r *fiber.Ctx) (string, string) {
+
+	c := r.Cookies("session_token")
+
+	sessionToken := c
 
 	response, err := cache.Do("GET", sessionToken)
 

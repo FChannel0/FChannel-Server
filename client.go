@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"github.com/gofiber/fiber/v2"
 	_ "github.com/lib/pq"
 	"html/template"
 	"log"
@@ -120,13 +121,9 @@ func timeToUnix(t time.Time) string {
 	return fmt.Sprint(t.Unix())
 }
 
-func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	t := template.Must(template.New("").Funcs(template.FuncMap{
-		"mod":            mod,
-		"sub":            sub,
-		"unixtoreadable": unixToReadable}).ParseFiles("./static/main.html", "./static/index.html"))
+func IndexGet(c *fiber.Ctx) error {
 
-	actor := GetActorFromDB(db, Domain)
+	actor := GetActorFromDB(DB, Domain)
 
 	var data PageData
 	data.Title = "Welcome to " + actor.PreferredUsername
@@ -135,7 +132,7 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	data.Board.Name = ""
 	data.Key = *Key
 	data.Board.Domain = Domain
-	data.Board.ModCred, _ = GetPasswordFromSession(r)
+	data.Board.ModCred, _ = GetPasswordFromCtx(c)
 	data.Board.Actor = actor
 	data.Board.Post.Actor = actor.Id
 	data.Board.Restricted = actor.Restricted
@@ -152,18 +149,15 @@ func IndexGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		data.InstanceIndex = col.Items
 	}
 
-	data.NewsItems = getNewsFromDB(db, 3)
+	data.NewsItems = getNewsFromDB(DB, 3)
 
 	data.Themes = &Themes
-	if cookie, err := r.Cookie("theme"); err == nil {
-		data.ThemeCookie = strings.SplitN(cookie.String(), "=", 2)[1]
-	}
 
-	err := t.ExecuteTemplate(w, "layout", data)
-	if err != nil {
-		// TODO: actual error handler
-		log.Printf("IndexGet: %s\n", err)
-	}
+	data.ThemeCookie = GetThemeCookie(c)
+
+	return c.Render("index", fiber.Map{
+		"page": data,
+	}, "layouts/main")
 }
 
 func NewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB, timestamp int) {
@@ -241,53 +235,16 @@ func AllNewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	}
 }
 
-func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection) {
-	t := template.Must(template.New("").Funcs(template.FuncMap{
-		"proxy": func(url string) string {
-			return MediaProxy(url)
-		},
-		"short": func(actorName string, url string) string {
-			return shortURL(actorName, url)
-		},
-		"parseAttachment": func(obj ObjectBase, catalog bool) template.HTML {
-			return ParseAttachment(obj, catalog)
-		},
-		"parseContent": func(board Actor, op string, content string, thread ObjectBase) template.HTML {
-			return ParseContent(db, board, op, content, thread)
-		},
-		"shortImg": func(url string) string {
-			return ShortImg(url)
-		},
-		"convertSize": func(size int64) string {
-			return ConvertSize(size)
-		},
-		"isOnion": func(url string) bool {
-			return IsOnion(url)
-		},
-		"showArchive": func() bool {
-			col := GetActorCollectionDBTypeLimit(db, collection.Actor.Id, "Archive", 1)
+func OutboxGet(c *fiber.Ctx) error {
+	collection, valid := WantToServePage(DB, c.Params("actor"), 0)
 
-			if len(col.OrderedItems) > 0 {
-				return true
-			}
-			return false
-		},
-		"parseReplyLink": func(actorId string, op string, id string, content string) template.HTML {
-			actor := FingerActor(actorId)
-			title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
-			link := "<a href=\"/" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id) + "\" title=\"" + title + "\" class=\"replyLink\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
-			return template.HTML(link)
-		},
-		"add": func(i, j int) int {
-			return i + j
-		},
-		"timeToReadableLong": timeToReadableLong,
-		"timeToUnix":         timeToUnix,
-		"sub":                sub}).ParseFiles("./static/main.html", "./static/nposts.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
+	if !valid {
+		return c.SendString("404")
+	}
 
 	actor := collection.Actor
 
-	postNum := r.URL.Query().Get("page")
+	postNum := c.Query("page")
 
 	page, _ := strconv.Atoi(postNum)
 
@@ -299,7 +256,7 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	returnData.Board.InReplyTo = ""
 	returnData.Board.To = actor.Outbox
 	returnData.Board.Actor = *actor
-	returnData.Board.ModCred, _ = GetPasswordFromSession(r)
+	returnData.Board.ModCred, _ = GetPasswordFromCtx(c)
 	returnData.Board.Domain = Domain
 	returnData.Board.Restricted = actor.Restricted
 	returnData.CurrentPage = page
@@ -307,7 +264,7 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 
 	returnData.Board.Post.Actor = actor.Id
 
-	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
+	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(DB)
 	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)
 
 	returnData.Title = "/" + actor.Name + "/ - " + actor.PreferredUsername
@@ -333,15 +290,12 @@ func OutboxGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Co
 	returnData.TotalPage = len(returnData.Pages) - 1
 
 	returnData.Themes = &Themes
-	if cookie, err := r.Cookie("theme"); err == nil {
-		returnData.ThemeCookie = strings.SplitN(cookie.String(), "=", 2)[1]
-	}
 
-	err := t.ExecuteTemplate(w, "layout", returnData)
-	if err != nil {
-		// TODO: actual error handler
-		log.Printf("OutboxGet: %s\n", err)
-	}
+	returnData.ThemeCookie = GetThemeCookie(c)
+
+	return c.Render("nposts", fiber.Map{
+		"page": returnData,
+	}, "layouts/main")
 }
 
 func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection) {
@@ -465,43 +419,10 @@ func ArchiveGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	}
 }
 
-func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	t := template.Must(template.New("").Funcs(template.FuncMap{
-		"proxy": func(url string) string {
-			return MediaProxy(url)
-		},
-		"short": func(actorName string, url string) string {
-			return shortURL(actorName, url)
-		},
-		"parseAttachment": func(obj ObjectBase, catalog bool) template.HTML {
-			return ParseAttachment(obj, catalog)
-		},
-		"parseContent": func(board Actor, op string, content string, thread ObjectBase) template.HTML {
-			return ParseContent(db, board, op, content, thread)
-		},
-		"shortImg": func(url string) string {
-			return ShortImg(url)
-		},
-		"convertSize": func(size int64) string {
-			return ConvertSize(size)
-		},
-		"isOnion": func(url string) bool {
-			return IsOnion(url)
-		},
-		"parseReplyLink": func(actorId string, op string, id string, content string) template.HTML {
-			actor := FingerActor(actorId)
-			title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
-			link := "<a href=\"/" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id) + "\" title=\"" + title + "\" class=\"replyLink\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
-			return template.HTML(link)
-		},
-		"timeToReadableLong": timeToReadableLong,
-		"timeToUnix":         timeToUnix,
-		"sub":                sub}).ParseFiles("./static/main.html", "./static/npost.html", "./static/top.html", "./static/bottom.html", "./static/posts.html"))
+func PostGet(c *fiber.Ctx) error {
 
-	path := r.URL.Path
-	actor := GetActorFromPath(db, path, "/")
-	re := regexp.MustCompile("\\w+$")
-	postId := re.FindString(path)
+	actor := GetActorByNameFromDB(DB, c.Params("actor"))
+	postId := c.Params("post")
 
 	inReplyTo := actor.Id + "/" + postId
 
@@ -511,15 +432,15 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	returnData.Board.To = actor.Outbox
 	returnData.Board.Actor = actor
 	returnData.Board.Summary = actor.Summary
-	returnData.Board.ModCred, _ = GetPasswordFromSession(r)
+	returnData.Board.ModCred, _ = GetPasswordFromCtx(c)
 	returnData.Board.Domain = Domain
 	returnData.Board.Restricted = actor.Restricted
 	returnData.ReturnTo = "feed"
 
-	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
+	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(DB)
 	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)
 
-	returnData.Instance = GetActorFromDB(db, Domain)
+	returnData.Instance = GetActorFromDB(DB, Domain)
 
 	returnData.Title = "/" + returnData.Board.Name + "/ - " + returnData.Board.PrefName
 
@@ -527,12 +448,12 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	returnData.Boards = Boards
 
-	re = regexp.MustCompile("f(\\w|[!@#$%^&*<>])+-(\\w|[!@#$%^&*<>])+")
+	re := regexp.MustCompile("f(\\w|[!@#$%^&*<>])+-(\\w|[!@#$%^&*<>])+")
 
-	if re.MatchString(path) { // if non local actor post
-		name := GetActorFollowNameFromPath(path)
+	if re.MatchString(postId) { // if non local actor post
+		name := GetActorFollowNameFromPath(postId)
 		followActors := GetActorsFollowFromName(actor, name)
-		followCollection := GetActorsFollowPostFromId(db, followActors, postId)
+		followCollection := GetActorsFollowPostFromId(DB, followActors, postId)
 
 		if len(followCollection.OrderedItems) > 0 {
 			returnData.Board.InReplyTo = followCollection.OrderedItems[0].Id
@@ -542,7 +463,7 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			returnData.Board.Post.Actor = actor.Id
 		}
 	} else {
-		collection := GetObjectByIDFromDB(db, inReplyTo)
+		collection := GetObjectByIDFromDB(DB, inReplyTo)
 		if collection.Actor != nil {
 			returnData.Board.Post.Actor = collection.Actor.Id
 			returnData.Board.InReplyTo = inReplyTo
@@ -558,15 +479,12 @@ func PostGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	}
 
 	returnData.Themes = &Themes
-	if cookie, err := r.Cookie("theme"); err == nil {
-		returnData.ThemeCookie = strings.SplitN(cookie.String(), "=", 2)[1]
-	}
 
-	err := t.ExecuteTemplate(w, "layout", returnData)
-	if err != nil {
-		// TODO: actual error handler
-		log.Printf("PostGet: %s\n", err)
-	}
+	returnData.ThemeCookie = GetThemeCookie(c)
+
+	return c.Render("npost", fiber.Map{
+		"page": returnData,
+	}, "layouts/main")
 }
 
 func GetBoardCollection(db *sql.DB) []Board {
@@ -1146,4 +1064,14 @@ func IsOnion(url string) bool {
 	}
 
 	return false
+}
+
+func GetThemeCookie(c *fiber.Ctx) string {
+	cookie := c.Cookies("theme")
+	if cookie != "" {
+		cookies := strings.SplitN(cookie, "=", 2)
+		return cookies[0]
+	}
+
+	return "default"
 }

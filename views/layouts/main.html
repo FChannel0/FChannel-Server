@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="Federated Imageboard based on Activtypub">
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:type" content="website" />
+    <link rel="icon" type="image/png"  href="/static/favicon.png">
+    {{ if gt (len .page.ThemeCookie) 0 }}
+    <link rel="stylesheet" type="text/css" href="/static/css/themes/{{.page.ThemeCookie}}.css" title="selected theme">
+    {{ else }}
+    <link rel="stylesheet" type="text/css" href="/static/css/themes/default.css" title="default">
+    {{ end }}
+    {{ range .page.Themes }}
+    <link rel="alternate stylesheet" type="text/css" href="/static/css/themes/{{.}}.css" title="{{.}}" disabled>
+    {{ end }}
+
+    {{ template  "header" .page }}
+  </head>
+  <body {{ if not .page.Board.Restricted }}class="nsfw"{{ end }} onload="applyTheme()">
+    <ul id="boardlinks">
+      {{ $l := len .page.Boards }}
+      <li>[<a href="/">Home</a>]</li>
+      {{range $i, $e := .page.Boards}}
+      {{ if eq (sub $l 1) 0 }}
+      <li>[ <a href="{{.Location}}">{{$e.Name}} </a>]</li>
+      {{ else if eq $i 0 }}
+      <li>[<a href="{{.Location}}">{{$e.Name}} </a>/</li>
+      {{ else if eq $i (sub $l 1) }}
+      <li><a href="{{.Location}}">{{$e.Name}}</a>]</li>
+      {{ else }}
+      <li><a href="{{.Location}}">{{$e.Name}} </a>/</li>
+      {{ end }}
+      {{ end }}
+    </ul>
+    {{ if .page.Board.ModCred }}
+    {{ if eq .page.Board.ModCred .page.Board.Domain .page.Board.Actor.Id }}
+    <span style="float: right;">[<a href="/{{ .page.Key }}/{{ .page.Board.Name }}">Manage Board</a>]</span>
+    {{ end }}
+    {{ end }}
+
+    {{ embed }}
+
+    {{ template "partials/footer" .page }}
+
+    <script src="/static/js/themes.js"></script>
+    {{ template  "scripts" .page }}
+  </body>
+</html>

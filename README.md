@@ -163,9 +163,3 @@ instanceport:PORT GOES HERE
 ```
 
 See #12 for more details.
-
-# Support
-
-Any support is appreciated all funds go to hosting and development of the project
-
-XMR - 85ma5KYR8Jk8zhGospQ8DeMNUrY74rQqEgiiPHvKHbowa37TAa5MLUD8RBaupw5oAxWmpFDrSAxsDbeXcfoAwiZF69mq4CE

@@ -8,12 +8,16 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/gofrs/uuid"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/template/html"
+	// "github.com/gofrs/uuid"
 	_ "github.com/lib/pq"
+
 	"html/template"
-	"io"
+	// "io"
 	"io/ioutil"
-	"log"
+	// "log"
 	"math/rand"
 	"mime/multipart"
 	"net/http"
@@ -56,34 +60,36 @@ var ActorCache = make(map[string]Actor)
 
 var Themes []string
 
+var DB *sql.DB
+
 func main() {
 
 	CreatedNeededDirectories()
 
 	InitCache()
 
-	db := ConnectDB()
+	DB = ConnectDB()
 
-	defer db.Close()
+	defer DB.Close()
 
-	RunDatabaseSchema(db)
+	RunDatabaseSchema(DB)
 
-	go MakeCaptchas(db, 100)
+	go MakeCaptchas(DB, 100)
 
 	*Key = CreateKey(32)
 
-	FollowingBoards = GetActorFollowingDB(db, Domain)
+	FollowingBoards = GetActorFollowingDB(DB, Domain)
 
-	go StartupArchive(db)
+	go StartupArchive(DB)
 
-	go CheckInactive(db)
+	go CheckInactive(DB)
 
-	Boards = GetBoardCollection(db)
+	Boards = GetBoardCollection(DB)
 
 	// root actor is used to follow remote feeds that are not local
 	//name, prefname, summary, auth requirements, restricted
 	if GetConfigValue("instancename", "") != "" {
-		CreateNewBoardDB(db, *CreateNewActor("", GetConfigValue("instancename", ""), GetConfigValue("instancesummary", ""), authReq, false))
+		CreateNewBoardDB(DB, *CreateNewActor("", GetConfigValue("instancename", ""), GetConfigValue("instancesummary", ""), authReq, false))
 		if PublicIndexing == "true" {
 			AddInstanceToIndex(Domain)
 		}
@@ -108,1222 +114,172 @@ func main() {
 	javascriptFiles := http.FileServer(http.Dir("./static"))
 	http.Handle("/static/", http.StripPrefix("/static", neuter(javascriptFiles)))
 
-	// main routing
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		path := r.URL.Path
+	/* Routing and templates */
 
-		// remove trailing slash
-		if path != "/" {
-			re := regexp.MustCompile(`/$`)
-			path = re.ReplaceAllString(path, "")
-		}
+	template := html.New("./views", ".html")
 
-		var mainActor bool
-		var mainInbox bool
-		var mainOutbox bool
-		var mainFollowing bool
-		var mainFollowers bool
+	TemplateFunctions(template)
 
-		var actorMain bool
-		var actorInbox bool
-		var actorCatalog bool
-		var actorOutbox bool
-		var actorPost bool
-		var actorFollowing bool
-		var actorFollowers bool
-		var actorReported bool
-		var actorVerification bool
-		var actorMainPage bool
-		var actorArchive bool
-
-		var accept = r.Header.Get("Accept")
-
-		var method = r.Method
-
-		var actor = GetActorFromPath(db, path, "/")
-
-		if actor.Name == "main" {
-			mainActor = (path == "/")
-			mainInbox = (path == "/inbox")
-			mainOutbox = (path == "/outbox")
-			mainFollowing = (path == "/following")
-			mainFollowers = (path == "/followers")
-		} else {
-			actorMain = (path == "/"+actor.Name)
-			actorInbox = (path == "/"+actor.Name+"/inbox")
-			actorCatalog = (path == "/"+actor.Name+"/catalog")
-			actorOutbox = (path == "/"+actor.Name+"/outbox")
-			actorFollowing = (path == "/"+actor.Name+"/following")
-			actorFollowers = (path == "/"+actor.Name+"/followers")
-			actorReported = (path == "/"+actor.Name+"/reported")
-			actorVerification = (path == "/"+actor.Name+"/verification")
-			actorArchive = (path == "/"+actor.Name+"/archive")
-
-			escapedActorName := strings.Replace(actor.Name, "*", "\\*", -1)
-			escapedActorName = strings.Replace(escapedActorName, "^", "\\^", -1)
-			escapedActorName = strings.Replace(escapedActorName, "$", "\\$", -1)
-			escapedActorName = strings.Replace(escapedActorName, "?", "\\?", -1)
-			escapedActorName = strings.Replace(escapedActorName, "+", "\\+", -1)
-			escapedActorName = strings.Replace(escapedActorName, ".", "\\.", -1)
-
-			re := regexp.MustCompile("/" + escapedActorName + "/[0-9]{1,2}$")
-
-			actorMainPage = re.MatchString(path)
-
-			re = regexp.MustCompile("/" + escapedActorName + "/\\w+")
-
-			actorPost = re.MatchString(path)
-		}
-
-		if mainActor {
-			if acceptActivity(accept) {
-				GetActorInfo(w, db, Domain)
-				return
-			}
-
-			IndexGet(w, r, db)
-
-			return
-		}
-
-		if mainInbox {
-			if method == "POST" {
-
-			} else {
-				w.WriteHeader(http.StatusForbidden)
-				w.Write([]byte("404 no path"))
-			}
-			return
-		}
-
-		if mainOutbox {
-			if method == "GET" {
-				GetActorOutbox(w, r, db)
-			} else if method == "POST" {
-				ParseOutboxRequest(w, r, db)
-			} else {
-				w.WriteHeader(http.StatusForbidden)
-				w.Write([]byte("404 no path"))
-			}
-			return
-		}
-
-		if mainFollowing {
-			GetActorFollowing(w, db, Domain)
-			return
-		}
-
-		if mainFollowers {
-			GetActorFollowers(w, db, Domain)
-			return
-		}
-
-		if actorMain || actorMainPage {
-			if acceptActivity(accept) {
-				GetActorInfo(w, db, actor.Id)
-				return
-			}
-
-			postNum := r.URL.Query().Get("page")
-
-			page, _ := strconv.Atoi(postNum)
-			collection, valid := WantToServePage(db, actor.Name, page)
-
-			if valid {
-				OutboxGet(w, r, db, collection)
-			}
-
-			return
-		}
-
-		if actorFollowing {
-			GetActorFollowing(w, db, actor.Id)
-			return
-		}
-
-		if actorFollowers {
-			GetActorFollowers(w, db, actor.Id)
-			return
-		}
-
-		if actorInbox {
-			if method == "POST" {
-				ParseInboxRequest(w, r, db)
-			} else {
-				w.WriteHeader(http.StatusForbidden)
-				w.Write([]byte("404 no path"))
-			}
-			return
-		}
-
-		if actorCatalog {
-			collection, valid := WantToServeCatalog(db, actor.Name)
-			if valid {
-				CatalogGet(w, r, db, collection)
-			}
-			return
-		}
-
-		if actorOutbox {
-			if method == "GET" {
-				GetActorOutbox(w, r, db)
-			} else if method == "POST" {
-				ParseOutboxRequest(w, r, db)
-			} else {
-				w.WriteHeader(http.StatusForbidden)
-				w.Write([]byte("404 no path"))
-			}
-			return
-		}
-
-		if actorArchive {
-			collection, valid := WantToServeArchive(db, actor.Name)
-			if valid {
-				ArchiveGet(w, r, db, collection)
-			}
-			return
-		}
-
-		if actorReported {
-			GetActorReported(w, r, db, actor.Id)
-			return
-		}
-
-		if actorVerification {
-			r.ParseForm()
-
-			code := r.FormValue("code")
-
-			var verify Verify
-
-			verify.Board = actor.Id
-			verify.Identifier = "post"
-
-			verify = GetVerificationCode(db, verify)
-
-			auth := CreateTripCode(verify.Code)
-			auth = CreateTripCode(auth)
-
-			if CreateTripCode(auth) == code {
-				w.WriteHeader(http.StatusOK)
-			} else {
-				w.WriteHeader(http.StatusUnauthorized)
-			}
-
-			w.Write([]byte(""))
-		}
-
-		//catch all
-		if actorPost {
-			if acceptActivity(accept) {
-				GetActorPost(w, db, path)
-				return
-			}
-
-			PostGet(w, r, db)
-			return
-		}
-
-		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte("404 no path"))
+	app := fiber.New(fiber.Config{
+		Views: template,
 	})
 
-	http.HandleFunc("/news/", func(w http.ResponseWriter, r *http.Request) {
-		timestamp := r.URL.Path[6:]
+	app.Static("/public", "./public")
+	app.Static("/static", "./views")
 
-		if len(timestamp) < 2 {
-			AllNewsGet(w, r, db)
-			return
-		}
+	/*
+	 Main actor
+	*/
 
-		if timestamp[len(timestamp)-1:] == "/" {
-			timestamp = timestamp[:len(timestamp)-1]
-		}
+	app.Get("/", IndexGet)
 
-		ts, err := strconv.Atoi(timestamp)
-		if err != nil {
-			w.WriteHeader(http.StatusForbidden)
-			w.Write([]byte("404 no path"))
-		} else {
-			NewsGet(w, r, db, ts)
-		}
+	app.Get("/inbox", func(c *fiber.Ctx) error {
+		return c.SendString("main inbox")
 	})
 
-	http.HandleFunc("/post", func(w http.ResponseWriter, r *http.Request) {
-
-		r.ParseMultipartForm(10 << 20)
-
-		file, header, _ := r.FormFile("file")
-
-		if IsPostBlacklist(db, r.FormValue("comment")) {
-			fmt.Println("\n\nBlacklist post blocked\n\n")
-			http.Redirect(w, r, Domain+"/", http.StatusMovedPermanently)
-			return
-		}
-
-		if file != nil && header.Size > (7<<20) {
-			w.Write([]byte("7MB max file size"))
-			return
-		}
-
-		if r.FormValue("inReplyTo") == "" && file == nil {
-			w.Write([]byte("Media is required for new posts"))
-			return
-		}
-
-		if r.FormValue("inReplyTo") == "" || file == nil {
-			if r.FormValue("comment") == "" && r.FormValue("subject") == "" {
-				w.Write([]byte("Comment or Subject required"))
-				return
-			}
-		}
-
-		if len(r.FormValue("comment")) > 2000 {
-			w.Write([]byte("Comment limit 2000 characters"))
-			return
-		}
-
-		if len(r.FormValue("subject")) > 100 || len(r.FormValue("name")) > 100 || len(r.FormValue("options")) > 100 {
-			w.Write([]byte("Name, Subject or Options limit 100 characters"))
-			return
-		}
-
-		if r.FormValue("captcha") == "" {
-			w.Write([]byte("Incorrect Captcha"))
-			return
-		}
-
-		b := bytes.Buffer{}
-		we := multipart.NewWriter(&b)
-
-		if file != nil {
-			var fw io.Writer
-
-			fw, err := we.CreateFormFile("file", header.Filename)
-
-			CheckError(err, "error with form file create")
-
-			_, err = io.Copy(fw, file)
-
-			CheckError(err, "error with form file copy")
-		}
-
-		reply := ParseCommentForReply(r.FormValue("comment"))
-
-		for key, r0 := range r.Form {
-			if key == "captcha" {
-				err := we.WriteField(key, r.FormValue("captchaCode")+":"+r.FormValue("captcha"))
-				CheckError(err, "error with writing captcha field")
-			} else if key == "name" {
-				name, tripcode := CreateNameTripCode(r, db)
-				err := we.WriteField(key, name)
-				CheckError(err, "error with writing name field")
-				err = we.WriteField("tripcode", tripcode)
-				CheckError(err, "error with writing tripcode field")
-			} else {
-				err := we.WriteField(key, r0[0])
-				CheckError(err, "error with writing field")
-			}
-		}
-
-		if r.FormValue("inReplyTo") == "" && reply != "" {
-			err := we.WriteField("inReplyTo", reply)
-			CheckError(err, "error with writing inReplyTo field")
-		}
-
-		we.Close()
-
-		sendTo := r.FormValue("sendTo")
-		req, err := http.NewRequest("POST", sendTo, &b)
-
-		CheckError(err, "error with post form req")
-
-		req.Header.Set("Content-Type", we.FormDataContentType())
-
-		resp, err := RouteProxy(req)
-
-		CheckError(err, "error with post form resp")
-
-		defer resp.Body.Close()
-
-		if resp.StatusCode == 200 {
-
-			body, _ := ioutil.ReadAll(resp.Body)
-
-			var obj ObjectBase
-
-			obj = ParseOptions(r, obj)
-			for _, e := range obj.Option {
-				if e == "noko" || e == "nokosage" {
-					http.Redirect(w, r, Domain+"/"+r.FormValue("boardName")+"/"+shortURL(r.FormValue("sendTo"), string(body)), http.StatusMovedPermanently)
-					return
-				}
-			}
-
-			if r.FormValue("returnTo") == "catalog" {
-				http.Redirect(w, r, Domain+"/"+r.FormValue("boardName")+"/catalog", http.StatusMovedPermanently)
-			} else {
-				http.Redirect(w, r, Domain+"/"+r.FormValue("boardName"), http.StatusMovedPermanently)
-			}
-			return
-		}
-
-		if resp.StatusCode == 403 {
-			w.Write([]byte("Incorrect Captcha"))
-			return
-		}
-
-		http.Redirect(w, r, Domain+"/"+r.FormValue("boardName"), http.StatusMovedPermanently)
+	app.Get("/outbox", func(c *fiber.Ctx) error {
+		return c.SendString("main outbox")
 	})
 
-	http.HandleFunc("/"+*Key+"/", func(w http.ResponseWriter, r *http.Request) {
-
-		id, _ := GetPasswordFromSession(r)
-		actor := GetActorFromPath(db, r.URL.Path, "/"+*Key+"/")
-
-		if actor.Id == "" {
-			actor = GetActorFromDB(db, Domain)
-		}
-
-		if id == "" || (id != actor.Id && id != Domain) {
-			t := template.Must(template.ParseFiles("./static/verify.html"))
-			t.Execute(w, "")
-			return
-		}
-
-		re := regexp.MustCompile("/" + *Key + "/" + actor.Name + "/follow")
-		follow := re.MatchString(r.URL.Path)
-
-		re = regexp.MustCompile("/" + *Key + "/" + actor.Name)
-		manage := re.MatchString(r.URL.Path)
-
-		re = regexp.MustCompile("/" + *Key)
-		admin := re.MatchString(r.URL.Path)
-
-		re = regexp.MustCompile("/" + *Key + "/follow")
-		adminFollow := re.MatchString(r.URL.Path)
-
-		if follow || adminFollow {
-			r.ParseForm()
-
-			following := regexp.MustCompile(`(.+)\/following`)
-			followers := regexp.MustCompile(`(.+)\/followers`)
-
-			follow := r.FormValue("follow")
-			actorId := r.FormValue("actor")
-
-			//follow all of boards following
-			if following.MatchString(follow) {
-				followingActor := FingerActor(follow)
-				col := GetActorCollection(followingActor.Following)
-
-				var nObj ObjectBase
-				nObj.Id = followingActor.Id
-
-				col.Items = append(col.Items, nObj)
-
-				for _, e := range col.Items {
-					if !IsAlreadyFollowing(db, actorId, e.Id) && e.Id != Domain && e.Id != actorId {
-						followActivity := MakeFollowActivity(db, actorId, e.Id)
-
-						if FingerActor(e.Id).Id != "" {
-							MakeActivityRequestOutbox(db, followActivity)
-						}
-					}
-				}
-
-				//follow all of boards followers
-			} else if followers.MatchString(follow) {
-				followersActor := FingerActor(follow)
-				col := GetActorCollection(followersActor.Followers)
-
-				var nObj ObjectBase
-				nObj.Id = followersActor.Id
-
-				col.Items = append(col.Items, nObj)
-
-				for _, e := range col.Items {
-					if !IsAlreadyFollowing(db, actorId, e.Id) && e.Id != Domain && e.Id != actorId {
-						followActivity := MakeFollowActivity(db, actorId, e.Id)
-						if FingerActor(e.Id).Id != "" {
-							MakeActivityRequestOutbox(db, followActivity)
-						}
-					}
-				}
-
-				//do a normal follow to a single board
-			} else {
-				followActivity := MakeFollowActivity(db, actorId, follow)
-
-				if followActivity.Actor.Id == Domain && !IsActorLocal(db, followActivity.Object.Actor) {
-					w.Write([]byte("main board can only follow local boards. Create a new board and then follow outside boards from it."))
-					return
-				}
-
-				if FingerActor(follow).Id != "" {
-					MakeActivityRequestOutbox(db, followActivity)
-				}
-			}
-
-			var redirect string
-			if actor.Name != "main" {
-				redirect = "/" + actor.Name
-			}
-
-			http.Redirect(w, r, "/"+*Key+"/"+redirect, http.StatusSeeOther)
-		} else if manage && actor.Name != "" {
-			t := template.Must(template.New("").Funcs(template.FuncMap{
-				"sub": func(i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/manage.html"))
-
-			follow := GetActorCollection(actor.Following)
-			follower := GetActorCollection(actor.Followers)
-			reported := GetActorCollectionReq(r, actor.Id+"/reported")
-
-			var following []string
-			var followers []string
-			var reports []Report
-
-			for _, e := range follow.Items {
-				following = append(following, e.Id)
-			}
-
-			for _, e := range follower.Items {
-				followers = append(followers, e.Id)
-			}
-
-			for _, e := range reported.Items {
-				var r Report
-				r.Count = int(e.Size)
-				r.ID = e.Id
-				r.Reason = e.Content
-				reports = append(reports, r)
-			}
-
-			localReports := GetLocalReportDB(db, actor.Name)
-
-			for _, e := range localReports {
-				var r Report
-				r.Count = e.Count
-				r.ID = e.ID
-				r.Reason = e.Reason
-				reports = append(reports, r)
-			}
-
-			var adminData AdminPage
-			adminData.Following = following
-			adminData.Followers = followers
-			adminData.Reported = reports
-			adminData.Domain = Domain
-			adminData.IsLocal = IsActorLocal(db, actor.Id)
-
-			adminData.Title = "Manage /" + actor.Name + "/"
-			adminData.Boards = Boards
-			adminData.Board.Name = actor.Name
-			adminData.Board.Actor = actor
-			adminData.Key = *Key
-			adminData.Board.TP = TP
-
-			adminData.Board.Post.Actor = actor.Id
-
-			adminData.AutoSubscribe = GetActorAutoSubscribeDB(db, actor.Id)
-
-			adminData.Themes = &Themes
-
-			if cookie, err := r.Cookie("theme"); err == nil {
-				adminData.ThemeCookie = strings.SplitN(cookie.String(), "=", 2)[1]
-			}
-
-			err = t.ExecuteTemplate(w, "layout", adminData)
-			if err != nil {
-				// TODO: actual error handling
-				log.Printf("mod page: %s\n", err)
-			}
-
-		} else if admin || actor.Id == Domain {
-			t := template.Must(template.New("").Funcs(template.FuncMap{
-				"sub": func(i, j int) int { return i - j }}).ParseFiles("./static/main.html", "./static/nadmin.html"))
-
-			actor := GetActor(Domain)
-			follow := GetActorCollection(actor.Following).Items
-			follower := GetActorCollection(actor.Followers).Items
-
-			var following []string
-			var followers []string
-
-			for _, e := range follow {
-				following = append(following, e.Id)
-			}
-
-			for _, e := range follower {
-				followers = append(followers, e.Id)
-			}
-
-			var adminData AdminPage
-			adminData.Following = following
-			adminData.Followers = followers
-			adminData.Actor = actor.Id
-			adminData.Key = *Key
-			adminData.Domain = Domain
-			adminData.Board.ModCred, _ = GetPasswordFromSession(r)
-
-			adminData.Boards = Boards
-
-			adminData.Board.Post.Actor = actor.Id
-
-			adminData.PostBlacklist = GetRegexBlacklistDB(db)
-
-			adminData.Themes = &Themes
-			if cookie, err := r.Cookie("theme"); err == nil {
-				adminData.ThemeCookie = strings.SplitN(cookie.String(), "=", 2)[1]
-			}
-
-			err = t.ExecuteTemplate(w, "layout", adminData)
-			if err != nil {
-				// TODO: actual error handling
-				log.Printf("mod page: %s\n", err)
-			}
-		}
+	app.Get("/following", func(c *fiber.Ctx) error {
+		return c.SendString("main following")
 	})
 
-	http.HandleFunc("/"+*Key+"/addboard", func(w http.ResponseWriter, r *http.Request) {
-
-		actor := GetActorFromDB(db, Domain)
-
-		if !HasValidation(w, r, actor) {
-			return
-		}
-
-		var newActorActivity Activity
-		var board Actor
-		r.ParseForm()
-
-		var restrict bool
-		if r.FormValue("restricted") == "True" {
-			restrict = true
-		} else {
-			restrict = false
-		}
-
-		board.Name = r.FormValue("name")
-		board.PreferredUsername = r.FormValue("prefname")
-		board.Summary = r.FormValue("summary")
-		board.Restricted = restrict
-
-		newActorActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
-		newActorActivity.Type = "New"
-
-		var nobj ObjectBase
-		newActorActivity.Actor = &actor
-		newActorActivity.Object = &nobj
-
-		newActorActivity.Object.Alias = board.Name
-		newActorActivity.Object.Name = board.PreferredUsername
-		newActorActivity.Object.Summary = board.Summary
-		newActorActivity.Object.Sensitive = board.Restricted
-
-		MakeActivityRequestOutbox(db, newActorActivity)
-		http.Redirect(w, r, "/"+*Key, http.StatusSeeOther)
+	app.Get("/followers", func(c *fiber.Ctx) error {
+		return c.SendString("main followers")
 	})
 
-	http.HandleFunc("/"+*Key+"/postnews", func(w http.ResponseWriter, r *http.Request) {
+	/*
+	 Board actor
+	*/
 
-		actor := GetActorFromDB(db, Domain)
+	app.Get("/:actor", OutboxGet)
 
-		if !HasValidation(w, r, actor) {
-			return
-		}
+	app.Get("/:actor/:post", PostGet)
 
-		var newsitem NewsItem
-
-		newsitem.Title = r.FormValue("title")
-		newsitem.Content = template.HTML(r.FormValue("summary"))
-
-		WriteNewsToDB(db, newsitem)
-
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+	app.Get("/:actor/inbox", func(c *fiber.Ctx) error {
+		return c.SendString("actor inbox")
 	})
 
-	http.HandleFunc("/"+*Key+"/newsdelete/", func(w http.ResponseWriter, r *http.Request) {
-
-		actor := GetActorFromDB(db, Domain)
-
-		if !HasValidation(w, r, actor) {
-			return
-		}
-
-		timestamp := r.URL.Path[13+len(*Key):]
-
-		tsint, err := strconv.Atoi(timestamp)
-
-		if err != nil {
-			w.WriteHeader(http.StatusForbidden)
-			w.Write([]byte("404 no path"))
-			return
-		} else {
-			deleteNewsItemFromDB(db, tsint)
-			http.Redirect(w, r, "/news/", http.StatusSeeOther)
-		}
+	app.Get("/:actor/outbox", func(c *fiber.Ctx) error {
+		return c.SendString("actor outbox")
 	})
 
-	http.HandleFunc("/verify", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" {
-			r.ParseForm()
-			identifier := r.FormValue("id")
-			code := r.FormValue("code")
-
-			var verify Verify
-			verify.Identifier = identifier
-			verify.Code = code
-
-			j, _ := json.Marshal(&verify)
-
-			req, err := http.NewRequest("POST", Domain+"/auth", bytes.NewBuffer(j))
-
-			CheckError(err, "error making verify req")
-
-			req.Header.Set("Content-Type", activitystreams)
-
-			resp, err := http.DefaultClient.Do(req)
-
-			CheckError(err, "error getting verify resp")
-
-			defer resp.Body.Close()
-
-			rBody, _ := ioutil.ReadAll(resp.Body)
-
-			body := string(rBody)
-
-			if resp.StatusCode != 200 {
-				t := template.Must(template.ParseFiles("./static/verify.html"))
-				t.Execute(w, "wrong password "+verify.Code)
-			} else {
-
-				sessionToken, _ := uuid.NewV4()
-
-				_, err := cache.Do("SETEX", sessionToken, "86400", body+"|"+verify.Code)
-				if err != nil {
-					t := template.Must(template.ParseFiles("./static/verify.html"))
-					t.Execute(w, "")
-					return
-				}
-
-				http.SetCookie(w, &http.Cookie{
-					Name:    "session_token",
-					Value:   sessionToken.String(),
-					Expires: time.Now().UTC().Add(60 * 60 * 48 * time.Second),
-				})
-
-				http.Redirect(w, r, "/", http.StatusSeeOther)
-			}
-		} else {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("404 no path"))
-		}
+	app.Get("/:actor/following", func(c *fiber.Ctx) error {
+		return c.SendString("actor following")
 	})
 
-	http.HandleFunc("/banmedia", func(w http.ResponseWriter, r *http.Request) {
-		id := r.URL.Query().Get("id")
-		board := r.URL.Query().Get("board")
-
-		_, auth := GetPasswordFromSession(r)
-
-		if id == "" || auth == "" {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(""))
-			return
-		}
-
-		col := GetCollectionFromID(id)
-
-		if len(col.OrderedItems) > 0 {
-
-			actor := col.OrderedItems[0].Actor
-
-			if !HasAuth(db, auth, actor) {
-				w.WriteHeader(http.StatusBadRequest)
-				w.Write([]byte(""))
-				return
-			}
-
-			if len(col.OrderedItems[0].Attachment) > 0 {
-				re := regexp.MustCompile(Domain)
-				file := re.ReplaceAllString(col.OrderedItems[0].Attachment[0].Href, "")
-
-				f, err := os.Open("." + file)
-				CheckError(err, "could not open attachment for ban media")
-
-				defer f.Close()
-
-				bytes := make([]byte, 2048)
-
-				_, err = f.Read(bytes)
-				if err != nil {
-					fmt.Println("error readin bytes for setting media ban")
-				}
-
-				if !IsMediaBanned(db, f) {
-					query := `insert into bannedmedia (hash) values ($1)`
-
-					_, err := db.Exec(query, HashBytes(bytes))
-
-					CheckError(err, "error inserting banend media into db")
-
-				}
-
-				var obj ObjectBase
-				obj.Id = id
-				obj.Actor = actor
-
-				isOP := CheckIfObjectOP(db, obj.Id)
-
-				var OP string
-				if len(col.OrderedItems[0].InReplyTo) > 0 {
-					OP = col.OrderedItems[0].InReplyTo[0].Id
-				}
-
-				if !isOP {
-					TombstoneObject(db, id)
-				} else {
-					TombstoneObjectAndReplies(db, id)
-				}
-
-				if IsIDLocal(db, id) {
-					go DeleteObjectRequest(db, id)
-				}
-
-				UnArchiveLast(db, actor)
-
-				if !isOP {
-					if !IsIDLocal(db, id) {
-						http.Redirect(w, r, "/"+board+"/"+remoteShort(OP), http.StatusSeeOther)
-						return
-					} else {
-						http.Redirect(w, r, OP, http.StatusSeeOther)
-						return
-					}
-				} else {
-					http.Redirect(w, r, "/"+board, http.StatusSeeOther)
-					return
-				}
-			}
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))
+	app.Get("/:actor/followers", func(c *fiber.Ctx) error {
+		return c.SendString("actor followers")
 	})
 
-	http.HandleFunc("/delete", func(w http.ResponseWriter, r *http.Request) {
-		id := r.URL.Query().Get("id")
-		board := r.URL.Query().Get("board")
-
-		_, auth := GetPasswordFromSession(r)
-
-		if id == "" || auth == "" {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(""))
-			return
-		}
-
-		manage := r.URL.Query().Get("manage")
-		col := GetCollectionFromID(id)
-		if len(col.OrderedItems) < 1 {
-			actor := GetActorByNameFromDB(db, board)
-			if !HasAuth(db, auth, actor.Id) {
-				w.WriteHeader(http.StatusBadRequest)
-				w.Write([]byte(""))
-				return
-			}
-
-			if !CheckIfObjectOP(db, id) {
-				TombstoneObject(db, id)
-			} else {
-				TombstoneObjectAndReplies(db, id)
-			}
-
-			UnArchiveLast(db, actor.Id)
-
-			if manage == "t" {
-				http.Redirect(w, r, "/"+*Key+"/"+board, http.StatusSeeOther)
-				return
-			} else {
-				http.Redirect(w, r, "/"+board, http.StatusSeeOther)
-				return
-			}
-		}
-
-		actor := col.OrderedItems[0].Actor
-
-		if !HasAuth(db, auth, actor) {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(""))
-			return
-		}
-
-		var obj ObjectBase
-		obj.Id = id
-		obj.Actor = actor
-
-		isOP := CheckIfObjectOP(db, obj.Id)
-
-		var OP string
-		if len(col.OrderedItems[0].InReplyTo) > 0 {
-			OP = col.OrderedItems[0].InReplyTo[0].Id
-		}
-
-		if !isOP {
-			TombstoneObject(db, id)
-		} else {
-			TombstoneObjectAndReplies(db, id)
-		}
-
-		if IsIDLocal(db, id) {
-			go DeleteObjectRequest(db, id)
-		}
-
-		UnArchiveLast(db, actor)
-
-		if manage == "t" {
-			http.Redirect(w, r, "/"+*Key+"/"+board, http.StatusSeeOther)
-			return
-		} else if !isOP {
-			if !IsIDLocal(db, id) {
-				http.Redirect(w, r, "/"+board+"/"+remoteShort(OP), http.StatusSeeOther)
-				return
-			} else {
-				http.Redirect(w, r, OP, http.StatusSeeOther)
-				return
-			}
-		} else {
-			http.Redirect(w, r, "/"+board, http.StatusSeeOther)
-			return
-		}
+	app.Get("/:actor/reported", func(c *fiber.Ctx) error {
+		return c.SendString("actor reported")
 	})
 
-	http.HandleFunc("/deleteattach", func(w http.ResponseWriter, r *http.Request) {
-
-		id := r.URL.Query().Get("id")
-		board := r.URL.Query().Get("board")
-
-		_, auth := GetPasswordFromSession(r)
-
-		if id == "" || auth == "" {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(""))
-			return
-		}
-
-		manage := r.URL.Query().Get("manage")
-		col := GetCollectionFromID(id)
-
-		if len(col.OrderedItems) < 1 {
-			if !HasAuth(db, auth, GetActorByNameFromDB(db, board).Id) {
-				w.WriteHeader(http.StatusBadRequest)
-				w.Write([]byte(""))
-				return
-			}
-
-			DeleteAttachmentFromFile(db, id)
-			TombstoneAttachmentFromDB(db, id)
-
-			DeletePreviewFromFile(db, id)
-			TombstonePreviewFromDB(db, id)
-
-			if manage == "t" {
-				http.Redirect(w, r, "/"+*Key+"/"+board, http.StatusSeeOther)
-				return
-			} else {
-				http.Redirect(w, r, "/"+board, http.StatusSeeOther)
-				return
-			}
-		}
-
-		actor := col.OrderedItems[0].Actor
-
-		var OP string
-		if len(col.OrderedItems[0].InReplyTo) > 0 && col.OrderedItems[0].InReplyTo[0].Id != "" {
-			OP = col.OrderedItems[0].InReplyTo[0].Id
-		} else {
-			OP = id
-		}
-
-		if !HasAuth(db, auth, actor) {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(""))
-			return
-		}
-
-		DeleteAttachmentFromFile(db, id)
-		TombstoneAttachmentFromDB(db, id)
-
-		DeletePreviewFromFile(db, id)
-		TombstonePreviewFromDB(db, id)
-
-		if manage == "t" {
-			http.Redirect(w, r, "/"+*Key+"/"+board, http.StatusSeeOther)
-			return
-		} else if !IsIDLocal(db, OP) {
-			http.Redirect(w, r, "/"+board+"/"+remoteShort(OP), http.StatusSeeOther)
-			return
-		} else {
-			http.Redirect(w, r, OP, http.StatusSeeOther)
-			return
-		}
+	app.Get("/:actor/archive", func(c *fiber.Ctx) error {
+		return c.SendString("actor archive")
 	})
 
-	http.HandleFunc("/marksensitive", func(w http.ResponseWriter, r *http.Request) {
-
-		id := r.URL.Query().Get("id")
-		board := r.URL.Query().Get("board")
-
-		_, auth := GetPasswordFromSession(r)
-
-		if id == "" || auth == "" {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(""))
-			return
-		}
-
-		col := GetCollectionFromID(id)
-
-		if len(col.OrderedItems) < 1 {
-			if !HasAuth(db, auth, GetActorByNameFromDB(db, board).Id) {
-				w.WriteHeader(http.StatusBadRequest)
-				w.Write([]byte(""))
-				return
-			}
-
-			MarkObjectSensitive(db, id, true)
-
-			http.Redirect(w, r, "/"+board, http.StatusSeeOther)
-			return
-		}
-
-		actor := col.OrderedItems[0].Actor
-
-		var OP string
-		if len(col.OrderedItems[0].InReplyTo) > 0 && col.OrderedItems[0].InReplyTo[0].Id != "" {
-			OP = col.OrderedItems[0].InReplyTo[0].Id
-		} else {
-			OP = id
-		}
-
-		if !HasAuth(db, auth, actor) {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(""))
-			return
-		}
-
-		MarkObjectSensitive(db, id, true)
-
-		if !IsIDLocal(db, OP) {
-			http.Redirect(w, r, "/"+board+"/"+remoteShort(OP), http.StatusSeeOther)
-			return
-		} else {
-			http.Redirect(w, r, OP, http.StatusSeeOther)
-			return
-		}
+	app.Get("/post", func(c *fiber.Ctx) error {
+		return c.SendString("actor post")
 	})
 
-	http.HandleFunc("/remove", func(w http.ResponseWriter, r *http.Request) {
-		id := r.URL.Query().Get("id")
-		manage := r.URL.Query().Get("manage")
-		board := r.URL.Query().Get("board")
-		col := GetCollectionFromID(id)
-		actor := col.OrderedItems[0].Actor
-		_, auth := GetPasswordFromSession(r)
+	/*
+	 Admin routes
+	*/
 
-		if id == "" || auth == "" {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(""))
-			return
-		}
-
-		if !HasAuth(db, auth, actor) {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(""))
-			return
-		}
-
-		var obj ObjectBase
-		obj.Id = id
-		obj.Actor = actor
-
-		isOP := CheckIfObjectOP(db, obj.Id)
-
-		var OP string
-		if len(col.OrderedItems[0].InReplyTo) > 0 {
-			OP = col.OrderedItems[0].InReplyTo[0].Id
-		}
-
-		if !isOP {
-			SetObject(db, id, "Removed")
-		} else {
-			SetObjectAndReplies(db, id, "Removed")
-		}
-
-		if manage == "t" {
-			http.Redirect(w, r, "/"+*Key+"/"+board, http.StatusSeeOther)
-			return
-		} else if !isOP {
-			if !IsIDLocal(db, id) {
-				http.Redirect(w, r, "/"+board+"/"+remoteShort(OP), http.StatusSeeOther)
-				return
-			} else {
-				http.Redirect(w, r, OP, http.StatusSeeOther)
-				return
-			}
-		} else {
-			http.Redirect(w, r, "/"+board, http.StatusSeeOther)
-			return
-		}
+	app.Get("/verify", func(c *fiber.Ctx) error {
+		return c.SendString("admin verify")
 	})
 
-	http.HandleFunc("/removeattach", func(w http.ResponseWriter, r *http.Request) {
-
-		id := r.URL.Query().Get("id")
-		manage := r.URL.Query().Get("manage")
-		board := r.URL.Query().Get("board")
-		col := GetCollectionFromID(id)
-		actor := col.OrderedItems[0].Actor
-
-		var OP string
-		if len(col.OrderedItems[0].InReplyTo) > 0 && col.OrderedItems[0].InReplyTo[0].Id != "" {
-			OP = col.OrderedItems[0].InReplyTo[0].Id
-		} else {
-			OP = id
-		}
-
-		_, auth := GetPasswordFromSession(r)
-
-		if id == "" || auth == "" {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(""))
-			return
-		}
-
-		if !HasAuth(db, auth, actor) {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(""))
-			return
-		}
-
-		SetAttachmentFromDB(db, id, "Removed")
-		SetPreviewFromDB(db, id, "Removed")
-
-		if manage == "t" {
-			http.Redirect(w, r, "/"+*Key+"/"+board, http.StatusSeeOther)
-			return
-		} else if !IsIDLocal(db, OP) {
-			http.Redirect(w, r, "/"+board+"/"+remoteShort(OP), http.StatusSeeOther)
-			return
-		} else {
-			http.Redirect(w, r, OP, http.StatusSeeOther)
-			return
-		}
+	app.Get("/auth", func(c *fiber.Ctx) error {
+		return c.SendString("admin auth")
 	})
 
-	http.HandleFunc("/report", func(w http.ResponseWriter, r *http.Request) {
-
-		r.ParseForm()
-
-		id := r.FormValue("id")
-		board := r.FormValue("board")
-		reason := r.FormValue("comment")
-		close := r.FormValue("close")
-
-		actor := GetActorFromPath(db, id, "/")
-		_, auth := GetPasswordFromSession(r)
-
-		var captcha = r.FormValue("captchaCode") + ":" + r.FormValue("captcha")
-
-		if len(reason) > 100 {
-			w.Write([]byte("Report comment limit 100 characters"))
-			return
-		}
-
-		if close != "1" && !CheckCaptcha(db, captcha) {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("captcha required"))
-			return
-		}
-
-		if close == "1" {
-			if !HasAuth(db, auth, actor.Id) {
-				w.WriteHeader(http.StatusBadRequest)
-				w.Write([]byte(""))
-				return
-			}
-
-			if !IsIDLocal(db, id) {
-				CloseLocalReportDB(db, id, board)
-				http.Redirect(w, r, "/"+*Key+"/"+board, http.StatusSeeOther)
-				return
-			}
-
-			reported := DeleteReportActivity(db, id)
-			if reported {
-				http.Redirect(w, r, "/"+*Key+"/"+board, http.StatusSeeOther)
-				return
-			}
-
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(""))
-			return
-		}
-
-		if !IsIDLocal(db, id) {
-			CreateLocalReportDB(db, id, board, reason)
-			http.Redirect(w, r, "/"+board+"/"+remoteShort(id), http.StatusSeeOther)
-			return
-		}
-
-		reported := ReportActivity(db, id, reason)
-		if reported {
-			http.Redirect(w, r, id, http.StatusSeeOther)
-			return
-		}
-
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))
+	app.Get("/"+*Key+"/", func(c *fiber.Ctx) error {
+		return c.SendString("admin key")
 	})
 
-	http.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
-		var verify Verify
-		defer r.Body.Close()
-
-		body, _ := ioutil.ReadAll(r.Body)
-
-		err := json.Unmarshal(body, &verify)
-
-		CheckError(err, "error get verify from json")
-
-		v := GetVerificationByCode(db, verify.Code)
-
-		if v.Identifier == verify.Identifier {
-			w.Write([]byte(v.Board))
-			return
-		}
-
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(""))
+	app.Get("/"+*Key+"/addboard", func(c *fiber.Ctx) error {
+		return c.SendString("admin addboard ")
 	})
 
-	http.HandleFunc("/.well-known/webfinger", func(w http.ResponseWriter, r *http.Request) {
-		acct := r.URL.Query()["resource"]
+	app.Get("/"+*Key+"/postnews", func(c *fiber.Ctx) error {
+		return c.SendString("admin post news")
+	})
+
+	app.Get("/"+*Key+"/newsdelete", func(c *fiber.Ctx) error {
+		return c.SendString("admin news delete")
+	})
+
+	app.Get("/news", func(c *fiber.Ctx) error {
+		return c.SendString("admin news")
+	})
+
+	/*
+	 Board managment
+	*/
+
+	app.Get("/banmedia", func(c *fiber.Ctx) error {
+		return c.SendString("board ban media")
+	})
+
+	app.Get("/delete", func(c *fiber.Ctx) error {
+		return c.SendString("board delete")
+	})
+
+	app.Get("/deleteattach", func(c *fiber.Ctx) error {
+		return c.SendString("board delete attach")
+	})
+
+	app.Get("/marksensitive", func(c *fiber.Ctx) error {
+		return c.SendString("board mark sensitive")
+	})
+
+	app.Get("/remove", func(c *fiber.Ctx) error {
+		return c.SendString("board remove")
+	})
+
+	app.Get("/removeattach", func(c *fiber.Ctx) error {
+		return c.SendString("Hello World")
+	})
+
+	app.Get("/addtoindex", func(c *fiber.Ctx) error {
+		return c.SendString("board add to index")
+	})
+
+	app.Get("/poparchive", func(c *fiber.Ctx) error {
+		return c.SendString("board pop archive")
+	})
+
+	app.Get("/autosubscribe", func(c *fiber.Ctx) error {
+		return c.SendString("board autosubscribe")
+	})
+
+	app.Get("/blacklist", func(c *fiber.Ctx) error {
+		return c.SendString("board blacklist")
+	})
+
+	app.Get("/report", func(c *fiber.Ctx) error {
+		return c.SendString("board report")
+	})
+
+	app.Get("/.well-known/webfinger", func(c *fiber.Ctx) error {
+		acct := c.Query("resource")
 
 		if len(acct) < 1 {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("resource needs a value"))
-			return
+			c.Status(fiber.StatusBadRequest)
+			return c.Send([]byte("resource needs a value"))
 		}
 
-		acct[0] = strings.Replace(acct[0], "acct:", "", -1)
+		acct = strings.Replace(acct, "acct:", "", -1)
 
-		actorDomain := strings.Split(acct[0], "@")
+		actorDomain := strings.Split(acct, "@")
 
 		if len(actorDomain) < 2 {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("accpets only subject form of acct:board@instance"))
-			return
+			c.Status(fiber.StatusBadRequest)
+			return c.Send([]byte("accpets only subject form of acct:board@instance"))
 		}
 
 		if actorDomain[0] == "main" {
@@ -1332,10 +288,9 @@ func main() {
 			actorDomain[0] = "/" + actorDomain[0]
 		}
 
-		if !IsActorLocal(db, TP+""+actorDomain[1]+""+actorDomain[0]) {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("actor not local"))
-			return
+		if !IsActorLocal(DB, TP+""+actorDomain[1]+""+actorDomain[0]) {
+			c.Status(fiber.StatusBadRequest)
+			return c.Send([]byte("actor not local"))
 		}
 
 		var finger Webfinger
@@ -1350,107 +305,20 @@ func main() {
 
 		enc, _ := json.Marshal(finger)
 
-		w.Header().Set("Content-Type", activitystreams)
-		w.Write(enc)
-
+		c.Set("Content-Type", activitystreams)
+		return c.Send(enc)
 	})
 
-	http.HandleFunc("/addtoindex", func(w http.ResponseWriter, r *http.Request) {
-		actor := r.URL.Query().Get("id")
-
-		if Domain != "https://fchan.xyz" {
-			return
-		}
-
-		go AddInstanceToIndexDB(db, actor)
-	})
-
-	http.HandleFunc("/poparchive", func(w http.ResponseWriter, r *http.Request) {
-
-		actor := GetActorFromDB(db, Domain)
-
-		if !HasValidation(w, r, actor) {
-			return
-		}
-
-		id := r.URL.Query().Get("id")
-		board := r.URL.Query().Get("board")
-
-		SetObjectType(db, id, "Note")
-
-		http.Redirect(w, r, "/"+board+"/archive", http.StatusSeeOther)
-	})
-
-	http.HandleFunc("/blacklist", func(w http.ResponseWriter, r *http.Request) {
-
-		actor := GetActorFromDB(db, Domain)
-
-		if !HasValidation(w, r, actor) {
-			return
-		}
-
-		if r.Method == "GET" {
-			id := r.URL.Query().Get("remove")
-
-			if id != "" {
-				i, _ := strconv.Atoi(id)
-				DeleteRegexBlacklistDB(db, i)
-			}
-
-		} else {
-			regex := r.FormValue("regex")
-			testCase := r.FormValue("testCase")
-
-			if regex == "" {
-				http.Redirect(w, r, "/", http.StatusSeeOther)
-				return
-			}
-
-			r.ParseForm()
-
-			re := regexp.MustCompile(regex)
-
-			if testCase == "" {
-				WriteRegexBlacklistDB(db, regex)
-			} else if re.MatchString(testCase) {
-				WriteRegexBlacklistDB(db, regex)
-			}
-		}
-
-		http.Redirect(w, r, "/"+*Key+"#regex", http.StatusSeeOther)
-	})
-
-	http.HandleFunc("/api/media", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("hash") != "" {
-			RouteImages(w, r.URL.Query().Get("hash"))
-		}
-	})
-
-	http.HandleFunc("/autosubscribe", func(w http.ResponseWriter, r *http.Request) {
-
-		if !HasValidation(w, r, GetActorFromDB(db, Domain)) {
-			return
-		}
-
-		board := r.URL.Query().Get("board")
-		actor := GetActorByNameFromDB(db, board)
-
-		SetActorAutoSubscribeDB(db, actor.Id)
-		autoSub := GetActorAutoSubscribeDB(db, actor.Id)
-
-		if autoSub {
-			AutoFollow(db, actor.Id)
-		}
-
-		http.Redirect(w, r, "/"+*Key+"/"+board, http.StatusSeeOther)
+	app.Get("/api/media", func(c *fiber.Ctx) error {
+		return c.SendString("api media")
 	})
 
 	fmt.Println("Server for " + Domain + " running on port " + Port)
 
 	fmt.Println("Mod key: " + *Key)
-	PrintAdminAuth(db)
+	PrintAdminAuth(DB)
 
-	http.ListenAndServe(Port, nil)
+	app.Listen(Port)
 }
 
 func CheckError(e error, m string) error {
@@ -3001,4 +1869,69 @@ func CheckInactiveInstances(db *sql.DB) map[string]string {
 	}
 
 	return instances
+}
+
+func TemplateFunctions(engine *html.Engine) {
+	engine.AddFunc(
+		"mod", mod,
+	)
+
+	engine.AddFunc(
+		"sub", sub,
+	)
+
+	engine.AddFunc(
+		"unixtoreadable", unixToReadable,
+	)
+
+	engine.AddFunc("proxy", func(url string) string {
+		return MediaProxy(url)
+	})
+
+	engine.AddFunc("short", func(actorName string, url string) string {
+		return shortURL(actorName, url)
+	})
+
+	engine.AddFunc("parseAttachment", func(obj ObjectBase, catalog bool) template.HTML {
+		return ParseAttachment(obj, catalog)
+	})
+
+	engine.AddFunc("parseContent", func(board Actor, op string, content string, thread ObjectBase) template.HTML {
+		return ParseContent(DB, board, op, content, thread)
+	})
+
+	engine.AddFunc("shortImg", func(url string) string {
+		return ShortImg(url)
+	})
+
+	engine.AddFunc("convertSize", func(size int64) string {
+		return ConvertSize(size)
+	})
+
+	engine.AddFunc("isOnion", func(url string) bool {
+		return IsOnion(url)
+	})
+
+	engine.AddFunc("parseReplyLink", func(actorId string, op string, id string, content string) template.HTML {
+		actor := FingerActor(actorId)
+		title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
+		link := "<a href=\"" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id) + "\" title=\"" + title + "\" class=\"replyLink\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
+		return template.HTML(link)
+	})
+
+	engine.AddFunc("add", func(i, j int) int {
+		return i + j
+	})
+
+	engine.AddFunc(
+		"timeToReadableLong", timeToReadableLong,
+	)
+
+	engine.AddFunc(
+		"timeToUnix", timeToUnix,
+	)
+
+	engine.AddFunc(
+		"sub", sub,
+	)
 }
