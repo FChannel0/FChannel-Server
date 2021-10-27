@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# This hook formats every Go file with `go fmt` before committing them.
+# It helps to enforce the Go style guide for those who forget to format their code properly.
+
+STAGED="$(git diff --cached --name-only -- '*.go')"
+if [ -n "$STAGED" ]; then
+	for file in $STAGED; do
+		go fmt "$file"
+		git add "$file"
+	done
+fi

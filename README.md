@@ -14,37 +14,39 @@ Current things that will be implemented first are:
 - Other improvements will be made over time, first it needs to be as easy as possible for new instances to come online and connect with others reliably.
 
 Try and run your own instances and federate with one of the instances above.
-Any contributions or suggestions are appreciated. Best way to give immediate feedback is the XMPP: general@rooms.fchannel.org or Matrix: #fchan:matrix.org
+Any contributions or suggestions are appreciated. Best way to give immediate feedback is the XMPP: `general@rooms.fchannel.org` or Matrix: `#fchan:matrix.org`
 
-# Server Installation and Configuration
+## Development
+To get started on hacking the code of FChannel, it is recommended you setup your
+git hooks by simply running `git config core.hooksPath .githooks`.
 
-## Minimum Server Requirements
+This currently helps enforce the Go style guide, but may be expanded upon in the
+future.
+
+Before you make a pull request, ensure everything you changed works as expected,
+and to fix errors reported by `go vet`.
+
+## Server Installation and Configuration
+
+### Minimum Server Requirements
 
 - Go v1.16+
-
 - PostgreSQL
-
 - Redis
-
 - ImageMagick
-
 - exiv2
 
-## Server Installation Instructions
+### Server Installation Instructions
 
-- Ensure you have golang installed and set a correct `GOPATH`
-
+- Ensure you have Golang installed and set a correct `GOPATH`
 - `git clone` the software
-
 - Copy `config-init` to `config` and change the values appropriately to reflect the instance.
-
 - Create the database, username, and password for psql that is used in the `config` file.
-
 - Start the server with `go run .`.
 
-## Server Configuration
+### Server Configuration
 
-### config file
+#### config file
 
   `instance:fchan.xyz`  Domain name that the host can be located at without www and `http://` or `https://`
 
@@ -88,20 +90,20 @@ Any contributions or suggestions are appreciated. Best way to give immediate fee
 
 ### Local testing
 
-  When testing on a local env when setting the `instance` value in the config file you have to append the port number to the local address eg. `instance:localhost:3000` with `instanceport` also being set to the same port.
+When testing on a local env when setting the `instance` value in the config file you have to append the port number to the local address eg. `instance:localhost:3000` with `instanceport` also being set to the same port.
 
-  If you want to test federation between servers locally you have to use your local ip as the `instance` eg. `instance:192.168.0.2:3000` and `instance:192.168.0.2:4000` adding the port to localhost will not route correctly.
+If you want to test federation between servers locally you have to use your local ip as the `instance` eg. `instance:192.168.0.2:3000` and `instance:192.168.0.2:4000` adding the port to localhost will not route correctly.
 
 ### Managing the server
 
-  To access the managment page to create new boards or subscribe to other boards, when you start the server the console will output the `Mod key` and `Admin Login`
-  Use the `Mod key` by appending it to your server's url, `https://fchan.xyz/[Mod key]` once there you will be prompted for the `Admin Login` credentials.
-  You can manage each board by appending the `Mod key` to the desired board url: `https://fchan.xyz/[Mod Key]/g`
-  The `Mod key` is not static and is reset on server restart.
+To access the managment page to create new boards or subscribe to other boards, when you start the server the console will output the `Mod key` and `Admin Login`
+Use the `Mod key` by appending it to your server's url, `https://fchan.xyz/[Mod key]` once there you will be prompted for the `Admin Login` credentials.
+You can manage each board by appending the `Mod key` to the desired board url: `https://fchan.xyz/[Mod Key]/g`
+The `Mod key` is not static and is reset on server restart.
 
 ## Server Update
 
- Check the git repo for the latest commits. If there are commits you want to update to, git pull and restart the instance.
+Check the git repo for the latest commits. If there are commits you want to update to, git pull and restart the instance.
 
 ## Networking
 
@@ -140,7 +142,6 @@ server {
 #### Using Certbot With NGINX
 
 - After installing Certbot and the Nginx plugin, generate the certificate: `sudo certbot --nginx --agree-tos --redirect --rsa-key-size 4096 --hsts --staple-ocsp --email YOUR_EMAIL -d DOMAIN_NAME`
-
 - Add a job to cron so the certificate will be renewed automatically: `echo "0 0 * * *  root  certbot renew --quiet --no-self-upgrade --post-hook 'systemctl reload nginx'" | sudo tee -a /etc/cron.d/renew_certbot`
 
 ### Apache
@@ -156,10 +157,5 @@ server {
 A Dockerfile is provided, and an example `docker-compose.yml` exists to base your Docker setup on.
 You should use the `config-init.docker` file to configure it and it will work more or less out of the box with it, you should just need some minor configuration changes to test it out.
 
-You may need to set up your `config` like this to access the mod tools if you get stuck when logging in:
-```
-instance:fchan.xyz:PORT GOES HERE
-instanceport:PORT GOES HERE
-```
-
-See #12 for more details.
+Remember, you may need to look at [the section on local testing](#local-testing)
+to use 100% of FChannel's features.
