@@ -5,7 +5,6 @@ import "net/http"
 import "database/sql"
 import _ "github.com/lib/pq"
 import "encoding/json"
-import "reflect"
 import "io/ioutil"
 import "mime/multipart"
 import "os"
@@ -198,12 +197,10 @@ func GetObjectFromJson(obj []byte) ObjectBase {
 
 	CheckError(err, "error with getting obj from json")
 
-	t := reflect.TypeOf(generic)
-
 	var nObj ObjectBase
-	if t != nil {
-		switch t.String() {
-		case "[]interface {}":
+	if generic != nil {
+		switch generic.(type) {
+		case []interface{}:
 			var lObj ObjectBase
 			var arrContext ObjectArray
 			err = json.Unmarshal(obj, &arrContext.Object)
@@ -214,14 +211,14 @@ func GetObjectFromJson(obj []byte) ObjectBase {
 			nObj = lObj
 			break
 
-		case "map[string]interface {}":
+		case map[string]interface{}:
 			var arrContext Object
 			err = json.Unmarshal(obj, &arrContext.Object)
 			CheckError(err, "error with object from json")
 			nObj = *arrContext.Object
 			break
 
-		case "string":
+		case string:
 			var lObj ObjectBase
 			var arrContext ObjectString
 			err = json.Unmarshal(obj, &arrContext.Object)
@@ -244,14 +241,13 @@ func GetActorFromJson(actor []byte) Actor {
 		return nActor
 	}
 
-	t := reflect.TypeOf(generic)
-	if t != nil {
-		switch t.String() {
-		case "map[string]interface {}":
+	if generic != nil {
+		switch generic.(type) {
+		case map[string]interface{}:
 			err = json.Unmarshal(actor, &nActor)
 			CheckError(err, "error with To []interface{}")
 
-		case "string":
+		case string:
 			var str string
 			err = json.Unmarshal(actor, &str)
 			CheckError(err, "error with To string")
@@ -273,17 +269,15 @@ func GetToFromJson(to []byte) []string {
 		return nil
 	}
 
-	t := reflect.TypeOf(generic)
-
-	if t != nil {
+	if generic != nil {
 		var nStr []string
-		switch t.String() {
-		case "[]interface {}":
+		switch generic.(type) {
+		case []interface{}:
 			err = json.Unmarshal(to, &nStr)
 			CheckError(err, "error with To []interface{}")
 			return nStr
 
-		case "string":
+		case string:
 			var str string
 			err = json.Unmarshal(to, &str)
 			CheckError(err, "error with To string")
@@ -302,12 +296,10 @@ func HasContextFromJson(context []byte) bool {
 
 	CheckError(err, "error with getting context")
 
-	t := reflect.TypeOf(generic)
-
 	hasContext := false
 
-	switch t.String() {
-	case "[]interface {}":
+	switch generic.(type) {
+	case []interface{}:
 		var arrContext AtContextArray
 		err = json.Unmarshal(context, &arrContext.Context)
 		CheckError(err, "error with []interface{}")
@@ -316,7 +308,7 @@ func HasContextFromJson(context []byte) bool {
 				hasContext = true
 			}
 		}
-	case "string":
+	case string:
 		var arrContext AtContextString
 		err = json.Unmarshal(context, &arrContext.Context)
 		CheckError(err, "error with string")
