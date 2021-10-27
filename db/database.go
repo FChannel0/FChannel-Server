@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"database/sql"
@@ -10,34 +10,71 @@ import (
 	"strings"
 	"time"
 
+	"github.com/FChannel0/FChannel-Server/activitypub"
+	"github.com/FChannel0/FChannel-Server/config"
 	_ "github.com/lib/pq"
 )
 
-func GetActorFromDB(db *sql.DB, id string) Actor {
-	var nActor Actor
+var db *sql.DB
+
+type NewsItem struct {
+	Title   string
+	Content template.HTML
+	Time    int
+}
+
+func ConnectDB() error {
+	host := config.DBHost
+	port := config.DBPort
+	user := config.DBUser
+	password := config.DBPassword
+	dbname := config.DBName
+
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s "+
+		"dbname=%s sslmode=disable", host, port, user, password, dbname)
+
+	_db, err := sql.Open("postgres", psqlInfo)
+	if err != nil {
+		return err
+	}
+
+	if err := _db.Ping(); err != nil {
+		return err
+	}
+
+	fmt.Println("Successfully connected DB")
+	db = _db
+
+	return nil
+}
+
+func GetActor(id string) (activitypub.Actor, error) {
+	var nActor activitypub.Actor
 
 	query := `select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary, publickeypem from actor where id=$1`
 
 	rows, err := db.Query(query, id)
 
-	if CheckError(err, "could not get actor from db query") != nil {
-		return nActor
+	if err != nil {
+		return nActor, err
 	}
 
 	var publicKeyPem string
 	defer rows.Close()
 	for rows.Next() {
-		err = rows.Scan(&nActor.Type, &nActor.Id, &nActor.Name, &nActor.PreferredUsername, &nActor.Inbox, &nActor.Outbox, &nActor.Following, &nActor.Followers, &nActor.Restricted, &nActor.Summary, &publicKeyPem)
-		CheckError(err, "error with actor from db scan ")
+		if err := rows.Scan(&nActor.Type, &nActor.Id, &nActor.Name, &nActor.PreferredUsername, &nActor.Inbox, &nActor.Outbox, &nActor.Following, &nActor.Followers, &nActor.Restricted, &nActor.Summary, &publicKeyPem); err != nil {
+			return nActor, err
+		}
 	}
 
 	nActor.PublicKey = GetActorPemFromDB(db, publicKeyPem)
 	if nActor.Id != "" && nActor.PublicKey.PublicKeyPem == "" {
-		err = CreatePublicKeyFromPrivate(db, &nActor, publicKeyPem)
-		CheckError(err, "error creating public key from private")
+		if err := CreatePublicKeyFromPrivate(db, &nActor, publicKeyPem); err != nil {
+			return nActor, err
+		}
 	}
 
-	return nActor
+	return nActor, nil
 }
 
 func GetActorByNameFromDB(db *sql.DB, name string) Actor {
@@ -1638,7 +1675,7 @@ func MarkObjectSensitive(db *sql.DB, id string, sensitive bool) {
 }
 
 //if limit less than 1 return all news items
-func getNewsFromDB(db *sql.DB, limit int) []NewsItem {
+func GetNewsFromDB(limit int) ([]NewsItem, error) {
 	var news []NewsItem
 
 	var query string
@@ -1656,17 +1693,16 @@ func getNewsFromDB(db *sql.DB, limit int) []NewsItem {
 		rows, err = db.Query(query)
 	}
 
-	if CheckError(err, "could not get news from db query") != nil {
-		return news
+	if err != nil {
+		return news, nil
 	}
 
 	defer rows.Close()
 	for rows.Next() {
 		n := NewsItem{}
 		var content string
-		err = rows.Scan(&n.Title, &content, &n.Time)
-		if CheckError(err, "error scanning news from db") != nil {
-			return news
+		if err := rows.Scan(&n.Title, &content, &n.Time); err != nil {
+			return news, err
 		}
 
 		content = strings.ReplaceAll(content, "\n", "<br>")
@@ -1675,7 +1711,7 @@ func getNewsFromDB(db *sql.DB, limit int) []NewsItem {
 		news = append(news, n)
 	}
 
-	return news
+	return news, nil
 }
 
 func getNewsItemFromDB(db *sql.DB, timestamp int) (NewsItem, error) {

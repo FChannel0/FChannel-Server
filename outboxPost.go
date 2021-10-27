@@ -1,16 +1,18 @@
 package main
 
-import "fmt"
-import "net/http"
-import "database/sql"
-import _ "github.com/lib/pq"
-import "encoding/json"
-import "io/ioutil"
-import "mime/multipart"
-import "os"
-import "regexp"
-import "strings"
-import "os/exec"
+import (
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	_ "github.com/lib/pq"
+	"io/ioutil"
+	"mime/multipart"
+	"net/http"
+	"os"
+	"os/exec"
+	"regexp"
+	"strings"
+)
 
 func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 

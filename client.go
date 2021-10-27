@@ -90,12 +90,6 @@ type Removed struct {
 	Board string
 }
 
-type NewsItem struct {
-	Title   string
-	Content template.HTML
-	Time    int
-}
-
 type PostBlacklist struct {
 	Id    int
 	Regex string
@@ -119,45 +113,6 @@ func timeToReadableLong(t time.Time) string {
 
 func timeToUnix(t time.Time) string {
 	return fmt.Sprint(t.Unix())
-}
-
-func IndexGet(c *fiber.Ctx) error {
-
-	actor := GetActorFromDB(DB, Domain)
-
-	var data PageData
-	data.Title = "Welcome to " + actor.PreferredUsername
-	data.PreferredUsername = actor.PreferredUsername
-	data.Boards = Boards
-	data.Board.Name = ""
-	data.Key = *Key
-	data.Board.Domain = Domain
-	data.Board.ModCred, _ = GetPasswordFromCtx(c)
-	data.Board.Actor = actor
-	data.Board.Post.Actor = actor.Id
-	data.Board.Restricted = actor.Restricted
-	//almost certainly there is a better algorithm for this but the old one was wrong
-	//and I suck at math. This works at least.
-	data.BoardRemainer = make([]int, 3-(len(data.Boards)%3))
-	if len(data.BoardRemainer) == 3 {
-		data.BoardRemainer = make([]int, 0)
-	}
-
-	col := GetCollectionFromReq("https://fchan.xyz/followers")
-
-	if len(col.Items) > 0 {
-		data.InstanceIndex = col.Items
-	}
-
-	data.NewsItems = getNewsFromDB(DB, 3)
-
-	data.Themes = &Themes
-
-	data.ThemeCookie = GetThemeCookie(c)
-
-	return c.Render("index", fiber.Map{
-		"page": data,
-	}, "layouts/main")
 }
 
 func NewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB, timestamp int) {
@@ -1055,23 +1010,4 @@ func ShortExcerpt(post ObjectBase) string {
 	}
 
 	return returnString
-}
-
-func IsOnion(url string) bool {
-	re := regexp.MustCompile(`\.onion`)
-	if re.MatchString(url) {
-		return true
-	}
-
-	return false
-}
-
-func GetThemeCookie(c *fiber.Ctx) string {
-	cookie := c.Cookies("theme")
-	if cookie != "" {
-		cookies := strings.SplitN(cookie, "=", 2)
-		return cookies[0]
-	}
-
-	return "default"
 }

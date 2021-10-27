@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"crypto"
@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/FChannel0/FChannel-Server/activitypub"
 	_ "github.com/lib/pq"
 
 	crand "crypto/rand"
@@ -46,12 +47,13 @@ type Signature struct {
 	Algorithm string
 }
 
-func DeleteBoardMod(db *sql.DB, verify Verify) {
+func DeleteBoardMod(verify Verify) error {
 	query := `select code from boardaccess where identifier=$1 and board=$1`
 
 	rows, err := db.Query(query, verify.Identifier, verify.Board)
-
-	CheckError(err, "could not select code from boardaccess")
+	if err != nil {
+		return err
+	}
 
 	defer rows.Close()
 
@@ -62,43 +64,48 @@ func DeleteBoardMod(db *sql.DB, verify Verify) {
 	if code != "" {
 		query := `delete from crossverification where code=$1`
 
-		_, err := db.Exec(query, code)
-
-		CheckError(err, "could not delete code from crossverification")
+		if _, err := db.Exec(query, code); err != nil {
+			return err
+		}
 
 		query = `delete from boardaccess where identifier=$1 and board=$2`
 
-		_, err = db.Exec(query, verify.Identifier, verify.Board)
-
-		CheckError(err, "could not delete identifier from boardaccess")
+		if _, err := db.Exec(query, verify.Identifier, verify.Board); err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
-func GetBoardMod(db *sql.DB, identifier string) Verify {
+func GetBoardMod(identifier string) (Verify, error) {
 	var nVerify Verify
 
 	query := `select code, board, type, identifier from boardaccess where identifier=$1`
 
 	rows, err := db.Query(query, identifier)
 
-	CheckError(err, "could not select boardaccess query")
+	if err != nil {
+		return nVerify, err
+	}
 
 	defer rows.Close()
 
 	rows.Next()
 	rows.Scan(&nVerify.Code, &nVerify.Board, &nVerify.Type, &nVerify.Identifier)
 
-	return nVerify
+	return nVerify, nil
 }
 
-func CreateBoardMod(db *sql.DB, verify Verify) {
+func CreateBoardMod(verify Verify) error {
 	pass := CreateKey(50)
 
 	query := `select code from verification where identifier=$1 and type=$2`
 
 	rows, err := db.Query(query, verify.Board, verify.Type)
-
-	CheckError(err, "could not select verifcaiton query")
+	if err != nil {
+		return err
+	}
 
 	defer rows.Close()
 
@@ -112,8 +119,9 @@ func CreateBoardMod(db *sql.DB, verify Verify) {
 		query := `select identifier from boardaccess where identifier=$1 and board=$2`
 
 		rows, err := db.Query(query, verify.Identifier, verify.Board)
-
-		CheckError(err, "could not select idenifier from boardaccess")
+		if err != nil {
+			return err
+		}
 
 		defer rows.Close()
 
@@ -125,186 +133,179 @@ func CreateBoardMod(db *sql.DB, verify Verify) {
 
 			query := `insert into crossverification (verificationcode, code) values ($1, $2)`
 
-			_, err := db.Exec(query, code, pass)
-
-			CheckError(err, "could not insert new crossverification")
+			if _, err := db.Exec(query, code, pass); err != nil {
+				return err
+			}
 
 			query = `insert into boardaccess (identifier, code, board, type) values ($1, $2, $3, $4)`
 
-			_, err = db.Exec(query, verify.Identifier, pass, verify.Board, verify.Type)
-
-			CheckError(err, "could not insert new boardaccess")
+			if _, err = db.Exec(query, verify.Identifier, pass, verify.Board, verify.Type); err != nil {
+				return err
+			}
 
 			fmt.Printf("Board access - Board: %s, Identifier: %s, Code: %s\n", verify.Board, verify.Identifier, pass)
 		}
 	}
+
+	return nil
 }
 
-func CreateVerification(db *sql.DB, verify Verify) {
+func CreateVerification(verify Verify) error {
 	query := `insert into verification (type, identifier, code, created) values ($1, $2, $3, $4)`
 
 	_, err := db.Exec(query, verify.Type, verify.Identifier, verify.Code, time.Now().UTC().Format(time.RFC3339))
-
-	CheckError(err, "error creating verify")
+	return err
 }
 
-func GetVerificationByEmail(db *sql.DB, email string) Verify {
+func GetVerificationByEmail(email string) (Verify, error) {
+	// TODO: this only needs to select one row.
+
 	var verify Verify
 
 	query := `select type, identifier, code, board from boardaccess where identifier=$1`
 
 	rows, err := db.Query(query, email)
-
-	defer rows.Close()
-
-	CheckError(err, "error getting verify by email query")
+	if err != nil {
+		return verify, err
+	}
 
 	defer rows.Close()
 
 	for rows.Next() {
-		err := rows.Scan(&verify.Type, &verify.Identifier, &verify.Code, &verify.Board)
-
-		CheckError(err, "error getting verify by email scan")
+		if err := rows.Scan(&verify.Type, &verify.Identifier, &verify.Code, &verify.Board); err != nil {
+			return verify, err
+		}
 	}
 
-	return verify
+	return verify, nil
 }
 
-func GetVerificationByCode(db *sql.DB, code string) Verify {
+func GetVerificationByCode(code string) (Verify, error) {
+	// TODO: this only needs to select one row.
+
 	var verify Verify
 
 	query := `select type, identifier, code, board from boardaccess where code=$1`
 
 	rows, err := db.Query(query, code)
+	if err != nil {
+		return verify, err
+	}
 
 	defer rows.Close()
 
-	if err != nil {
-		CheckError(err, "error getting verify by code query")
-		return verify
-	}
-
 	for rows.Next() {
-		err := rows.Scan(&verify.Type, &verify.Identifier, &verify.Code, &verify.Board)
-
-		CheckError(err, "error getting verify by code scan")
+		if err := rows.Scan(&verify.Type, &verify.Identifier, &verify.Code, &verify.Board); err != nil {
+			return verify, err
+		}
 	}
 
-	return verify
+	return verify, nil
 }
 
-func GetVerificationCode(db *sql.DB, verify Verify) Verify {
+func GetVerificationCode(verify Verify) (Verify, error) {
 	var nVerify Verify
 
 	query := `select type, identifier, code, board from boardaccess where identifier=$1 and board=$2`
 
 	rows, err := db.Query(query, verify.Identifier, verify.Board)
+	if err != nil {
+		return verify, err
+	}
 
 	defer rows.Close()
 
-	if err != nil {
-		CheckError(err, "error getting verify by code query")
-		return verify
-	}
-
 	for rows.Next() {
-		err := rows.Scan(&nVerify.Type, &nVerify.Identifier, &nVerify.Code, &nVerify.Board)
+		if err := rows.Scan(&nVerify.Type, &nVerify.Identifier, &nVerify.Code, &nVerify.Board); err != nil {
+			return nVerify, err
+		}
 
-		CheckError(err, "error getting verify by code scan")
 	}
 
-	return nVerify
+	return nVerify, nil
 }
 
-func VerifyCooldownCurrent(db *sql.DB, auth string) VerifyCooldown {
+func VerifyCooldownCurrent(auth string) (VerifyCooldown, error) {
 	var current VerifyCooldown
 
 	query := `select identifier, code, time from verificationcooldown where code=$1`
 
 	rows, err := db.Query(query, auth)
-
-	defer rows.Close()
-
 	if err != nil {
-
 		query := `select identifier, code, time from verificationcooldown where identifier=$1`
 
 		rows, err := db.Query(query, auth)
 
-		defer rows.Close()
-
 		if err != nil {
-			return current
+			return current, err
 		}
 
 		defer rows.Close()
 
 		for rows.Next() {
-			err = rows.Scan(&current.Identifier, &current.Code, &current.Time)
+			if err := rows.Scan(&current.Identifier, &current.Code, &current.Time); err != nil {
+				return current, err
+			}
+		}
+	} else {
+		defer rows.Close()
+	}
 
-			CheckError(err, "error scanning current verify cooldown verification")
+	for rows.Next() {
+		if err := rows.Scan(&current.Identifier, &current.Code, &current.Time); err != nil {
+			return current, err
 		}
 	}
 
-	defer rows.Close()
-
-	for rows.Next() {
-		err = rows.Scan(&current.Identifier, &current.Code, &current.Time)
-
-		CheckError(err, "error scanning current verify cooldown code")
-	}
-
-	return current
+	return current, nil
 }
 
-func VerifyCooldownAdd(db *sql.DB, verify Verify) {
+func VerifyCooldownAdd(verify Verify) error {
 	query := `insert into verficationcooldown (identifier, code) values ($1, $2)`
 
 	_, err := db.Exec(query, verify.Identifier, verify.Code)
-
-	CheckError(err, "error adding verify to cooldown")
+	return err
 }
 
-func VerficationCooldown(db *sql.DB) {
-
+func VerficationCooldown() error {
 	query := `select identifier, code, time from verificationcooldown`
 
 	rows, err := db.Query(query)
-
-	defer rows.Close()
-
-	CheckError(err, "error with verifiy cooldown query ")
+	if err != nil {
+		return err
+	}
 
 	defer rows.Close()
 
 	for rows.Next() {
 		var verify VerifyCooldown
-		err = rows.Scan(&verify.Identifier, &verify.Code, &verify.Time)
 
-		CheckError(err, "error with verifiy cooldown scan ")
+		if err := rows.Scan(&verify.Identifier, &verify.Code, &verify.Time); err != nil {
+			return err
+		}
 
 		nTime := verify.Time - 1
 
 		query = `update set time=$1 where identifier=$2`
 
-		_, err := db.Exec(query, nTime, verify.Identifier)
+		if _, err := db.Exec(query, nTime, verify.Identifier); err != nil {
+			return err
+		}
 
-		CheckError(err, "error with update cooldown query")
-
-		VerficationCooldownRemove(db)
+		VerficationCooldownRemove()
 	}
+
+	return nil
 }
 
-func VerficationCooldownRemove(db *sql.DB) {
+func VerficationCooldownRemove() error {
 	query := `delete from verificationcooldown where time < 1`
 
 	_, err := db.Exec(query)
-
-	CheckError(err, "error with verifiy cooldown remove query ")
+	return err
 }
 
-func SendVerification(verify Verify) {
-
+func SendVerification(verify Verify) error {
 	fmt.Println("sending email")
 
 	from := SiteEmail
@@ -317,65 +318,66 @@ func SendVerification(verify Verify) {
 		"Subject: Image Board Verification\n\n" +
 		body
 
-	err := smtp.SendMail(SiteEmailServer+":"+SiteEmailPort,
+	return smtp.SendMail(SiteEmailServer+":"+SiteEmailPort,
 		smtp.PlainAuth("", from, pass, SiteEmailServer),
 		from, []string{to}, []byte(msg))
-
-	CheckError(err, "error with smtp")
 }
 
 func IsEmailSetup() bool {
 	if SiteEmail == "" {
 		return false
-	}
-
-	if SiteEmailPassword == "" {
+	} else if SiteEmailPassword == "" {
 		return false
-	}
-
-	if SiteEmailServer == "" {
+	} else if SiteEmailServer == "" {
 		return false
-	}
-
-	if SiteEmailPort == "" {
+	} else if SiteEmailPort == "" {
 		return false
 	}
 
 	return true
 }
 
-func HasAuth(db *sql.DB, code string, board string) bool {
-
-	verify := GetVerificationByCode(db, code)
+func HasAuth(code string, board string) (bool, error) {
+	verify, err := GetVerificationByCode(code)
+	if err != nil {
+		return false, err
+	}
 
 	if verify.Board == Domain || (HasBoardAccess(db, verify) && verify.Board == board) {
-		return true
+		return true, nil
 	}
 
-	return false
+	return false, nil
 }
 
-func HasAuthCooldown(db *sql.DB, auth string) bool {
-	current := VerifyCooldownCurrent(db, auth)
+func HasAuthCooldown(auth string) (bool, error) {
+	current, err := VerifyCooldownCurrent(auth)
+	if err != nil {
+		return false, err
+	}
+
 	if current.Time > 0 {
-		return true
+		return true, nil
 	}
 
-	fmt.Println("has auth is false")
-	return false
+	// fmt.Println("has auth is false")
+	return false, nil
 }
 
-func GetVerify(db *sql.DB, access string) Verify {
-	verify := GetVerificationByCode(db, access)
+func GetVerify(access string) (Verify, error) {
+	verify, err := GetVerificationByCode(access)
+	if err != nil {
+		return verify, err
+	}
 
 	if verify.Identifier == "" {
-		verify = GetVerificationByEmail(db, access)
+		verify, err = GetVerificationByEmail(access)
 	}
 
-	return verify
+	return verify, err
 }
 
-func CreateNewCaptcha(db *sql.DB) {
+func CreateNewCaptcha() error {
 	id := RandomID(8)
 	file := "public/" + id + ".png"
 
@@ -413,52 +415,59 @@ func CreateNewCaptcha(db *sql.DB) {
 	cmd := exec.Command("convert", "-size", "200x98", pattern, "-transparent", "white", file)
 	cmd.Stderr = os.Stderr
 
-	err := cmd.Run()
-
-	CheckError(err, "error with captcha first pass")
+	if err := cmd.Run(); err != nil {
+		return err
+	}
 
 	cmd = exec.Command("convert", file, "-fill", "blue", "-pointsize", "62", "-annotate", "+0+70", captcha, "-tile", "pattern:left30", "-gravity", "center", "-transparent", "white", file)
 	cmd.Stderr = os.Stderr
 
-	err = cmd.Run()
-
-	CheckError(err, "error with captcha second pass")
+	if err := cmd.Run(); err != nil {
+		return err
+	}
 
 	rnd = fmt.Sprintf("%d", rand.Intn(24)-12)
 
 	cmd = exec.Command("convert", file, "-rotate", rnd, "-wave", "5x35", "-distort", "Arc", "20", "-wave", "2x35", "-transparent", "white", file)
 	cmd.Stderr = os.Stderr
 
-	err = cmd.Run()
-
-	CheckError(err, "error with captcha third pass")
+	if err := cmd.Run(); err != nil {
+		return err
+	}
 
 	var verification Verify
 	verification.Type = "captcha"
 	verification.Code = captcha
 	verification.Identifier = file
 
-	CreateVerification(db, verification)
+	return CreateVerification(verification)
 }
 
-func CreateBoardAccess(db *sql.DB, verify Verify) {
-	if !HasBoardAccess(db, verify) {
+func CreateBoardAccess(verify Verify) error {
+	hasAccess, err := HasBoardAccess(verify)
+	if err != nil {
+		return err
+	}
+
+	if !hasAccess {
 		query := `insert into boardaccess (identifier, board) values($1, $2)`
 
 		_, err := db.Exec(query, verify.Identifier, verify.Board)
-
-		CheckError(err, "could not instert verification and board into board access")
+		return err
 	}
+
+	return nil
 }
 
-func HasBoardAccess(db *sql.DB, verify Verify) bool {
+func HasBoardAccess(verify Verify) (bool, error) {
 	query := `select count(*) from boardaccess where identifier=$1 and board=$2`
 
 	rows, err := db.Query(query, verify.Identifier, verify.Board)
+	if err != nil {
+		return false, err
+	}
 
 	defer rows.Close()
-
-	CheckError(err, "could not select boardaccess based on verify")
 
 	var count int
 
@@ -466,22 +475,25 @@ func HasBoardAccess(db *sql.DB, verify Verify) bool {
 	rows.Scan(&count)
 
 	if count > 0 {
-		return true
+		return true, nil
 	} else {
-		return false
+		return false, nil
 	}
 }
 
-func BoardHasAuthType(db *sql.DB, board string, auth string) bool {
-	authTypes := GetActorAuth(db, board)
+func BoardHasAuthType(board string, auth string) (bool, error) {
+	authTypes, err := GetActorAuth(board)
+	if err != nil {
+		return false, err
+	}
 
 	for _, e := range authTypes {
 		if e == auth {
-			return true
+			return true, nil
 		}
 	}
 
-	return false
+	return false, nil
 }
 
 func Captcha() string {
@@ -496,9 +508,11 @@ func Captcha() string {
 	return newID
 }
 
-func CreatePem(db *sql.DB, actor Actor) {
+func CreatePem(actor Actor) error {
 	privatekey, err := rsa.GenerateKey(crand.Reader, 2048)
-	CheckError(err, "error creating private pem key")
+	if err != nil {
+		return err
+	}
 
 	privateKeyBytes := x509.MarshalPKCS1PrivateKey(privatekey)
 
@@ -508,14 +522,19 @@ func CreatePem(db *sql.DB, actor Actor) {
 	}
 
 	privatePem, err := os.Create("./pem/board/" + actor.Name + "-private.pem")
-	CheckError(err, "error creating private pem file for "+actor.Name)
+	if err != nil {
+		return err
+	}
 
-	err = pem.Encode(privatePem, privateKeyBlock)
-	CheckError(err, "error encoding private pem")
+	if err := pem.Encode(privatePem, privateKeyBlock); err != nil {
+		return err
+	}
 
 	publickey := &privatekey.PublicKey
 	publicKeyBytes, err := x509.MarshalPKIXPublicKey(publickey)
-	CheckError(err, "error Marshaling public key to X509")
+	if err != nil {
+		return err
+	}
 
 	publicKeyBlock := &pem.Block{
 		Type:  "PUBLIC KEY",
@@ -523,30 +542,41 @@ func CreatePem(db *sql.DB, actor Actor) {
 	}
 
 	publicPem, err := os.Create("./pem/board/" + actor.Name + "-public.pem")
-	CheckError(err, "error creating public pem file for "+actor.Name)
+	if err != nil {
+		return err
+	}
 
-	err = pem.Encode(publicPem, publicKeyBlock)
-	CheckError(err, "error encoding public pem")
+	if err := pem.Encode(publicPem, publicKeyBlock); err != nil {
+		return err
+	}
 
 	_, err = os.Stat("./pem/board/" + actor.Name + "-public.pem")
 	if os.IsNotExist(err) {
-		CheckError(err, "public pem file for actor does not exist")
+		return err
 	} else {
-		StorePemToDB(db, actor)
+		return StorePemToDB(actor)
 	}
 
 	fmt.Println(`Created PEM keypair for the "` + actor.Name + `" board. Please keep in mind that
 the PEM key is crucial in identifying yourself as the legitimate owner of the board,
 so DO NOT LOSE IT!!! If you lose it, YOU WILL LOSE ACCESS TO YOUR BOARD!`)
+
+	return nil
 }
 
-func CreatePublicKeyFromPrivate(db *sql.DB, actor *Actor, publicKeyPem string) error {
-	publicFilename := GetActorPemFileFromDB(db, publicKeyPem)
+func CreatePublicKeyFromPrivate(actor *activitypub.Actor, publicKeyPem string) error {
+	publicFilename, err := GetActorPemFileFromDB(publicKeyPem)
+	if err != nil {
+		return err
+	}
+
 	privateFilename := strings.ReplaceAll(publicFilename, "public.pem", "private.pem")
-	_, err := os.Stat(privateFilename)
-	if err == nil {
-		//Not a lost cause
+	if _, err := os.Stat(privateFilename); err == nil {
+		// Not a lost cause
 		priv, err := ioutil.ReadFile(privateFilename)
+		if err != nil {
+			return err
+		}
 
 		block, _ := pem.Decode([]byte(priv))
 		if block == nil || block.Type != "RSA PRIVATE KEY" {
@@ -554,10 +584,15 @@ func CreatePublicKeyFromPrivate(db *sql.DB, actor *Actor, publicKeyPem string) e
 		}
 
 		key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-		CheckError(err, "failed to parse private key")
+		if err != nil {
+			return err
+		}
 
 		publicKeyDer, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
-		CheckError(err, "failed to marshal public key from private key")
+		if err != nil {
+			return err
+		}
+
 		pubKeyBlock := pem.Block{
 			Type:    "PUBLIC KEY",
 			Headers: nil,
@@ -565,10 +600,13 @@ func CreatePublicKeyFromPrivate(db *sql.DB, actor *Actor, publicKeyPem string) e
 		}
 
 		publicFileWriter, err := os.Create(publicFilename)
-		CheckError(err, "error creating public pem file for "+actor.Name)
+		if err != nil {
+			return err
+		}
 
-		err = pem.Encode(publicFileWriter, &pubKeyBlock)
-		CheckError(err, "error encoding public pem")
+		if err := pem.Encode(publicFileWriter, &pubKeyBlock); err != nil {
+			return err
+		}
 	} else {
 		fmt.Println(`\nUnable to locate private key from public key generation. Now,
 this means that you are now missing the proof that you are the
@@ -582,60 +620,52 @@ accepting your posts from your board from this site. Good luck ;)`)
 	return nil
 }
 
-func StorePemToDB(db *sql.DB, actor Actor) {
+func StorePemToDB(actor activitypub.Actor) error {
 	query := "select publicKeyPem from actor where id=$1"
 	rows, err := db.Query(query, actor.Id)
+	if err != nil {
+		return err
+	}
 
-	CheckError(err, "error selecting publicKeyPem id from actor")
+	defer rows.Close()
 
 	var result string
-	defer rows.Close()
 	rows.Next()
 	rows.Scan(&result)
 
 	if result != "" {
-		return
+		return errors.New("already storing public key for actor")
 	}
 
 	publicKeyPem := actor.Id + "#main-key"
 	query = "update actor set publicKeyPem=$1 where id=$2"
-	_, err = db.Exec(query, publicKeyPem, actor.Id)
-	CheckError(err, "error updating publicKeyPem id to actor")
+	if _, err := db.Exec(query, publicKeyPem, actor.Id); err != nil {
+		return err
+	}
 
 	file := "./pem/board/" + actor.Name + "-public.pem"
 	query = "insert into publicKeyPem (id, owner, file) values($1, $2, $3)"
 	_, err = db.Exec(query, publicKeyPem, actor.Id, file)
-	CheckError(err, "error creating publicKeyPem for actor ")
+	return err
 }
 
-func ActivitySign(db *sql.DB, actor Actor, signature string) (string, error) {
+func ActivitySign(actor activitypub.Actor, signature string) (string, error) {
 	query := `select file from publicKeyPem where id=$1 `
 
 	rows, err := db.Query(query, actor.PublicKey.Id)
+	if err != nil {
+		return "", err
+	}
 
-	CheckError(err, "there was error geting actors public key id")
+	defer rows.Close()
 
 	var file string
-	defer rows.Close()
 	rows.Next()
 	rows.Scan(&file)
 
 	file = strings.ReplaceAll(file, "public.pem", "private.pem")
 	_, err = os.Stat(file)
-	if err == nil {
-		publickey, err := ioutil.ReadFile(file)
-		CheckError(err, "error reading file")
-
-		block, _ := pem.Decode(publickey)
-
-		pub, _ := x509.ParsePKCS1PrivateKey(block.Bytes)
-		rng := crand.Reader
-		hashed := sha256.New()
-		hashed.Write([]byte(signature))
-		cipher, _ := rsa.SignPKCS1v15(rng, pub, crypto.SHA256, hashed.Sum(nil))
-
-		return base64.StdEncoding.EncodeToString(cipher), nil
-	} else {
+	if err != nil {
 		fmt.Println(`\n Unable to locate private key. Now,
 this means that you are now missing the proof that you are the
 owner of the "` + actor.Name + `" board. If you are the developer,
@@ -645,10 +675,24 @@ owners to switch their public keys for you so that they will start
 accepting your posts from your board from this site. Good luck ;)`)
 		return "", errors.New("unable to locate private key")
 	}
+
+	publickey, err := ioutil.ReadFile(file)
+	if err != nil {
+		return "", err
+	}
+
+	block, _ := pem.Decode(publickey)
+
+	pub, _ := x509.ParsePKCS1PrivateKey(block.Bytes)
+	rng := crand.Reader
+	hashed := sha256.New()
+	hashed.Write([]byte(signature))
+	cipher, _ := rsa.SignPKCS1v15(rng, pub, crypto.SHA256, hashed.Sum(nil))
+
+	return base64.StdEncoding.EncodeToString(cipher), nil
 }
 
-func ActivityVerify(actor Actor, signature string, verify string) error {
-
+func ActivityVerify(actor activitypub.Actor, signature string, verify string) error {
 	sig, _ := base64.StdEncoding.DecodeString(signature)
 
 	if actor.PublicKey.PublicKeyPem == "" {
@@ -664,7 +708,7 @@ func ActivityVerify(actor Actor, signature string, verify string) error {
 	return rsa.VerifyPKCS1v15(pub.(*rsa.PublicKey), crypto.SHA256, hashed.Sum(nil), sig)
 }
 
-func VerifyHeaderSignature(r *http.Request, actor Actor) bool {
+func VerifyHeaderSignature(r *http.Request, actor activitypub.Actor) bool {
 	s := ParseHeaderSignature(r.Header.Get("Signature"))
 
 	var method string
@@ -676,41 +720,33 @@ func VerifyHeaderSignature(r *http.Request, actor Actor) bool {
 
 	var sig string
 	for i, e := range s.Headers {
-
 		var nl string
 		if i < len(s.Headers)-1 {
 			nl = "\n"
 		}
 
-		if e == "(request-target)" {
+		switch e {
+		case "(request-target)":
 			method = strings.ToLower(r.Method)
 			path = r.URL.Path
 			sig += "(request-target): " + method + " " + path + "" + nl
-			continue
-		}
-
-		if e == "host" {
+			break
+		case "host":
 			host = r.Host
 			sig += "host: " + host + "" + nl
-			continue
-		}
-
-		if e == "date" {
+			break
+		case "date":
 			date = r.Header.Get("date")
 			sig += "date: " + date + "" + nl
-			continue
-		}
-
-		if e == "digest" {
+			break
+		case "digest":
 			digest = r.Header.Get("digest")
 			sig += "digest: " + digest + "" + nl
-			continue
-		}
-
-		if e == "content-length" {
+			break
+		case "content-length":
 			contentLength = r.Header.Get("content-length")
 			sig += "content-length: " + contentLength + "" + nl
-			continue
+			break
 		}
 	}
 

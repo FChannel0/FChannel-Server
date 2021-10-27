@@ -12,6 +12,7 @@ import (
 	"github.com/FChannel0/FChannel-Server/routes"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html"
+
 	// "github.com/gofrs/uuid"
 	_ "github.com/lib/pq"
 
@@ -32,36 +33,17 @@ import (
 	"time"
 )
 
-var Port = ":" + GetConfigValue("instanceport", "3000")
-var TP = GetConfigValue("instancetp", "")
-var Instance = GetConfigValue("instance", "")
-var Domain = TP + "" + Instance
-var TorInstance = IsOnion(Instance)
-
 var authReq = []string{"captcha", "email", "passphrase"}
 
 var supportedFiles = []string{"image/gif", "image/jpeg", "image/png", "image/webp", "image/apng", "video/mp4", "video/ogg", "video/webm", "audio/mpeg", "audio/ogg", "audio/wav", "audio/wave", "audio/x-wav"}
-
-var SiteEmail = GetConfigValue("emailaddress", "") //contact@fchan.xyz
-var SiteEmailPassword = GetConfigValue("emailpass", "")
-var SiteEmailServer = GetConfigValue("emailserver", "") //mail.fchan.xyz
-var SiteEmailPort = GetConfigValue("emailport", "")     //587
-
-var TorProxy = GetConfigValue("torproxy", "") //127.0.0.1:9050
-
-var PublicIndexing = strings.ToLower(GetConfigValue("publicindex", "false"))
-
-var Salt = GetConfigValue("instancesalt", "")
 
 var activitystreams = "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
 
 var MediaHashs = make(map[string]string)
 
-var ActorCache = make(map[string]Actor)
+var ActorCache = make(map[string]activitypub.Actor)
 
 var Themes []string
-
-var DB *sql.DB
 
 func main() {
 
@@ -69,9 +51,8 @@ func main() {
 
 	InitCache()
 
-	DB = ConnectDB()
-
-	defer DB.Close()
+	db.ConnectDB()
+	db.Close()
 
 	RunDatabaseSchema(DB)
 
@@ -128,6 +109,11 @@ func main() {
 
 	app.Static("/public", "./public")
 	app.Static("/static", "./views")
+
+	// Pass variables such as the DB
+	app.Use(func(c *fiber.Ctx) {
+		c.Locals("db", DB)
+	})
 
 	/*
 	 Main actor
@@ -245,6 +231,9 @@ func main() {
 		return c.SendString("api media")
 	})
 
+	// 404 handler
+	app.Use(routes.NotFound)
+
 	fmt.Println("Server for " + Domain + " running on port " + Port)
 
 	fmt.Println("Mod key: " + *Key)
@@ -262,28 +251,6 @@ func CheckError(e error, m string) error {
 	}
 
 	return e
-}
-
-func ConnectDB() *sql.DB {
-
-	host := GetConfigValue("dbhost", "localhost")
-	port, _ := strconv.Atoi(GetConfigValue("dbport", "5432"))
-	user := GetConfigValue("dbuser", "postgres")
-	password := GetConfigValue("dbpass", "password")
-	dbname := GetConfigValue("dbname", "server")
-
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s "+
-		"dbname=%s sslmode=disable", host, port, user, password, dbname)
-
-	db, err := sql.Open("postgres", psqlInfo)
-	CheckError(err, "error with db connection")
-
-	err = db.Ping()
-
-	CheckError(err, "error with db ping")
-
-	fmt.Println("Successfully connected DB")
-	return db
 }
 
 func CreateKey(len int) string {
@@ -1069,25 +1036,6 @@ func GetCollectionFromID(id string) Collection {
 	}
 
 	return nColl
-}
-
-func GetConfigValue(value string, ifnone string) string {
-	file, err := os.Open("config")
-
-	CheckError(err, "there was an error opening the config file")
-
-	defer file.Close()
-
-	lines := bufio.NewScanner(file)
-
-	for lines.Scan() {
-		line := strings.SplitN(lines.Text(), ":", 2)
-		if line[0] == value {
-			return line[1]
-		}
-	}
-
-	return ifnone
 }
 
 func PrintAdminAuth(db *sql.DB) {
