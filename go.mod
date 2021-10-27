@@ -1,4 +1,4 @@
-module github.com/FChannel/Server
+module github.com/FChannel0/FChannel-Server
 
 go 1.15
 

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/FChannel0/FChannel-Server/routes"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html"
 	// "github.com/gofrs/uuid"
@@ -121,7 +122,8 @@ func main() {
 	TemplateFunctions(template)
 
 	app := fiber.New(fiber.Config{
-		Views: template,
+		AppName: "FChannel",
+		Views:   template,
 	})
 
 	app.Static("/public", "./public")
@@ -131,139 +133,69 @@ func main() {
 	 Main actor
 	*/
 
-	app.Get("/", IndexGet)
+	app.Get("/", routes.Index)
 
-	app.Get("/inbox", func(c *fiber.Ctx) error {
-		return c.SendString("main inbox")
-	})
+	app.Get("/inbox", routes.Inbox)
+	app.Get("/outbox", routes.Outbox)
 
-	app.Get("/outbox", func(c *fiber.Ctx) error {
-		return c.SendString("main outbox")
-	})
-
-	app.Get("/following", func(c *fiber.Ctx) error {
-		return c.SendString("main following")
-	})
-
-	app.Get("/followers", func(c *fiber.Ctx) error {
-		return c.SendString("main followers")
-	})
+	app.Get("/following", routes.Following)
+	app.Get("/followers", routes.Followers)
 
 	/*
 	 Board actor
 	*/
 
-	app.Get("/:actor", OutboxGet)
+	app.Get("/:actor", routes.ActorIndex) //OutboxGet)
 
-	app.Get("/:actor/:post", PostGet)
+	app.Get("/:actor/:post", routes.ActorPostGet)
+	app.Get("/post", routes.ActorPost)
 
-	app.Get("/:actor/inbox", func(c *fiber.Ctx) error {
-		return c.SendString("actor inbox")
-	})
+	app.Get("/:actor/inbox", routes.ActorInbox)
+	app.Get("/:actor/outbox", routes.ActorOutbox)
 
-	app.Get("/:actor/outbox", func(c *fiber.Ctx) error {
-		return c.SendString("actor outbox")
-	})
+	app.Get("/:actor/following", routes.ActorFollowing)
+	app.Get("/:actor/followers", routes.ActorFollowers)
 
-	app.Get("/:actor/following", func(c *fiber.Ctx) error {
-		return c.SendString("actor following")
-	})
-
-	app.Get("/:actor/followers", func(c *fiber.Ctx) error {
-		return c.SendString("actor followers")
-	})
-
-	app.Get("/:actor/reported", func(c *fiber.Ctx) error {
-		return c.SendString("actor reported")
-	})
-
-	app.Get("/:actor/archive", func(c *fiber.Ctx) error {
-		return c.SendString("actor archive")
-	})
-
-	app.Get("/post", func(c *fiber.Ctx) error {
-		return c.SendString("actor post")
-	})
+	app.Get("/:actor/reported", routes.ActorReported)
+	app.Get("/:actor/archive", routes.ActorArchive)
 
 	/*
 	 Admin routes
 	*/
 
-	app.Get("/verify", func(c *fiber.Ctx) error {
-		return c.SendString("admin verify")
-	})
+	app.Get("/verify", routes.AdminVerify)
 
-	app.Get("/auth", func(c *fiber.Ctx) error {
-		return c.SendString("admin auth")
-	})
+	app.Get("/auth", routes.AdminAuth)
 
-	app.Get("/"+*Key+"/", func(c *fiber.Ctx) error {
-		return c.SendString("admin key")
-	})
+	app.Get("/"+*Key+"/", routes.AdminIndex)
 
-	app.Get("/"+*Key+"/addboard", func(c *fiber.Ctx) error {
-		return c.SendString("admin addboard ")
-	})
+	app.Get("/"+*Key+"/addboard", routes.AdminAddBoard)
 
-	app.Get("/"+*Key+"/postnews", func(c *fiber.Ctx) error {
-		return c.SendString("admin post news")
-	})
-
-	app.Get("/"+*Key+"/newsdelete", func(c *fiber.Ctx) error {
-		return c.SendString("admin news delete")
-	})
-
-	app.Get("/news", func(c *fiber.Ctx) error {
-		return c.SendString("admin news")
-	})
+	app.Get("/"+*Key+"/postnews", routes.AdminPostNews)
+	app.Get("/"+*Key+"/newsdelete", routes.AdminNewsDelete)
+	app.Get("/news", routes.NewsGet)
 
 	/*
 	 Board managment
 	*/
 
-	app.Get("/banmedia", func(c *fiber.Ctx) error {
-		return c.SendString("board ban media")
-	})
+	app.Get("/banmedia", routes.BoardBanMedia)
+	app.Get("/delete", routes.BoardDelete)
 
-	app.Get("/delete", func(c *fiber.Ctx) error {
-		return c.SendString("board delete")
-	})
+	app.Get("/deleteattach", routes.BoardDeleteAttach)
+	app.Get("/marksensitive", routes.BoardMarkSensitive)
 
-	app.Get("/deleteattach", func(c *fiber.Ctx) error {
-		return c.SendString("board delete attach")
-	})
+	app.Get("/remove", routes.BoardRemove)
+	app.Get("/removeattach", routes.BoardRemoveAttach)
 
-	app.Get("/marksensitive", func(c *fiber.Ctx) error {
-		return c.SendString("board mark sensitive")
-	})
+	app.Get("/addtoindex", routes.BoardAddToIndex)
 
-	app.Get("/remove", func(c *fiber.Ctx) error {
-		return c.SendString("board remove")
-	})
+	app.Get("/poparchive", routes.BoardPopArchive)
 
-	app.Get("/removeattach", func(c *fiber.Ctx) error {
-		return c.SendString("Hello World")
-	})
+	app.Get("/autosubscribe", routes.BoardAutoSubscribe)
 
-	app.Get("/addtoindex", func(c *fiber.Ctx) error {
-		return c.SendString("board add to index")
-	})
-
-	app.Get("/poparchive", func(c *fiber.Ctx) error {
-		return c.SendString("board pop archive")
-	})
-
-	app.Get("/autosubscribe", func(c *fiber.Ctx) error {
-		return c.SendString("board autosubscribe")
-	})
-
-	app.Get("/blacklist", func(c *fiber.Ctx) error {
-		return c.SendString("board blacklist")
-	})
-
-	app.Get("/report", func(c *fiber.Ctx) error {
-		return c.SendString("board report")
-	})
+	app.Get("/blacklist", routes.BoardBlacklist)
+	app.Get("/report", routes.BoardBlacklist)
 
 	app.Get("/.well-known/webfinger", func(c *fiber.Ctx) error {
 		acct := c.Query("resource")
