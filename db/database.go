@@ -54,7 +54,6 @@ func GetActor(id string) (activitypub.Actor, error) {
 	query := `select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary, publickeypem from actor where id=$1`
 
 	rows, err := db.Query(query, id)
-
 	if err != nil {
 		return nActor, err
 	}
@@ -67,9 +66,9 @@ func GetActor(id string) (activitypub.Actor, error) {
 		}
 	}
 
-	nActor.PublicKey = GetActorPemFromDB(db, publicKeyPem)
+	nActor.PublicKey = GetActorPemFromDB(publicKeyPem)
 	if nActor.Id != "" && nActor.PublicKey.PublicKeyPem == "" {
-		if err := CreatePublicKeyFromPrivate(db, &nActor, publicKeyPem); err != nil {
+		if err := CreatePublicKeyFromPrivate(&nActor, publicKeyPem); err != nil {
 			return nActor, err
 		}
 	}
@@ -77,46 +76,50 @@ func GetActor(id string) (activitypub.Actor, error) {
 	return nActor, nil
 }
 
-func GetActorByNameFromDB(db *sql.DB, name string) Actor {
-	var nActor Actor
+func GetActorByNameFromDB(name string) (activitypub.Actor, error) {
+	var nActor activitypub.Actor
 
 	query := `select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary, publickeypem from actor where name=$1`
 
 	rows, err := db.Query(query, name)
-
-	if CheckError(err, "could not get actor from db query") != nil {
-		return nActor
+	if err != nil {
+		return nActor, err
 	}
 
 	var publicKeyPem string
 	defer rows.Close()
 	for rows.Next() {
-		err = rows.Scan(&nActor.Type, &nActor.Id, &nActor.Name, &nActor.PreferredUsername, &nActor.Inbox, &nActor.Outbox, &nActor.Following, &nActor.Followers, &nActor.Restricted, &nActor.Summary, &publicKeyPem)
-		CheckError(err, "error with actor from db scan ")
+		if err := rows.Scan(&nActor.Type, &nActor.Id, &nActor.Name, &nActor.PreferredUsername, &nActor.Inbox, &nActor.Outbox, &nActor.Following, &nActor.Followers, &nActor.Restricted, &nActor.Summary, &publicKeyPem); err != nil {
+			return nActor, err
+		}
 	}
 
 	if nActor.Id != "" && nActor.PublicKey.PublicKeyPem == "" {
-		err = CreatePublicKeyFromPrivate(db, &nActor, publicKeyPem)
-		CheckError(err, "error creating public key from private")
+		if err := CreatePublicKeyFromPrivate(&nActor, publicKeyPem); err != nil {
+			return nActor, err
+		}
 	}
 
-	return nActor
+	return nActor, nil
 }
 
-func CreateNewBoardDB(db *sql.DB, actor Actor) Actor {
-
+func CreateNewBoardDB(actor activitypub.Actor) (activitypub.Actor, error) {
 	query := `insert into actor (type, id, name, preferedusername, inbox, outbox, following, followers, summary, restricted) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
 	_, err := db.Exec(query, actor.Type, actor.Id, actor.Name, actor.PreferredUsername, actor.Inbox, actor.Outbox, actor.Following, actor.Followers, actor.Summary, actor.Restricted)
 
 	if err != nil {
-		fmt.Println("board exists")
+		// TODO: board exists error
+		return activitypub.Actor{}, err
 	} else {
 		fmt.Println("board added")
+
 		for _, e := range actor.AuthRequirement {
 			query = `insert into actorauth (type, board) values ($1, $2)`
-			_, err := db.Exec(query, e, actor.Name)
-			CheckError(err, "auth exists")
+
+			if _, err := db.Exec(query, e, actor.Name); err != nil {
+				return activitypub.Actor{}, err
+			}
 		}
 
 		var verify Verify
@@ -125,49 +128,49 @@ func CreateNewBoardDB(db *sql.DB, actor Actor) Actor {
 		verify.Code = CreateKey(50)
 		verify.Type = "admin"
 
-		CreateVerification(db, verify)
+		CreateVerification(verify)
 
 		verify.Identifier = actor.Id
 		verify.Code = CreateKey(50)
 		verify.Type = "janitor"
 
-		CreateVerification(db, verify)
+		CreateVerification(verify)
 
 		verify.Identifier = actor.Id
 		verify.Code = CreateKey(50)
 		verify.Type = "post"
 
-		CreateVerification(db, verify)
+		CreateVerification(verify)
 
 		var nverify Verify
 		nverify.Board = actor.Id
 		nverify.Identifier = "admin"
 		nverify.Type = "admin"
-		CreateBoardMod(db, nverify)
+		CreateBoardMod(nverify)
 
 		nverify.Board = actor.Id
 		nverify.Identifier = "janitor"
 		nverify.Type = "janitor"
-		CreateBoardMod(db, nverify)
+		CreateBoardMod(nverify)
 
 		nverify.Board = actor.Id
 		nverify.Identifier = "post"
 		nverify.Type = "post"
-		CreateBoardMod(db, nverify)
+		CreateBoardMod(nverify)
 
-		CreatePem(db, actor)
+		CreatePem(actor)
 
 		if actor.Name != "main" {
-			var nObject ObjectBase
-			var nActivity Activity
+			var nObject activitypub.ObjectBase
+			var nActivity activitypub.Activity
 
-			nActor := GetActorFromDB(db, Domain)
+			nActor := GetActorFromDB(config.Domain)
 			nActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 			nActivity.Type = "Follow"
 			nActivity.Actor = &nActor
 			nActivity.Object = &nObject
 
-			mActor := GetActorFromDB(db, actor.Id)
+			mActor := GetActorFromDB(actor.Id)
 			nActivity.Object.Actor = mActor.Id
 			nActivity.To = append(nActivity.To, actor.Id)
 
@@ -178,33 +181,31 @@ func CreateNewBoardDB(db *sql.DB, actor Actor) Actor {
 
 	}
 
-	return actor
+	return actor, nil
 }
 
-func GetBoards(db *sql.DB) []Actor {
-
-	var board []Actor
+func GetBoards() ([]activitypub.Actor, error) {
+	var board []activitypub.Actor
 
 	query := `select type, id, name, preferedusername, inbox, outbox, following, followers FROM actor`
 
 	rows, err := db.Query(query)
-
-	CheckError(err, "could not get boards from db query")
+	if err != nil {
+		return board, err
+	}
 
 	defer rows.Close()
 	for rows.Next() {
-		var actor = new(Actor)
+		var actor = new(activitypub.Actor)
 
-		err = rows.Scan(&actor.Type, &actor.Id, &actor.Name, &actor.PreferredUsername, &actor.Inbox, &actor.Outbox, &actor.Following, &actor.Followers)
-
-		if err != nil {
-			panic(err)
+		if err := rows.Scan(&actor.Type, &actor.Id, &actor.Name, &actor.PreferredUsername, &actor.Inbox, &actor.Outbox, &actor.Following, &actor.Followers); err != nil {
+			return board, err
 		}
 
 		board = append(board, *actor)
 	}
 
-	return board
+	return board, nil
 }
 
 func WriteObjectToDB(db *sql.DB, obj ObjectBase) ObjectBase {
@@ -993,605 +994,703 @@ func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, 
 	return &nColl, postCount, attachCount
 }
 
-func CheckIfObjectOP(db *sql.DB, id string) bool {
-
+func CheckIfObjectOP(id string) (bool, error) {
 	var count int
 
 	query := `select count(id) from replies where inreplyto='' and id=$1 `
 
 	rows, err := db.Query(query, id)
-	CheckError(err, "error checking if ID is OP")
-
+	if err != nil {
+		return false, err
+	}
 	defer rows.Close()
-	rows.Next()
-	rows.Scan(&count)
 
-	if count > 0 {
-		return true
+	rows.Next()
+	if err := rows.Scan(&count); err != nil {
+		return false, err
 	}
 
-	return false
+	if count > 0 {
+		return true, nil
+	}
+
+	return false, nil
 }
 
-func GetObjectRepliesCount(db *sql.DB, parent ObjectBase) (int, int) {
-
+func GetObjectRepliesCount(parent activitypub.ObjectBase) (int, int, error) {
 	var countId int
 	var countImg int
 
 	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over() from (select id, attachment from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' union select id, attachment from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note') as x`
 
 	rows, err := db.Query(query, parent.Id)
-
-	CheckError(err, "error with replies count db query")
+	if err != nil {
+		return 0, 0, err
+	}
 
 	defer rows.Close()
-	rows.Next()
-	rows.Scan(&countId, &countImg)
 
-	return countId, countImg
+	rows.Next()
+	err = rows.Scan(&countId, &countImg)
+
+	return countId, countImg, err
 }
 
-func GetObjectAttachment(db *sql.DB, id string) []ObjectBase {
-
-	var attachments []ObjectBase
+func GetObjectAttachment(id string) ([]activitypub.ObjectBase, error) {
+	var attachments []activitypub.ObjectBase
 
 	query := `select x.id, x.type, x.name, x.href, x.mediatype, x.size, x.published from (select id, type, name, href, mediatype, size, published from activitystream where id=$1 union select id, type, name, href, mediatype, size, published from cacheactivitystream where id=$1) as x`
 
 	rows, err := db.Query(query, id)
-
-	CheckError(err, "could not select object attachment query")
+	if err != nil {
+		return attachments, err
+	}
 
 	defer rows.Close()
 	for rows.Next() {
-		var attachment = new(ObjectBase)
+		var attachment = new(activitypub.ObjectBase)
 
-		err = rows.Scan(&attachment.Id, &attachment.Type, &attachment.Name, &attachment.Href, &attachment.MediaType, &attachment.Size, &attachment.Published)
-		if err != nil {
-			fmt.Println("error with attachment db query")
-			panic(err)
+		if err := rows.Scan(&attachment.Id, &attachment.Type, &attachment.Name, &attachment.Href, &attachment.MediaType, &attachment.Size, &attachment.Published); err != nil {
+			return attachments, err
 		}
 
 		attachments = append(attachments, *attachment)
 	}
 
-	return attachments
+	return attachments, nil
 }
 
-func GetObjectPreview(db *sql.DB, id string) *NestedObjectBase {
-
-	var preview NestedObjectBase
+func GetObjectPreview(id string) (*activitypub.NestedObjectBase, error) {
+	var preview activitypub.NestedObjectBase
 
 	query := `select x.id, x.type, x.name, x.href, x.mediatype, x.size, x.published from (select id, type, name, href, mediatype, size, published from activitystream where id=$1 union select id, type, name, href, mediatype, size, published from cacheactivitystream where id=$1) as x`
 
 	rows, err := db.Query(query, id)
-
-	CheckError(err, "could not select object preview query")
+	if err != nil {
+		return nil, err
+	}
 
 	defer rows.Close()
 	for rows.Next() {
-		err = rows.Scan(&preview.Id, &preview.Type, &preview.Name, &preview.Href, &preview.MediaType, &preview.Size, &preview.Published)
+		if err := rows.Scan(&preview.Id, &preview.Type, &preview.Name, &preview.Href, &preview.MediaType, &preview.Size, &preview.Published); err != nil {
+			return nil, err
+		}
 	}
 
-	return &preview
+	return &preview, nil
 }
 
-func GetObjectPostsTotalDB(db *sql.DB, actor Actor) int {
-
+func GetObjectPostsTotalDB(actor activitypub.Actor) (int, error) {
 	count := 0
 	query := `select count(id) from activitystream where actor=$1 and id in (select id from replies where inreplyto='' and type='Note')`
 
 	rows, err := db.Query(query, actor.Id)
-
-	CheckError(err, "could not select post total count query")
+	if err != nil {
+		return count, err
+	}
 
 	defer rows.Close()
 	for rows.Next() {
-		err = rows.Scan(&count)
-		CheckError(err, "error with total post db scan")
+		if err := rows.Scan(&count); err != nil {
+			return count, err
+		}
 	}
 
-	return count
+	return count, nil
 }
 
-func GetObjectImgsTotalDB(db *sql.DB, actor Actor) int {
-
+func GetObjectImgsTotalDB(actor activitypub.Actor) (int, error) {
 	count := 0
 	query := `select count(attachment) from activitystream where actor=$1 and id in (select id from replies where inreplyto='' and type='Note' )`
 
 	rows, err := db.Query(query, actor.Id)
-
-	CheckError(err, "error with posts total db query")
-
+	if err != nil {
+		return count, err
+	}
 	defer rows.Close()
-	for rows.Next() {
-		err = rows.Scan(&count)
 
-		CheckError(err, "error with total post db scan")
+	for rows.Next() {
+		if err := rows.Scan(&count); err != nil {
+			return count, err
+		}
 	}
 
-	return count
+	return count, nil
 }
 
-func DeletePreviewFromFile(db *sql.DB, id string) {
-
-	var query = `select href from activitystream where id in (select preview from activitystream where id=$1)`
+func DeletePreviewFromFile(id string) error {
+	query := `select href from activitystream where id in (select preview from activitystream where id=$1)`
 
 	rows, err := db.Query(query, id)
-
-	CheckError(err, "error query delete attachment")
-
+	if err != nil {
+		return err
+	}
 	defer rows.Close()
+
 	for rows.Next() {
 		var href string
 
-		err := rows.Scan(&href)
-		href = strings.Replace(href, Domain+"/", "", 1)
-		CheckError(err, "error scanning delete attachment")
+		if err := rows.Scan(&href); err != nil {
+			return err
+		}
+
+		href = strings.Replace(href, config.Domain+"/", "", 1)
+
+		if href != "static/notfound.png" {
+			_, err = os.Stat(href)
+			if err == nil {
+				return os.Remove(href)
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func RemovePreviewFromFile(id string) error {
+	query := `select href from activitystream where id in (select preview from activitystream where id=$1)`
+	rows, err := db.Query(query, id)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var href string
+
+		if err := rows.Scan(&href); err != nil {
+			return err
+		}
+
+		href = strings.Replace(href, config.Domain+"/", "", 1)
+
+		if href != "static/notfound.png" {
+			_, err = os.Stat(href)
+			if err == nil {
+				return os.Remove(href)
+			}
+			return err
+		}
+	}
+
+	return DeletePreviewFromDB(id)
+}
+
+func DeleteAttachmentFromFile(id string) error {
+	query := `select href from activitystream where id in (select attachment from activitystream where id=$1)`
+
+	rows, err := db.Query(query, id)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var href string
+
+		if err := rows.Scan(&href); err != nil {
+			return err
+		}
+
+		href = strings.Replace(href, config.Domain+"/", "", 1)
 
 		if href != "static/notfound.png" {
 			_, err = os.Stat(href)
 			if err == nil {
 				os.Remove(href)
 			}
+			return err
 		}
 	}
 
 }
 
-func RemovePreviewFromFile(db *sql.DB, id string) {
-
-	var query = `select href from activitystream where id in (select preview from activitystream where id=$1)`
+func TombstonePreviewRepliesFromDB(db *sql.DB, id string) error {
+	query := `select id from activitystream where id in (select id from replies where inreplyto=$1)`
 
 	rows, err := db.Query(query, id)
-
-	CheckError(err, "error query delete attachment")
-
-	defer rows.Close()
-	for rows.Next() {
-		var href string
-
-		err := rows.Scan(&href)
-		href = strings.Replace(href, Domain+"/", "", 1)
-		CheckError(err, "error scanning delete attachment")
-
-		if href != "static/notfound.png" {
-			_, err = os.Stat(href)
-			if err == nil {
-				os.Remove(href)
-			}
-		}
+	if err != nil {
+		return err
 	}
-
-	DeletePreviewFromDB(db, id)
-}
-
-func DeleteAttachmentFromFile(db *sql.DB, id string) {
-
-	var query = `select href from activitystream where id in (select attachment from activitystream where id=$1)`
-
-	rows, err := db.Query(query, id)
-
-	CheckError(err, "error query delete attachment")
-
-	defer rows.Close()
-	for rows.Next() {
-		var href string
-
-		err := rows.Scan(&href)
-		href = strings.Replace(href, Domain+"/", "", 1)
-		CheckError(err, "error scanning delete preview")
-
-		if href != "static/notfound.png" {
-			_, err = os.Stat(href)
-			if err == nil {
-				os.Remove(href)
-			}
-		}
-	}
-
-}
-
-func TombstonePreviewRepliesFromDB(db *sql.DB, id string) {
-	var query = `select id from activitystream where id in (select id from replies where inreplyto=$1)`
-
-	rows, err := db.Query(query, id)
-
-	CheckError(err, "error query tombstone preview replies")
 
 	defer rows.Close()
 	for rows.Next() {
 		var attachment string
 
-		err := rows.Scan(&attachment)
+		if err := rows.Scan(&attachment); err != nil {
+			return err
+		}
 
-		CheckError(err, "error scanning tombstone preview")
+		if err := DeletePreviewFromFile(attachment); err != nil {
+			return err
+		}
 
-		DeletePreviewFromFile(db, attachment)
-		TombstonePreviewFromDB(db, attachment)
+		if err := TombstonePreviewFromDB(attachment); err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
-func TombstoneAttachmentRepliesFromDB(db *sql.DB, id string) {
-	var query = `select id from activitystream where id in (select id from replies where inreplyto=$1)`
+func TombstoneAttachmentRepliesFromDB(id string) error {
+	query := `select id from activitystream where id in (select id from replies where inreplyto=$1)`
 
 	rows, err := db.Query(query, id)
-
-	CheckError(err, "error query tombstone attachment replies")
+	if err != nil {
+		return err
+	}
 
 	defer rows.Close()
 	for rows.Next() {
 		var attachment string
 
-		err := rows.Scan(&attachment)
+		if err := rows.Scan(&attachment); err != nil {
+			return err
+		}
 
-		CheckError(err, "error scanning delete attachment")
+		if err := DeleteAttachmentFromFile(attachment); err != nil {
+			return err
+		}
 
-		DeleteAttachmentFromFile(db, attachment)
-		TombstoneAttachmentFromDB(db, attachment)
+		if err := TombstoneAttachmentFromDB(attachment); err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
-func TombstoneAttachmentFromDB(db *sql.DB, id string) {
+func TombstoneAttachmentFromDB(id string) error {
 	datetime := time.Now().UTC().Format(time.RFC3339)
 
-	var query = `update activitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select attachment from activitystream where id=$3)`
+	query := `update activitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select attachment from activitystream where id=$3)`
 
-	_, err := db.Exec(query, Domain+"/static/notfound.png", datetime, id)
-
-	CheckError(err, "error with tombstone attachment")
+	if _, err := db.Exec(query, config.Domain+"/static/notfound.png", datetime, id); err != nil {
+		return err
+	}
 
 	query = `update cacheactivitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select attachment from cacheactivitystream where id=$3)`
 
-	_, err = db.Exec(query, Domain+"/static/notfound.png", datetime, id)
-
-	CheckError(err, "error with tombstone cache attachment")
+	_, err := db.Exec(query, config.Domain+"/static/notfound.png", datetime, id)
+	return err
 }
 
-func DeleteAttachmentFromDB(db *sql.DB, id string) {
-	var query = `delete from activitystream where id in (select attachment from activitystream where id=$1)`
+func DeleteAttachmentFromDB(db *sql.DB, id string) error {
+	query := `delete from activitystream where id in (select attachment from activitystream where id=$1)`
 
-	_, err := db.Exec(query, id)
-
-	CheckError(err, "error with delete attachment")
+	if _, err := db.Exec(query, id); err != nil {
+		return err
+	}
 
 	query = `delete from cacheactivitystream where id in (select attachment from cacheactivitystream where id=$1)`
 
-	_, err = db.Exec(query, id)
-
-	CheckError(err, "error with delete cache attachment")
+	_, err := db.Exec(query, id)
+	return err
 }
 
-func TombstonePreviewFromDB(db *sql.DB, id string) {
+func TombstonePreviewFromDB(id string) error {
 	datetime := time.Now().UTC().Format(time.RFC3339)
 
-	var query = `update activitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select preview from activitystream where id=$3)`
+	query := `update activitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select preview from activitystream where id=$3)`
 
-	_, err := db.Exec(query, Domain+"/static/notfound.png", datetime, id)
-
-	CheckError(err, "error with tombstone preview")
+	if _, err := db.Exec(query, config.Domain+"/static/notfound.png", datetime, id); err != nil {
+		return err
+	}
 
 	query = `update cacheactivitystream set type='Tombstone', mediatype='image/png', href=$1, name='', content='', attributedto='deleted', deleted=$2 where id in (select preview from cacheactivitystream where id=$3)`
 
-	_, err = db.Exec(query, Domain+"/static/notfound.png", datetime, id)
-
-	CheckError(err, "error with tombstone cache preview")
+	_, err := db.Exec(query, config.Domain+"/static/notfound.png", datetime, id)
+	return err
 }
 
-func DeletePreviewFromDB(db *sql.DB, id string) {
-	var query = `delete from activitystream  where id=$1`
+func DeletePreviewFromDB(id string) error {
+	query := `delete from activitystream  where id=$1`
 
-	_, err := db.Exec(query, id)
-
-	CheckError(err, "error with delete preview")
+	if _, err := db.Exec(query, id); err != nil {
+		return err
+	}
 
 	query = `delete from cacheactivitystream where id in (select preview from cacheactivitystream where id=$1)`
 
-	_, err = db.Exec(query, id)
-
-	CheckError(err, "error with delete cache preview")
+	_, err := db.Exec(query, id)
+	return err
 }
 
-func DeleteObjectRepliedTo(db *sql.DB, id string) {
+func DeleteObjectRepliedTo(id string) error {
 	query := `delete from replies where id=$1`
 	_, err := db.Exec(query, id)
-
-	CheckError(err, "error with delete object replies")
+	return err
 }
 
-func TombstoneObjectFromDB(db *sql.DB, id string) {
+func TombstoneObjectFromDB(id string) error {
 	datetime := time.Now().UTC().Format(time.RFC3339)
-	var query = `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', deleted=$1 where id=$2`
+	query := `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', deleted=$1 where id=$2`
 
-	_, err := db.Exec(query, datetime, id)
-
-	CheckError(err, "error with tombstone object")
+	if _, err := db.Exec(query, datetime, id); err != nil {
+		return err
+	}
 
 	query = `update cacheactivitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='',  deleted=$1 where id=$2`
 
-	_, err = db.Exec(query, datetime, id)
-
-	CheckError(err, "error with tombstone cache object")
+	_, err := db.Exec(query, datetime, id)
+	return err
 }
 
-func DeleteObjectFromDB(db *sql.DB, id string) {
+func DeleteObjectFromDB(id string) error {
 	var query = `delete from activitystream where id=$1`
 
-	_, err := db.Exec(query, id)
-
-	CheckError(err, "error with delete object")
+	if _, err := db.Exec(query, id); err != nil {
+		return err
+	}
 
 	query = `delete from cacheactivitystream where id=$1`
 
-	_, err = db.Exec(query, id)
-
-	CheckError(err, "error with delete cache object")
+	_, err := db.Exec(query, id)
+	return err
 }
 
-func DeleteObjectsInReplyTo(db *sql.DB, id string) {
+func DeleteObjectsInReplyTo(id string) error {
 	query := `delete from replies where id in (select id from replies where inreplyto=$1)`
 
 	_, err := db.Exec(query, id)
-
-	CheckError(err, "error with delete object replies to")
+	return err
 }
 
-func TombstoneObjectRepliesFromDB(db *sql.DB, id string) {
+func TombstoneObjectRepliesFromDB(id string) error {
 	datetime := time.Now().UTC().Format(time.RFC3339)
 
-	var query = `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', deleted=$1 where id in (select id from replies where inreplyto=$2)`
+	query := `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', deleted=$1 where id in (select id from replies where inreplyto=$2)`
 
-	_, err := db.Exec(query, datetime, id)
-	CheckError(err, "error with tombstone object replies")
+	if _, err := db.Exec(query, datetime, id); err != nil {
+		return err
+	}
 
 	query = `update cacheactivitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', deleted=$1 where id in (select id from replies where inreplyto=$2)`
 
-	_, err = db.Exec(query, datetime, id)
-	CheckError(err, "error with tombstone object cache replies")
-
+	_, err := db.Exec(query, datetime, id)
+	return err
 }
 
-func SetAttachmentFromDB(db *sql.DB, id string, _type string) {
+func SetAttachmentFromDB(id string, _type string) error {
 	datetime := time.Now().UTC().Format(time.RFC3339)
 
-	var query = `update activitystream set type=$1, deleted=$2 where id in (select attachment from activitystream where id=$3)`
+	query := `update activitystream set type=$1, deleted=$2 where id in (select attachment from activitystream where id=$3)`
 
-	_, err := db.Exec(query, _type, datetime, id)
-
-	CheckError(err, "error with set attachment")
+	if _, err := db.Exec(query, _type, datetime, id); err != nil {
+		return err
+	}
 
 	query = `update cacheactivitystream set type=$1, deleted=$2 where id in (select attachment from cacheactivitystream  where id=$3)`
 
-	_, err = db.Exec(query, _type, datetime, id)
-
-	CheckError(err, "error with set cache attachment")
+	_, err := db.Exec(query, _type, datetime, id)
+	return err
 }
 
-func SetAttachmentRepliesFromDB(db *sql.DB, id string, _type string) {
+func SetAttachmentRepliesFromDB(id string, _type string) error {
 	datetime := time.Now().UTC().Format(time.RFC3339)
 
-	var query = `update activitystream set type=$1, deleted=$2 where id in (select attachment from activitystream where id in (select id from replies where inreplyto=$3))`
+	query := `update activitystream set type=$1, deleted=$2 where id in (select attachment from activitystream where id in (select id from replies where inreplyto=$3))`
 
-	_, err := db.Exec(query, _type, datetime, id)
-
-	CheckError(err, "error with set attachment")
+	if _, err := db.Exec(query, _type, datetime, id); err != nil {
+		return err
+	}
 
 	query = `update cacheactivitystream set type=$1, deleted=$2 where id in (select attachment from cacheactivitystream where id in (select id from replies where inreplyto=$3))`
 
-	_, err = db.Exec(query, _type, datetime, id)
-
-	CheckError(err, "error with set cache attachment")
+	_, err := db.Exec(query, _type, datetime, id)
+	return err
 }
 
-func SetPreviewFromDB(db *sql.DB, id string, _type string) {
+func SetPreviewFromDB(db *sql.DB, id string, _type string) error {
 	datetime := time.Now().UTC().Format(time.RFC3339)
 
-	var query = `update activitystream set type=$1, deleted=$2 where id in (select preview from activitystream where id=$3)`
+	query := `update activitystream set type=$1, deleted=$2 where id in (select preview from activitystream where id=$3)`
 
-	_, err := db.Exec(query, _type, datetime, id)
-
-	CheckError(err, "error with set preview")
+	if _, err := db.Exec(query, _type, datetime, id); err != nil {
+		return err
+	}
 
 	query = `update cacheactivitystream set type=$1, deleted=$2 where id in (select preview from cacheactivitystream where id=$3)`
 
-	_, err = db.Exec(query, _type, datetime, id)
-
-	CheckError(err, "error with set cache preview")
+	_, err := db.Exec(query, _type, datetime, id)
+	return err
 }
 
-func SetPreviewRepliesFromDB(db *sql.DB, id string, _type string) {
+func SetPreviewRepliesFromDB(id string, _type string) error {
 	datetime := time.Now().UTC().Format(time.RFC3339)
 
-	var query = `update activitystream set type=$1, deleted=$2 where id in (select preview from activitystream where id in (select id from replies where inreplyto=$3))`
+	query := `update activitystream set type=$1, deleted=$2 where id in (select preview from activitystream where id in (select id from replies where inreplyto=$3))`
 
-	_, err := db.Exec(query, _type, datetime, id)
-
-	CheckError(err, "error with set preview")
+	if _, err := db.Exec(query, _type, datetime, id); err != nil {
+		return err
+	}
 
 	query = `update cacheactivitystream set type=$1, deleted=$2 where id in (select preview from cacheactivitystream where id in (select id from replies where inreplyto=$3))`
 
-	_, err = db.Exec(query, _type, datetime, id)
-
-	CheckError(err, "error with set cache preview")
+	_, err := db.Exec(query, _type, datetime, id)
+	return err
 }
 
-func SetObjectFromDB(db *sql.DB, id string, _type string) {
+func SetObjectFromDB(id string, _type string) error {
 	datetime := time.Now().UTC().Format(time.RFC3339)
 
-	var query = `update activitystream set type=$1, deleted=$2 where id=$3`
+	query := `update activitystream set type=$1, deleted=$2 where id=$3`
 
-	_, err := db.Exec(query, _type, datetime, id)
-
-	CheckError(err, "error with set object")
+	if _, err := db.Exec(query, _type, datetime, id); err != nil {
+		return err
+	}
 
 	query = `update cacheactivitystream set type=$1, deleted=$2 where id=$3`
 
-	_, err = db.Exec(query, _type, datetime, id)
-
-	CheckError(err, "error with set cache object")
+	_, err := db.Exec(query, _type, datetime, id)
+	return err
 }
 
-func SetObjectRepliesFromDB(db *sql.DB, id string, _type string) {
+func SetObjectRepliesFromDB(id string, _type string) error {
 	datetime := time.Now().UTC().Format(time.RFC3339)
 
 	var query = `update activitystream set type=$1, deleted=$2 where id in (select id from replies where inreplyto=$3)`
-	_, err := db.Exec(query, _type, datetime, id)
-	CheckError(err, "error with set object replies")
+	if _, err := db.Exec(query, _type, datetime, id); err != nil {
+		return err
+	}
 
 	query = `update cacheactivitystream set type=$1, deleted=$2 where id in (select id from replies where inreplyto=$3)`
-	_, err = db.Exec(query, _type, datetime, id)
-	CheckError(err, "error with set cache object replies")
+	_, err := db.Exec(query, _type, datetime, id)
+	return err
 }
 
-func SetObject(db *sql.DB, id string, _type string) {
-	SetAttachmentFromDB(db, id, _type)
-	SetPreviewFromDB(db, id, _type)
-	SetObjectFromDB(db, id, _type)
+func SetObject(id string, _type string) error {
+	if err := SetAttachmentFromDB(id, _type); err != nil {
+		return err
+	}
+
+	if err := SetPreviewFromDB(id, _type); err != nil {
+		return err
+	}
+
+	return SetObjectFromDB(id, _type)
 }
 
-func SetObjectAndReplies(db *sql.DB, id string, _type string) {
-	SetAttachmentFromDB(db, id, _type)
-	SetPreviewFromDB(db, id, _type)
-	SetObjectRepliesFromDB(db, id, _type)
-	SetAttachmentRepliesFromDB(db, id, _type)
-	SetPreviewRepliesFromDB(db, id, _type)
-	SetObjectFromDB(db, id, _type)
+func SetObjectAndReplies(id string, _type string) error {
+	if err := SetAttachmentFromDB(id, _type); err != nil {
+		return err
+	}
+
+	if err := SetPreviewFromDB(id, _type); err != nil {
+		return err
+	}
+
+	if err := SetObjectRepliesFromDB(id, _type); err != nil {
+		return err
+	}
+
+	if err := SetAttachmentRepliesFromDB(id, _type); err != nil {
+		return err
+	}
+
+	if err := SetPreviewRepliesFromDB(id, _type); err != nil {
+		return err
+	}
+
+	return SetObjectFromDB(id, _type)
 }
 
-func DeleteObject(db *sql.DB, id string) {
-	DeleteReportActivity(db, id)
-	DeleteAttachmentFromFile(db, id)
-	DeleteAttachmentFromDB(db, id)
-	DeletePreviewFromFile(db, id)
-	DeletePreviewFromDB(db, id)
-	DeleteObjectFromDB(db, id)
-	DeleteObjectRepliedTo(db, id)
+func DeleteObject(id string) error {
+	if err := DeleteReportActivity(id); err != nil {
+		return err
+	}
+
+	if err := DeleteAttachmentFromFile(id); err != nil {
+		return err
+	}
+
+	if err := DeleteAttachmentFromDB(id); err != nil {
+		return err
+	}
+
+	if err := DeletePreviewFromFile(id); err != nil {
+		return err
+	}
+
+	if err := DeletePreviewFromDB(id); err != nil {
+		return err
+	}
+
+	if err := DeleteObjectFromDB(id); err != nil {
+		return err
+	}
+
+	return DeleteObjectRepliedTo(id)
 }
 
-func TombstoneObject(db *sql.DB, id string) {
-	DeleteReportActivity(db, id)
-	DeleteAttachmentFromFile(db, id)
-	TombstoneAttachmentFromDB(db, id)
-	DeletePreviewFromFile(db, id)
-	TombstonePreviewFromDB(db, id)
-	TombstoneObjectFromDB(db, id)
+func TombstoneObject(id string) error {
+	if err := DeleteReportActivity(id); err != nil {
+		return err
+	}
+
+	if err := DeleteAttachmentFromFile(id); err != nil {
+		return err
+	}
+
+	if err := TombstoneAttachmentFromDB(id); err != nil {
+		return err
+	}
+
+	if err := DeletePreviewFromFile(id); err != nil {
+		return err
+	}
+
+	if err := TombstonePreviewFromDB(id); err != nil {
+		return err
+	}
+
+	return TombstoneObjectFromDB(id)
 }
 
-func TombstoneObjectAndReplies(db *sql.DB, id string) {
-	DeleteReportActivity(db, id)
-	DeleteAttachmentFromFile(db, id)
-	TombstoneAttachmentFromDB(db, id)
-	DeletePreviewFromFile(db, id)
-	TombstonePreviewFromDB(db, id)
-	TombstoneObjectRepliesFromDB(db, id)
-	TombstoneAttachmentRepliesFromDB(db, id)
-	TombstonePreviewRepliesFromDB(db, id)
-	TombstoneObjectFromDB(db, id)
+func TombstoneObjectAndReplies(id string) error {
+	if err := DeleteReportActivity(id); err != nil {
+		return err
+	}
+
+	if err := DeleteAttachmentFromFile(id); err != nil {
+		return err
+	}
+
+	if err := TombstoneAttachmentFromDB(id); err != nil {
+		return err
+	}
+
+	if err := DeletePreviewFromFile(id); err != nil {
+		return err
+	}
+
+	if err := TombstonePreviewFromDB(id); err != nil {
+		return err
+	}
+
+	if err := TombstoneObjectRepliesFromDB(id); err != nil {
+		return err
+	}
+
+	if err := TombstoneAttachmentRepliesFromDB(id); err != nil {
+		return err
+	}
+
+	if err := TombstonePreviewRepliesFromDB(id); err != nil {
+		return err
+	}
+
+	return TombstoneObjectFromDB(id)
 }
 
-func GetRandomCaptcha(db *sql.DB) string {
+func GetRandomCaptcha() (string, error) {
+	var verify string
+
 	query := `select identifier from verification where type='captcha' order by random() limit 1`
 
 	rows, err := db.Query(query)
-
-	CheckError(err, "could not get captcha")
-
-	var verify string
-
+	if err != nil {
+		return verify, err
+	}
 	defer rows.Close()
 
 	rows.Next()
-	err = rows.Scan(&verify)
+	if err := rows.Scan(&verify); err != nil {
+		return verify, err
+	}
 
-	CheckError(err, "Could not get verify captcha")
-
-	return verify
+	return verify, nil
 }
 
-func GetCaptchaTotal(db *sql.DB) int {
+func GetCaptchaTotal() (int, error) {
 	query := `select count(*) from verification where type='captcha'`
 
 	rows, err := db.Query(query)
-
-	CheckError(err, "could not get query captcha total")
+	if err != nil {
+		return 0, err
+	}
 
 	defer rows.Close()
 
 	var count int
 	for rows.Next() {
 		if err := rows.Scan(&count); err != nil {
-			CheckError(err, "could not get captcha total")
+			return count, err
 		}
 	}
 
-	return count
+	return count, nil
 }
 
-func GetCaptchaCodeDB(db *sql.DB, verify string) string {
-
+func GetCaptchaCodeDB(verify string) (string, error) {
 	query := `select code from verification where identifier=$1 limit 1`
 
 	rows, err := db.Query(query, verify)
-
-	CheckError(err, "could not get captcha verifciation")
-
+	if err != nil {
+		return "", err
+	}
 	defer rows.Close()
 
 	var code string
 
 	rows.Next()
-	err = rows.Scan(&code)
-
-	if err != nil {
+	if err := rows.Scan(&code); err != nil {
 		fmt.Println("Could not get verification captcha")
 	}
 
-	return code
+	return code, nil
 }
 
-func GetActorAuth(db *sql.DB, actor string) []string {
+func GetActorAuth(actor string) ([]string, error) {
+	var auth []string
+
 	query := `select type from actorauth where board=$1`
 
 	rows, err := db.Query(query, actor)
-
-	CheckError(err, "could not get actor auth")
-
+	if err != nil {
+		return auth, err
+	}
 	defer rows.Close()
-
-	var auth []string
 
 	for rows.Next() {
 		var e string
-		err = rows.Scan(&e)
-
-		CheckError(err, "could not get actor auth row scan")
+		if err := rows.Scan(&e); err != nil {
+			return auth, err
+		}
 
 		auth = append(auth, e)
 	}
 
-	return auth
+	return auth, nil
 }
 
-func DeleteCaptchaCodeDB(db *sql.DB, verify string) {
+func DeleteCaptchaCodeDB(verify string) error {
 	query := `delete from verification where identifier=$1`
 
 	_, err := db.Exec(query, verify)
+	if err != nil {
+		return err
+	}
 
-	CheckError(err, "could not delete captcah code db")
-
-	os.Remove("./" + verify)
+	return os.Remove("./" + verify)
 }
 
 func EscapeString(text string) string {
+	// TODO: not enough
+
 	text = strings.Replace(text, "<", "&lt;", -1)
 	return text
 }
 
-func GetActorReportedTotal(db *sql.DB, id string) int {
+func GetActorReportedTotal(id string) (int, error) {
 	query := `select count(id) from reported where board=$1`
 
 	rows, err := db.Query(query, id)
-
-	CheckError(err, "error getting actor reported total query")
+	if err != nil {
+		return 0, err
+	}
 
 	defer rows.Close()
 
@@ -1600,78 +1699,81 @@ func GetActorReportedTotal(db *sql.DB, id string) int {
 		rows.Scan(&count)
 	}
 
-	return count
+	return count, nil
 }
 
-func GetActorReportedDB(db *sql.DB, id string) []ObjectBase {
-	var nObj []ObjectBase
+func GetActorReportedDB(id string) ([]activitypub.ObjectBase, error) {
+	var nObj []activitypub.ObjectBase
 
 	query := `select id, count, reason from reported where board=$1`
 
 	rows, err := db.Query(query, id)
-
-	CheckError(err, "error getting actor reported query")
+	if err != nil {
+		return nObj, err
+	}
 
 	defer rows.Close()
 
 	for rows.Next() {
-		var obj ObjectBase
+		var obj activitypub.ObjectBase
 
 		rows.Scan(&obj.Id, &obj.Size, &obj.Content)
 
 		nObj = append(nObj, obj)
 	}
 
-	return nObj
+	return nObj, nil
 }
 
-func GetActorPemFromDB(db *sql.DB, pemID string) PublicKeyPem {
+func GetActorPemFromDB(pemID string) (activitypub.PublicKeyPem, error) {
+	var pem activitypub.PublicKeyPem
+
 	query := `select id, owner, file from publickeypem where id=$1`
+
 	rows, err := db.Query(query, pemID)
-
-	CheckError(err, "could not get public key pem from database")
-
-	var pem PublicKeyPem
+	if err != nil {
+		return pem, err
+	}
 
 	defer rows.Close()
+
 	rows.Next()
 	rows.Scan(&pem.Id, &pem.Owner, &pem.PublicKeyPem)
 	f, err := os.ReadFile(pem.PublicKeyPem)
 	if err != nil {
-		pem.PublicKeyPem = ""
-		return pem
+		return pem, err
 	}
 
 	pem.PublicKeyPem = strings.ReplaceAll(string(f), "\r\n", `\n`)
 
-	return pem
+	return pem, nil
 }
 
-func GetActorPemFileFromDB(db *sql.DB, pemID string) string {
+func GetActorPemFileFromDB(db *sql.DB, pemID string) (string, error) {
 	query := `select file from publickeypem where id=$1`
 	rows, err := db.Query(query, pemID)
-
-	CheckError(err, "could not get public key filename from database")
-
-	var file string
+	if err != nil {
+		return "", err
+	}
 
 	defer rows.Close()
+
+	var file string
 	rows.Next()
 	rows.Scan(&file)
 
-	return file
+	return file, nil
 }
 
-func MarkObjectSensitive(db *sql.DB, id string, sensitive bool) {
+func MarkObjectSensitive(db *sql.DB, id string, sensitive bool) error {
 	var query = `update activitystream set sensitive=$1 where id=$2`
-	_, err := db.Exec(query, sensitive, id)
-
-	CheckError(err, "error updating sensitive object in activitystream")
+	if _, err := db.Exec(query, sensitive, id); err != nil {
+		return err
+	}
 
 	query = `update cacheactivitystream set sensitive=$1 where id=$2`
-	_, err = db.Exec(query, sensitive, id)
-
-	CheckError(err, "error updating sensitive object in cacheactivitystream")
+	_, err := db.Exec(query, sensitive, id)
+	return err
 }
 
 //if limit less than 1 return all news items
@@ -1714,22 +1816,20 @@ func GetNewsFromDB(limit int) ([]NewsItem, error) {
 	return news, nil
 }
 
-func getNewsItemFromDB(db *sql.DB, timestamp int) (NewsItem, error) {
+func getNewsItemFromDB(timestamp int) (NewsItem, error) {
 	var news NewsItem
 	var content string
 	query := `select title, content, time from newsItem where time=$1 limit 1`
 
 	rows, err := db.Query(query, timestamp)
-
 	if err != nil {
 		return news, err
 	}
 
 	defer rows.Close()
-	rows.Next()
-	err = rows.Scan(&news.Title, &content, &news.Time)
 
-	if err != nil {
+	rows.Next()
+	if err := rows.Scan(&news.Title, &content, &news.Time); err != nil {
 		return news, err
 	}
 
@@ -1739,48 +1839,49 @@ func getNewsItemFromDB(db *sql.DB, timestamp int) (NewsItem, error) {
 	return news, nil
 }
 
-func deleteNewsItemFromDB(db *sql.DB, timestamp int) {
+func deleteNewsItemFromDB(timestamp int) error {
 	query := `delete from newsItem where time=$1`
-	db.Exec(query, timestamp)
+	_, err := db.Exec(query, timestamp)
+	return err
 }
 
-func WriteNewsToDB(db *sql.DB, news NewsItem) {
+func WriteNewsToDB(news NewsItem) error {
 	query := `insert into newsItem (title, content, time) values ($1, $2, $3)`
 
 	_, err := db.Exec(query, news.Title, news.Content, time.Now().Unix())
-
-	CheckError(err, "error writing news item")
+	return err
 }
 
-func WriteRegexBlacklistDB(db *sql.DB, regex string) {
+func WriteRegexBlacklistDB(regex string) error {
 	query := `select from postblacklist where regex=$1`
 
 	rows, err := db.Query(query, regex)
-
-	CheckError(err, "error select from postblacklist db")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
 
 	var re string
-	defer rows.Close()
 	rows.Next()
 	rows.Scan(&re)
 
 	if re != "" {
-		return
+		return nil
 	}
 
 	query = `insert into postblacklist (regex) values ($1)`
 
 	_, err = db.Exec(query, regex)
-
-	CheckError(err, "error inserting postblacklist into db")
+	return err
 }
 
-func GetRegexBlacklistDB(db *sql.DB) []PostBlacklist {
+func GetRegexBlacklistDB() ([]PostBlacklist, error) {
 	query := `select id, regex from postblacklist`
 
 	rows, err := db.Query(query)
-
-	CheckError(err, "error with select all from postblacklist db")
+	if err != nil {
+		return err
+	}
 
 	var List []PostBlacklist
 
@@ -1792,23 +1893,23 @@ func GetRegexBlacklistDB(db *sql.DB) []PostBlacklist {
 		List = append(List, temp)
 	}
 
-	return List
+	return List, nil
 }
 
-func DeleteRegexBlacklistDB(db *sql.DB, id int) {
+func DeleteRegexBlacklistDB(id int) error {
 	query := `delete from postblacklist where id=$1`
 
 	_, err := db.Exec(query, id)
-
-	CheckError(err, "error with delete from postblacklist")
+	return err
 }
 
-func GetActorAutoSubscribeDB(db *sql.DB, id string) bool {
+func GetActorAutoSubscribeDB(id string) (bool, error) {
 	query := `select autosubscribe from actor where id=$1`
 
 	rows, err := db.Query(query, id)
-
-	CheckError(err, "error with getting actor auto subscribe status from db")
+	if err != nil {
+		return false, err
+	}
 
 	var subscribed bool
 	defer rows.Close()
@@ -1818,22 +1919,25 @@ func GetActorAutoSubscribeDB(db *sql.DB, id string) bool {
 	return subscribed
 }
 
-func SetActorAutoSubscribeDB(db *sql.DB, id string) {
-	current := GetActorAutoSubscribeDB(db, id)
+func SetActorAutoSubscribeDB(id string) error {
+	current, err := GetActorAutoSubscribeDB(id)
+	if err != nil {
+		return err
+	}
 
 	query := `update actor set autosubscribe=$1 where id=$2`
 
-	_, err := db.Exec(query, !current, id)
-
-	CheckError(err, "error with set actor auto subscribe status from db")
+	_, err = db.Exec(query, !current, id)
+	return err
 }
 
-func AddInstanceToInactiveDB(db *sql.DB, instance string) {
+func AddInstanceToInactiveDB(instance string) error {
 	query := `select timestamp from inactive where instance=$1`
 
 	rows, err := db.Query(query, instance)
-
-	CheckError(err, "error selecting instance from inactive")
+	if err != nil {
+		return err
+	}
 
 	var timeStamp string
 	defer rows.Close()
@@ -1844,34 +1948,34 @@ func AddInstanceToInactiveDB(db *sql.DB, instance string) {
 		query := `insert into inactive (instance, timestamp) values ($1, $2)`
 
 		_, err := db.Exec(query, instance, time.Now().UTC().Format(time.RFC3339))
-
-		CheckError(err, "error inserting instance to inactive")
-	} else {
-		if IsInactiveTimestamp(db, timeStamp) {
-			query := `delete from following where following like $1`
-			_, err := db.Exec(query, "%"+instance+"%")
-
-			CheckError(err, "error deleting inactive instance following")
-
-			query = `delete from follower where follower like $1`
-			_, err = db.Exec(query, "%"+instance+"%")
-
-			CheckError(err, "error deleting inactive instance follower")
-
-			DeleteInstanceFromInactiveDB(db, instance)
-		}
+		return err
 	}
+
+	if !IsInactiveTimestamp(timeStamp) {
+		return nil
+	}
+
+	query = `delete from following where following like $1`
+	if _, err := db.Exec(query, "%"+instance+"%"); err != nil {
+		return err
+	}
+
+	query = `delete from follower where follower like $1`
+	if _, err = db.Exec(query, "%"+instance+"%"); err != nil {
+		return err
+	}
+
+	return DeleteInstanceFromInactiveDB(instance)
 }
 
-func DeleteInstanceFromInactiveDB(db *sql.DB, instance string) {
+func DeleteInstanceFromInactiveDB(instance string) error {
 	query := `delete from inactive where instance=$1`
 
 	_, err := db.Exec(query, instance)
-
-	CheckError(err, "error deleting instance in inactive")
+	return err
 }
 
-func IsInactiveTimestamp(db *sql.DB, timeStamp string) bool {
+func IsInactiveTimestamp(timeStamp string) bool {
 	stamp, _ := time.Parse(time.RFC3339, timeStamp)
 	if time.Now().UTC().Sub(stamp).Hours() > 48 {
 		return true
@@ -1880,173 +1984,220 @@ func IsInactiveTimestamp(db *sql.DB, timeStamp string) bool {
 	return false
 }
 
-func ArchivePosts(db *sql.DB, actor Actor) {
+func ArchivePosts(actor activitypub.Actor) error {
 	if actor.Id != "" && actor.Id != Domain {
-		col := GetAllActorArchiveDB(db, actor.Id, 165)
+		col, err := GetAllActorArchiveDB(actor.Id, 165)
+		if err != nil {
+			return err
+		}
+
 		for _, e := range col.OrderedItems {
 			for _, k := range e.Replies.OrderedItems {
-				UpdateObjectTypeDB(db, k.Id, "Archive")
+				if err := UpdateObjectTypeDB(k.Id, "Archive"); err != nil {
+					return err
+				}
 			}
-			UpdateObjectTypeDB(db, e.Id, "Archive")
+
+			if err := UpdateObjectTypeDB(e.Id, "Archive"); err != nil {
+				return err
+			}
 		}
 	}
 }
 
-func GetAllActorArchiveDB(db *sql.DB, id string, offset int) Collection {
-	var nColl Collection
-	var result []ObjectBase
+func GetAllActorArchiveDB(id string, offset int) (activitypub.Collection, error) {
+	var nColl activitypub.Collection
+	var result []activitypub.ObjectBase
 
 	query := `select x.id, x.updated from (select id, updated from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, updated from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, updated from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc offset $2`
 
 	rows, err := db.Query(query, id, offset)
-
-	CheckError(err, "error query object from db")
-
+	if err != nil {
+		return nColl, err
+	}
 	defer rows.Close()
+
 	for rows.Next() {
-		var post ObjectBase
+		var post activitypub.ObjectBase
 
-		err = rows.Scan(&post.Id, &post.Updated)
+		if err := rows.Scan(&post.Id, &post.Updated); err != nil {
+			return nColl, err
+		}
 
-		CheckError(err, "error scan object into post struct for archive")
-
-		post.Replies, _, _ = GetObjectRepliesDB(db, post)
+		post.Replies, _, _, err = GetObjectRepliesDB(post)
 
 		result = append(result, post)
 	}
 
 	nColl.OrderedItems = result
 
-	return nColl
+	return nColl, nil
 }
 
-func GetActorCollectionDBType(db *sql.DB, actorId string, nType string) Collection {
-	var nColl Collection
-	var result []ObjectBase
+func GetActorCollectionDBType(actorId string, nType string) (activitypub.Collection, err) {
+	var nColl activitypub.Collection
+	var result []activitypub.ObjectBase
 
 	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type=$2 union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type=$2 union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type=$2) as x order by x.updated desc`
 
 	rows, err := db.Query(query, actorId, nType)
-
-	CheckError(err, "error query object from db archive")
+	if err != nil {
+		return nColl, err
+	}
 
 	defer rows.Close()
 	for rows.Next() {
-		var post ObjectBase
-		var actor Actor
+		var post activitypub.ObjectBase
+		var actor activitypub.Actor
 		var attachID string
 		var previewID string
 
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
-
-		CheckError(err, "error scan object into post struct archive")
+		if err := rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
+			return err
+		}
 
 		post.Actor = actor.Id
 
-		var replies CollectionBase
+		var replies activitypub.CollectionBase
 
 		post.Replies = &replies
 
-		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCount(db, post)
-		post.Attachment = GetObjectAttachment(db, attachID)
+		var err error
+		post.Replies.TotalItems, post.Replies.TotalImgs, err = GetObjectRepliesCount(post)
+		if err != nil {
+			return nColl, err
+		}
 
-		post.Preview = GetObjectPreview(db, previewID)
+		post.Attachment, err = GetObjectAttachment(attachID)
+		if err != nil {
+			return nColl, err
+		}
+
+		post.Preview, err = GetObjectPreview(previewID)
+		if err != nil {
+			return nColl, err
+		}
 
 		result = append(result, post)
 	}
 
 	nColl.OrderedItems = result
 
-	return nColl
+	return nColl, nil
 }
 
-func GetActorCollectionDBTypeLimit(db *sql.DB, actorId string, nType string, limit int) Collection {
-	var nColl Collection
-	var result []ObjectBase
+func GetActorCollectionDBTypeLimit(actorId string, nType string, limit int) (activitypub.Collection, error) {
+	var nColl activitypub.Collection
+	var result []activitypub.ObjectBase
 
 	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type=$2 union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type=$2 union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type=$2) as x order by x.updated desc limit $3`
 
 	rows, err := db.Query(query, actorId, nType, limit)
-
-	CheckError(err, "error query object from db archive")
+	if err != nil {
+		return nColl, err
+	}
 
 	defer rows.Close()
 	for rows.Next() {
-		var post ObjectBase
-		var actor Actor
+		var post activitypub.ObjectBase
+		var actor activitypub.Actor
 		var attachID string
 		var previewID string
 
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
-
-		CheckError(err, "error scan object into post struct archive")
+		if err := rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
+			return nColl, err
+		}
 
 		post.Actor = actor.Id
 
-		var replies CollectionBase
+		var replies activitypub.CollectionBase
 
 		post.Replies = &replies
 
-		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCount(db, post)
+		var err error
+		post.Replies.TotalItems, post.Replies.TotalImgs, err = GetObjectRepliesCount(db, post)
+		if err != nil {
+			return nColl, err
+		}
 
-		post.Attachment = GetObjectAttachment(db, attachID)
+		post.Attachment, err = GetObjectAttachment(db, attachID)
+		if err != nil {
+			return nColl, err
+		}
 
-		post.Preview = GetObjectPreview(db, previewID)
+		post.Preview, err = GetObjectPreview(db, previewID)
+		if err != nil {
+			return nColl, err
+		}
 
 		result = append(result, post)
 	}
 
 	nColl.OrderedItems = result
 
-	return nColl
+	return nColl, nil
 }
 
-func UpdateObjectTypeDB(db *sql.DB, id string, nType string) {
+func UpdateObjectTypeDB(id string, nType string) error {
 	query := `update activitystream set type=$2 where id=$1 and type !='Tombstone'`
-
-	_, err := db.Exec(query, id, nType)
-
-	CheckError(err, "error updating activitystream reply type to archive")
+	if _, err := db.Exec(query, id, nType); err != nil {
+		return err
+	}
 
 	query = `update cacheactivitystream set type=$2 where id=$1 and type !='Tombstone'`
-
-	_, err = db.Exec(query, id, nType)
-
-	CheckError(err, "error updating cache reply type to archive")
+	_, err := db.Exec(query, id, nType)
+	return err
 }
 
-func UnArchiveLast(db *sql.DB, actorId string) {
-	col := GetActorCollectionDBTypeLimit(db, actorId, "Archive", 1)
+func UnArchiveLast(actorId string) error {
+	col, err := GetActorCollectionDBTypeLimit(actorId, "Archive", 1)
 
 	for _, e := range col.OrderedItems {
 		for _, k := range e.Replies.OrderedItems {
-			UpdateObjectTypeDB(db, k.Id, "Note")
+			if err := UpdateObjectTypeDB(k.Id, "Note"); err != nil {
+				return err
+			}
 		}
-		UpdateObjectTypeDB(db, e.Id, "Note")
+
+		if err := UpdateObjectTypeDB(e.Id, "Note"); err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
-func SetObjectType(db *sql.DB, id string, nType string) {
-	col := GetObjectFromDB(db, id)
+func SetObjectType(id string, nType string) error {
+	col, err := GetObjectFromDB(id)
+	if err != nil {
+		return err
+	}
 
 	for _, e := range col.OrderedItems {
 		for _, k := range e.Replies.OrderedItems {
-			UpdateObjectTypeDB(db, k.Id, nType)
+			if err := UpdateObjectTypeDB(k.Id, nType); err != nil {
+				return err
+			}
 		}
-		UpdateObjectTypeDB(db, e.Id, nType)
+
+		if err := UpdateObjectTypeDB(e.Id, nType); err != nil {
+			return err
+		}
 	}
 }
 
-func GetObjectTypeDB(db *sql.DB, id string) string {
+func GetObjectTypeDB(id string) (string, error) {
 	query := `select type from activitystream where id=$1 union select type from cacheactivitystream where id=$1`
 
 	rows, err := db.Query(query, id)
-	CheckError(err, "error with getting object type from db")
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
 
 	var nType string
-	defer rows.Close()
 	rows.Next()
 	rows.Scan(&nType)
 
-	return nType
+	return nType, nil
 }
