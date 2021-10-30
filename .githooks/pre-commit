@@ -7,6 +7,12 @@ STAGED="$(git diff --cached --name-only -- '*.go')"
 if [ -n "$STAGED" ]; then
 	for file in $STAGED; do
 		go fmt "$file"
+
+		# run goimports if it's there
+		if command -v goimports >/dev/null 2>&1; then
+			goimports -w "$file"
+		fi
+
 		git add "$file"
 	done
 fi

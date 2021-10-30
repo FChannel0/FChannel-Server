@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	_ "github.com/lib/pq"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
@@ -12,6 +11,8 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+
+	_ "github.com/lib/pq"
 )
 
 func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {

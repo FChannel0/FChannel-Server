@@ -1,7 +1,9 @@
 package main
 
-import "strings"
-import "regexp"
+import (
+	"regexp"
+	"strings"
+)
 
 // False positive for application/ld+ld, application/activity+ld, application/json+json
 var activityRegexp = regexp.MustCompile("application\\/(ld|json|activity)((\\+(ld|json))|$)")

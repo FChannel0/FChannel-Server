@@ -3,13 +3,14 @@ package main
 import (
 	"bytes"
 	"database/sql"
+	"net/http"
+	"regexp"
+	"strings"
+
 	_ "github.com/lib/pq"
 	"github.com/simia-tech/crypt"
 	"golang.org/x/text/encoding/japanese"
 	"golang.org/x/text/transform"
-	"net/http"
-	"regexp"
-	"strings"
 )
 
 const SaltTable = "" +

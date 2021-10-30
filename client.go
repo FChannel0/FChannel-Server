@@ -3,8 +3,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"github.com/gofiber/fiber/v2"
-	_ "github.com/lib/pq"
 	"html/template"
 	"log"
 	"net/http"
@@ -13,6 +11,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gofiber/fiber/v2"
+	_ "github.com/lib/pq"
 )
 
 var Key *string = new(string)

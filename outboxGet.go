@@ -1,9 +1,13 @@
 package main
 
-import "net/http"
-import "database/sql"
-import _ "github.com/lib/pq"
-import "encoding/json"
+import (
+	"database/sql"
+	"net/http"
+
+	"encoding/json"
+
+	_ "github.com/lib/pq"
+)
 
 func GetActorOutbox(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	actor := GetActorFromPath(db, r.URL.Path, "/")

@@ -1,8 +1,11 @@
 package main
 
-import "fmt"
-import "database/sql"
-import _ "github.com/lib/pq"
+import (
+	"database/sql"
+	"fmt"
+
+	_ "github.com/lib/pq"
+)
 
 func WriteObjectToCache(db *sql.DB, obj ObjectBase) ObjectBase {
 

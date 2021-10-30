@@ -3,11 +3,11 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"github.com/gofiber/fiber/v2"
-	"github.com/gomodule/redigo/redis"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/gomodule/redigo/redis"
 )
 
 var cache redis.Conn
