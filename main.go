@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/sha256"
 	"database/sql"
@@ -9,7 +8,11 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/FChannel0/FChannel-Server/activitypub"
+	"github.com/FChannel0/FChannel-Server/config"
+	"github.com/FChannel0/FChannel-Server/db"
 	"github.com/FChannel0/FChannel-Server/routes"
+	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html"
 
@@ -28,7 +31,6 @@ import (
 	"os/exec"
 	"path"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -45,6 +47,10 @@ var ActorCache = make(map[string]activitypub.Actor)
 
 var Themes []string
 
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
 func main() {
 
 	CreatedNeededDirectories()
@@ -52,13 +58,13 @@ func main() {
 	InitCache()
 
 	db.ConnectDB()
-	db.Close()
+	defer db.Close()
 
 	RunDatabaseSchema(DB)
 
 	go MakeCaptchas(DB, 100)
 
-	*Key = CreateKey(32)
+	*Key = util.CreateKey(32)
 
 	FollowingBoards = GetActorFollowingDB(DB, Domain)
 
@@ -253,15 +259,6 @@ func CheckError(e error, m string) error {
 	return e
 }
 
-func CreateKey(len int) string {
-	var key string
-	str := (CreateTripCode(RandomID(len)))
-	for i := 0; i < len; i++ {
-		key += fmt.Sprintf("%c", str[i])
-	}
-	return key
-}
-
 func neuter(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/") {
@@ -271,20 +268,6 @@ func neuter(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
-}
-
-func CreateTripCode(input string) string {
-	cmd := exec.Command("sha512sum")
-	cmd.Stdin = strings.NewReader(input)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
-
-	CheckError(err, "error with create trip code")
-
-	code := strings.Split(out.String(), " ")
-
-	return code[0]
 }
 
 func GetActorFromPath(db *sql.DB, location string, prefix string) Actor {
@@ -322,45 +305,6 @@ func GetContentType(location string) string {
 	} else {
 		return location
 	}
-}
-
-func RandomID(size int) string {
-	rand.Seed(time.Now().UTC().UnixNano())
-	domain := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	rng := size
-	newID := ""
-	for i := 0; i < rng; i++ {
-		newID += string(domain[rand.Intn(len(domain))])
-	}
-
-	return newID
-}
-
-func CreateUniqueID(db *sql.DB, actor string) string {
-	var newID string
-	isUnique := false
-	for !isUnique {
-		newID = RandomID(8)
-
-		query := fmt.Sprintf("select id from activitystream where id='%s/%s/%s'", Domain, actor, newID)
-
-		rows, err := db.Query(query)
-
-		CheckError(err, "error with unique id query")
-
-		defer rows.Close()
-
-		var count int = 0
-		for rows.Next() {
-			count += 1
-		}
-
-		if count < 1 {
-			isUnique = true
-		}
-	}
-
-	return newID
 }
 
 func CreateNewActor(board string, prefName string, summary string, authReq []string, restricted bool) *Actor {
@@ -736,56 +680,6 @@ func IsActivityLocal(db *sql.DB, activity Activity) bool {
 	return false
 }
 
-func IsIDLocal(db *sql.DB, id string) bool {
-	activity := GetActivityFromDB(db, id)
-	return len(activity.OrderedItems) > 0
-}
-
-func IsActorLocal(db *sql.DB, id string) bool {
-	actor := GetActorFromDB(db, id)
-
-	if actor.Id != "" {
-		return true
-	}
-
-	return false
-}
-
-func IsObjectLocal(db *sql.DB, id string) bool {
-
-	query := `select id from activitystream where id=$1`
-
-	rows, _ := db.Query(query, id)
-
-	var nID string
-	defer rows.Close()
-	rows.Next()
-	rows.Scan(&nID)
-
-	if nID == "" {
-		return false
-	}
-
-	return true
-}
-
-func IsObjectCached(db *sql.DB, id string) bool {
-
-	query := `select id from cacheactivitystream where id=$1`
-	rows, _ := db.Query(query, id)
-
-	var nID string
-	defer rows.Close()
-	rows.Next()
-	rows.Scan(&nID)
-
-	if nID == "" {
-		return false
-	}
-
-	return true
-}
-
 func GetObjectFromActivity(activity Activity) ObjectBase {
 	return *activity.Object
 }
@@ -833,65 +727,6 @@ func SupportedMIMEType(mime string) bool {
 	}
 
 	return false
-}
-
-func DeleteReportActivity(db *sql.DB, id string) bool {
-
-	query := `delete from reported where id=$1`
-
-	_, err := db.Exec(query, id)
-
-	if err != nil {
-		CheckError(err, "error closing reported activity")
-		return false
-	}
-
-	return true
-}
-
-func ReportActivity(db *sql.DB, id string, reason string) bool {
-
-	if !IsIDLocal(db, id) {
-		return false
-	}
-
-	actor := GetActivityFromDB(db, id)
-
-	query := `select count from reported where id=$1`
-
-	rows, err := db.Query(query, id)
-
-	CheckError(err, "could not select count from reported")
-
-	defer rows.Close()
-	var count int
-	for rows.Next() {
-		rows.Scan(&count)
-	}
-
-	if count < 1 {
-		query = `insert into reported (id, count, board, reason) values ($1, $2, $3, $4)`
-
-		_, err := db.Exec(query, id, 1, actor.Actor.Id, reason)
-
-		if err != nil {
-			CheckError(err, "error inserting new reported activity")
-			return false
-		}
-
-	} else {
-		count = count + 1
-		query = `update reported set count=$1 where id=$2`
-
-		_, err := db.Exec(query, count, id)
-
-		if err != nil {
-			CheckError(err, "error updating reported activity")
-			return false
-		}
-	}
-
-	return true
 }
 
 func GetActorReported(w http.ResponseWriter, r *http.Request, db *sql.DB, id string) {
@@ -1623,24 +1458,10 @@ func RouteImages(w http.ResponseWriter, media string) {
 	w.Write(body)
 }
 
-func IsPostBlacklist(db *sql.DB, comment string) bool {
-	postblacklist := GetRegexBlacklistDB(db)
-
-	for _, e := range postblacklist {
-		re := regexp.MustCompile(e.Regex)
-
-		if re.MatchString(comment) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func HasValidation(w http.ResponseWriter, r *http.Request, actor Actor) bool {
+func HasValidation(w http.ResponseWriter, r *http.Request, actor activitypub.Actor) bool {
 	id, _ := GetPasswordFromSession(r)
 
-	if id == "" || (id != actor.Id && id != Domain) {
+	if id == "" || (id != actor.Id && id != config.Domain) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return false
 	}

@@ -90,11 +90,6 @@ type Removed struct {
 	Board string
 }
 
-type PostBlacklist struct {
-	Id    int
-	Regex string
-}
-
 func mod(i, j int) bool {
 	return i%j == 0
 }

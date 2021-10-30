@@ -12,6 +12,7 @@ import (
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
+	"github.com/FChannel0/FChannel-Server/util"
 	_ "github.com/lib/pq"
 )
 
@@ -23,6 +24,7 @@ type NewsItem struct {
 	Time    int
 }
 
+// ConnectDB connects to the PostgreSQL database configured.
 func ConnectDB() error {
 	host := config.DBHost
 	port := config.DBPort
@@ -48,7 +50,40 @@ func ConnectDB() error {
 	return nil
 }
 
-func GetActor(id string) (activitypub.Actor, error) {
+// Close closes the database connection.
+func Close() error {
+	return db.Close()
+}
+
+func CreateUniqueID(db *sql.DB, actor string) (string, error) {
+	var newID string
+	isUnique := false
+	for !isUnique {
+		newID = util.RandomID(8)
+
+		query := "select id from activitystream where id=$1"
+		args := fmt.Sprintf("%s/%s/%s", config.Domain, actor, newID)
+		rows, err := db.Query(query, args)
+		if err != nil {
+			return "", err
+		}
+
+		defer rows.Close()
+
+		// reusing a variable here
+		// if we encounter a match, it'll get set to false causing the outer for loop to loop and to go through this all over again
+		// however if nothing is there, it'll remain true and exit the loop
+		isUnique = true
+		for rows.Next() {
+			isUnique = false
+			break
+		}
+	}
+
+	return newID, nil
+}
+
+func GetActorFromDB(id string) (activitypub.Actor, error) {
 	var nActor activitypub.Actor
 
 	query := `select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary, publickeypem from actor where id=$1`
@@ -66,7 +101,11 @@ func GetActor(id string) (activitypub.Actor, error) {
 		}
 	}
 
-	nActor.PublicKey = GetActorPemFromDB(publicKeyPem)
+	nActor.PublicKey, err = GetActorPemFromDB(publicKeyPem)
+	if err != nil {
+		return nActor, err
+	}
+
 	if nActor.Id != "" && nActor.PublicKey.PublicKeyPem == "" {
 		if err := CreatePublicKeyFromPrivate(&nActor, publicKeyPem); err != nil {
 			return nActor, err
@@ -125,19 +164,19 @@ func CreateNewBoardDB(actor activitypub.Actor) (activitypub.Actor, error) {
 		var verify Verify
 
 		verify.Identifier = actor.Id
-		verify.Code = CreateKey(50)
+		verify.Code = util.CreateKey(50)
 		verify.Type = "admin"
 
 		CreateVerification(verify)
 
 		verify.Identifier = actor.Id
-		verify.Code = CreateKey(50)
+		verify.Code = util.CreateKey(50)
 		verify.Type = "janitor"
 
 		CreateVerification(verify)
 
 		verify.Identifier = actor.Id
-		verify.Code = CreateKey(50)
+		verify.Code = util.CreateKey(50)
 		verify.Type = "post"
 
 		CreateVerification(verify)
@@ -164,13 +203,21 @@ func CreateNewBoardDB(actor activitypub.Actor) (activitypub.Actor, error) {
 			var nObject activitypub.ObjectBase
 			var nActivity activitypub.Activity
 
-			nActor := GetActorFromDB(config.Domain)
+			nActor, err := GetActorFromDB(config.Domain)
+			if err != nil {
+				return actor, err
+			}
+
 			nActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 			nActivity.Type = "Follow"
 			nActivity.Actor = &nActor
 			nActivity.Object = &nObject
 
-			mActor := GetActorFromDB(actor.Id)
+			mActor, err := GetActorFromDB(actor.Id)
+			if err != nil {
+				return actor, err
+			}
+
 			nActivity.Object.Actor = mActor.Id
 			nActivity.To = append(nActivity.To, actor.Id)
 
@@ -208,64 +255,75 @@ func GetBoards() ([]activitypub.Actor, error) {
 	return board, nil
 }
 
-func WriteObjectToDB(db *sql.DB, obj ObjectBase) ObjectBase {
-	obj.Id = fmt.Sprintf("%s/%s", obj.Actor, CreateUniqueID(db, obj.Actor))
+func WriteObjectToDB(obj activitypub.ObjectBase) (activitypub.ObjectBase, error) {
+	id, err := CreateUniqueID(db, obj.Actor)
+	if err != nil {
+		return obj, err
+	}
+
+	obj.Id = fmt.Sprintf("%s/%s", obj.Actor, id)
 	if len(obj.Attachment) > 0 {
 		if obj.Preview.Href != "" {
-			obj.Preview.Id = fmt.Sprintf("%s/%s", obj.Actor, CreateUniqueID(db, obj.Actor))
+			id, err := CreateUniqueID(db, obj.Actor)
+			if err != nil {
+				return obj, err
+			}
+
+			obj.Preview.Id = fmt.Sprintf("%s/%s", obj.Actor, id)
 			obj.Preview.Published = time.Now().UTC()
 			obj.Preview.Updated = time.Now().UTC()
 			obj.Preview.AttributedTo = obj.Id
-			WritePreviewToDB(db, *obj.Preview)
+			WritePreviewToDB(*obj.Preview)
 		}
 
 		for i, _ := range obj.Attachment {
-			obj.Attachment[i].Id = fmt.Sprintf("%s/%s", obj.Actor, CreateUniqueID(db, obj.Actor))
+			id, err := CreateUniqueID(db, obj.Actor)
+			if err != nil {
+				return obj, err
+			}
+
+			obj.Attachment[i].Id = fmt.Sprintf("%s/%s", obj.Actor, id)
 			obj.Attachment[i].Published = time.Now().UTC()
 			obj.Attachment[i].Updated = time.Now().UTC()
 			obj.Attachment[i].AttributedTo = obj.Id
-			WriteAttachmentToDB(db, obj.Attachment[i])
-			WriteActivitytoDBWithAttachment(db, obj, obj.Attachment[i], *obj.Preview)
+			WriteAttachmentToDB(obj.Attachment[i])
+			WriteActivitytoDBWithAttachment(obj, obj.Attachment[i], *obj.Preview)
 		}
 
 	} else {
-		WriteActivitytoDB(db, obj)
+		if err := WriteActivitytoDB(obj); err != nil {
+			return obj, err
+		}
 	}
 
-	WriteObjectReplyToDB(db, obj)
-	WriteWalletToDB(db, obj)
+	if err := WriteObjectReplyToDB(obj); err != nil {
+		return obj, err
+	}
 
-	return obj
+	err = WriteWalletToDB(obj)
+	return obj, err
 }
 
-func WriteObjectUpdatesToDB(db *sql.DB, obj ObjectBase) {
+func WriteObjectUpdatesToDB(obj activitypub.ObjectBase) error {
 	query := `update activitystream set updated=$1 where id=$2`
 
-	_, e := db.Exec(query, time.Now().UTC().Format(time.RFC3339), obj.Id)
-
-	if e != nil {
-		fmt.Println("error inserting updating inreplyto")
-		panic(e)
+	if _, err := db.Exec(query, time.Now().UTC().Format(time.RFC3339), obj.Id); err != nil {
+		return err
 	}
 
 	query = `update cacheactivitystream set updated=$1 where id=$2`
 
-	_, e = db.Exec(query, time.Now().UTC().Format(time.RFC3339), obj.Id)
-
-	if e != nil {
-		fmt.Println("error inserting updating cache inreplyto")
-		panic(e)
-	}
+	_, err := db.Exec(query, time.Now().UTC().Format(time.RFC3339), obj.Id)
+	return err
 }
 
-func WriteObjectReplyToLocalDB(db *sql.DB, id string, replyto string) {
-
+func WriteObjectReplyToLocalDB(id string, replyto string) error {
 	query := `select id from replies where id=$1 and inreplyto=$2`
 
 	rows, err := db.Query(query, id, replyto)
-
-	CheckError(err, "error selecting replies local db")
-
+	if err != nil {
+		return err
+	}
 	defer rows.Close()
 
 	var nID string
@@ -275,17 +333,17 @@ func WriteObjectReplyToLocalDB(db *sql.DB, id string, replyto string) {
 	if nID == "" {
 		query := `insert into replies (id, inreplyto) values ($1, $2)`
 
-		_, err := db.Exec(query, id, replyto)
-
-		CheckError(err, "Could not insert local reply query")
+		if _, err := db.Exec(query, id, replyto); err != nil {
+			return err
+		}
 	}
 
 	query = `select inreplyto from replies where id=$1`
 
 	rows, err = db.Query(query, replyto)
-
-	CheckError(err, "Could not query select inreplyto")
-
+	if err != nil {
+		return err
+	}
 	defer rows.Close()
 
 	for rows.Next() {
@@ -295,42 +353,54 @@ func WriteObjectReplyToLocalDB(db *sql.DB, id string, replyto string) {
 			updated := time.Now().UTC().Format(time.RFC3339)
 			query := `update activitystream set updated=$1 where id=$2`
 
-			_, err := db.Exec(query, updated, replyto)
-
-			CheckError(err, "error with updating replyto updated at date")
+			if _, err := db.Exec(query, updated, replyto); err != nil {
+				return err
+			}
 		}
 	}
+
+	return nil
 }
 
-func WriteObjectReplyToDB(db *sql.DB, obj ObjectBase) {
+func WriteObjectReplyToDB(obj activitypub.ObjectBase) error {
 	for i, e := range obj.InReplyTo {
 
-		if !CheckIfObjectOP(db, obj.Id) && i == 0 {
-			nType := GetObjectTypeDB(db, e.Id)
+		if res, err := CheckIfObjectOP(obj.Id); err == nil && !res && i == 0 {
+			nType, err := GetObjectTypeDB(e.Id)
+			if err != nil {
+				return err
+			}
 
 			if nType == "Archive" {
-				UpdateObjectTypeDB(db, obj.Id, "Archive")
+				if err := UpdateObjectTypeDB(obj.Id, "Archive"); err != nil {
+					return err
+				}
 			}
+		} else if err != nil {
+			return err
 		}
 
 		query := `select id from replies where id=$1 and inreplyto=$2`
 
 		rows, err := db.Query(query, obj.Id, e.Id)
-
-		CheckError(err, "error selecting replies db")
-
+		if err != nil {
+			return err
+		}
 		defer rows.Close()
 
 		var id string
 		rows.Next()
-		rows.Scan(&id)
+		if err := rows.Scan(&id); err != nil {
+			return err
+		}
 
 		if id == "" {
 			query := `insert into replies (id, inreplyto) values ($1, $2)`
 
 			_, err := db.Exec(query, obj.Id, e.Id)
-
-			CheckError(err, "error inserting replies db")
+			if err != nil {
+				return err
+			}
 		}
 
 		update := true
@@ -342,7 +412,9 @@ func WriteObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 		}
 
 		if update {
-			WriteObjectUpdatesToDB(db, e)
+			if err := WriteObjectUpdatesToDB(e); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -350,9 +422,9 @@ func WriteObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 		query := `select id from replies where id=$1 and inreplyto=$2`
 
 		rows, err := db.Query(query, obj.Id, "")
-
-		CheckError(err, "error selecting replies db")
-
+		if err != nil {
+			return err
+		}
 		defer rows.Close()
 
 		var id string
@@ -362,20 +434,23 @@ func WriteObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 		if id == "" {
 			query := `insert into replies (id, inreplyto) values ($1, $2)`
 
-			_, err := db.Exec(query, obj.Id, "")
-
-			CheckError(err, "error inserting replies db")
+			if _, err := db.Exec(query, obj.Id, ""); err != nil {
+				return err
+			}
 		}
 	}
+
+	return nil
 }
 
-func WriteActorObjectReplyToDB(db *sql.DB, obj ObjectBase) {
+func WriteActorObjectReplyToDB(obj activitypub.ObjectBase) error {
 	for _, e := range obj.InReplyTo {
 		query := `select id from replies where id=$1 and inreplyto=$2`
 
 		rows, err := db.Query(query, obj.Id, e.Id)
-
-		CheckError(err, "error selecting replies db")
+		if err != nil {
+			return err
+		}
 
 		defer rows.Close()
 
@@ -386,9 +461,9 @@ func WriteActorObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 		if id == "" {
 			query := `insert into replies (id, inreplyto) values ($1, $2)`
 
-			_, err := db.Exec(query, obj.Id, e.Id)
-
-			CheckError(err, "error inserting replies db")
+			if _, err := db.Exec(query, obj.Id, e.Id); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -396,9 +471,9 @@ func WriteActorObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 		query := `select id from replies where id=$1 and inreplyto=$2`
 
 		rows, err := db.Query(query, obj.Id, "")
-
-		CheckError(err, "error selecting replies db")
-
+		if err != nil {
+			return err
+		}
 		defer rows.Close()
 
 		var id string
@@ -408,45 +483,44 @@ func WriteActorObjectReplyToDB(db *sql.DB, obj ObjectBase) {
 		if id == "" {
 			query := `insert into replies (id, inreplyto) values ($1, $2)`
 
-			_, err := db.Exec(query, obj.Id, "")
-
-			CheckError(err, "error inserting replies db")
+			if _, err := db.Exec(query, obj.Id, ""); err != nil {
+				return err
+			}
 		}
 	}
+
+	return nil
 }
 
-func WriteWalletToDB(db *sql.DB, obj ObjectBase) {
+func WriteWalletToDB(obj activitypub.ObjectBase) error {
 	for _, e := range obj.Option {
 		if e == "wallet" {
 			for _, e := range obj.Wallet {
 				query := `insert into wallet (id, type, address) values ($1, $2, $3)`
 
-				_, err := db.Exec(query, obj.Id, e.Type, e.Address)
-
-				CheckError(err, "error with write wallet query")
+				if _, err := db.Exec(query, obj.Id, e.Type, e.Address); err != nil {
+					return err
+				}
 			}
-			return
+
+			return nil
 		}
 	}
+	return nil
 }
 
-func WriteActivitytoDB(db *sql.DB, obj ObjectBase) {
-
+func WriteActivitytoDB(obj activitypub.ObjectBase) error {
 	obj.Name = EscapeString(obj.Name)
 	obj.Content = EscapeString(obj.Content)
 	obj.AttributedTo = EscapeString(obj.AttributedTo)
 
 	query := `insert into activitystream (id, type, name, content, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
-	_, e := db.Exec(query, obj.Id, obj.Type, obj.Name, obj.Content, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)
-
-	if e != nil {
-		fmt.Println("error inserting new activity")
-		panic(e)
-	}
+	_, err := db.Exec(query, obj.Id, obj.Type, obj.Name, obj.Content, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)
+	return err
 }
 
-func WriteActivitytoDBWithAttachment(db *sql.DB, obj ObjectBase, attachment ObjectBase, preview NestedObjectBase) {
+func WriteActivitytoDBWithAttachment(obj activitypub.ObjectBase, attachment activitypub.ObjectBase, preview activitypub.NestedObjectBase) {
 
 	obj.Name = EscapeString(obj.Name)
 	obj.Content = EscapeString(obj.Content)
@@ -462,7 +536,7 @@ func WriteActivitytoDBWithAttachment(db *sql.DB, obj ObjectBase, attachment Obje
 	}
 }
 
-func WriteAttachmentToDB(db *sql.DB, obj ObjectBase) {
+func WriteAttachmentToDB(obj activitypub.ObjectBase) {
 	query := `insert into activitystream (id, type, name, href, published, updated, attributedTo, mediatype, size) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
 	_, e := db.Exec(query, obj.Id, obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)
@@ -473,7 +547,7 @@ func WriteAttachmentToDB(db *sql.DB, obj ObjectBase) {
 	}
 }
 
-func WritePreviewToDB(db *sql.DB, obj NestedObjectBase) {
+func WritePreviewToDB(obj activitypub.NestedObjectBase) {
 	query := `insert into activitystream (id, type, name, href, published, updated, attributedTo, mediatype, size) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
 	_, e := db.Exec(query, obj.Id, obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)
@@ -484,85 +558,107 @@ func WritePreviewToDB(db *sql.DB, obj NestedObjectBase) {
 	}
 }
 
-func GetActivityFromDB(db *sql.DB, id string) Collection {
-	var nColl Collection
-	var nActor Actor
-	var result []ObjectBase
+func GetActivityFromDB(id string) (activitypub.Collection, error) {
+	var nColl activitypub.Collection
+	var nActor activitypub.Actor
+	var result []activitypub.ObjectBase
 
 	nColl.Actor = &nActor
 
 	query := `select  actor, id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from  activitystream where id=$1 order by updated asc`
 
 	rows, err := db.Query(query, id)
-
-	CheckError(err, "error query object from db")
+	if err != nil {
+		return nColl, err
+	}
 
 	defer rows.Close()
 	for rows.Next() {
-		var post ObjectBase
-		var actor Actor
+		var post activitypub.ObjectBase
+		var actor activitypub.Actor
 		var attachID string
 		var previewID string
 
-		err = rows.Scan(&nColl.Actor.Id, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
-
-		CheckError(err, "error scan object into post struct")
+		if err := rows.Scan(&nColl.Actor.Id, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
+			return nColl, err
+		}
 
 		post.Actor = actor.Id
 
 		var postCnt int
 		var imgCnt int
-		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
+		var err error
+		post.Replies, postCnt, imgCnt, err = GetObjectRepliesDB(post)
+		if err != nil {
+			return nColl, err
+		}
 
 		post.Replies.TotalItems = postCnt
 		post.Replies.TotalImgs = imgCnt
 
-		post.Attachment = GetObjectAttachment(db, attachID)
+		post.Attachment, err = GetObjectAttachment(attachID)
+		if err != nil {
+			return nColl, err
+		}
 
-		post.Preview = GetObjectPreview(db, previewID)
+		post.Preview, err = GetObjectPreview(previewID)
+		if err != nil {
+			return nColl, err
+		}
 
 		result = append(result, post)
 	}
 
 	nColl.OrderedItems = result
 
-	return nColl
+	return nColl, nil
 }
 
-func GetObjectFromDBPage(db *sql.DB, id string, page int) Collection {
-	var nColl Collection
-	var result []ObjectBase
+func GetObjectFromDBPage(id string, page int) (activitypub.Collection, error) {
+	var nColl activitypub.Collection
+	var result []activitypub.ObjectBase
 
 	query := `select count (x.id) over(), x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc limit 15 offset $2`
 
 	rows, err := db.Query(query, id, page*15)
-
-	CheckError(err, "error query object from db")
+	if err != nil {
+		return nColl, err
+	}
 
 	var count int
 	defer rows.Close()
 	for rows.Next() {
-		var post ObjectBase
-		var actor Actor
+		var post activitypub.ObjectBase
+		var actor activitypub.Actor
 		var attachID string
 		var previewID string
 
-		err = rows.Scan(&count, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
-
-		CheckError(err, "error scan object into post struct")
+		if err := rows.Scan(&count, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
+			return nColl, err
+		}
 
 		post.Actor = actor.Id
 
 		var postCnt int
 		var imgCnt int
-		post.Replies, postCnt, imgCnt = GetObjectRepliesDBLimit(db, post, 5)
+		var err error
+		post.Replies, postCnt, imgCnt, err = GetObjectRepliesDBLimit(post, 5)
+		if err != nil {
+			return nColl, err
+		}
 
 		post.Replies.TotalItems = postCnt
 		post.Replies.TotalImgs = imgCnt
 
-		post.Attachment = GetObjectAttachment(db, attachID)
+		post.Attachment, err = GetObjectAttachment(attachID)
+		if err != nil {
+			return nColl, err
+		}
 
-		post.Preview = GetObjectPreview(db, previewID)
+		post.Preview, err = GetObjectPreview(previewID)
+		if err != nil {
+			return nColl, err
+		}
 
 		result = append(result, post)
 	}
@@ -570,96 +666,116 @@ func GetObjectFromDBPage(db *sql.DB, id string, page int) Collection {
 	nColl.TotalItems = count
 	nColl.OrderedItems = result
 
-	return nColl
+	return nColl, nil
 }
 
-func GetActorObjectCollectionFromDB(db *sql.DB, actorId string) Collection {
-	var nColl Collection
-	var result []ObjectBase
+func GetActorObjectCollectionFromDB(actorId string) (activitypub.Collection, error) {
+	var nColl activitypub.Collection
+	var result []activitypub.ObjectBase
 
 	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' order by updated desc`
 
 	rows, err := db.Query(query, actorId)
-
-	CheckError(err, "error query object from db")
+	if err != nil {
+		return nColl, err
+	}
 
 	defer rows.Close()
 	for rows.Next() {
-		var post ObjectBase
-		var actor Actor
+		var post activitypub.ObjectBase
+		var actor activitypub.Actor
 		var attachID string
 		var previewID string
 
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
-
-		CheckError(err, "error scan object into post struct")
+		if err := rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
+			return nColl, err
+		}
 
 		post.Actor = actor.Id
 
 		var postCnt int
 		var imgCnt int
-		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
+		post.Replies, postCnt, imgCnt, err = GetObjectRepliesDB(post)
+		if err != nil {
+			return nColl, err
+		}
 
 		post.Replies.TotalItems = postCnt
 		post.Replies.TotalImgs = imgCnt
 
-		post.Attachment = GetObjectAttachment(db, attachID)
+		post.Attachment, err = GetObjectAttachment(attachID)
+		if err != nil {
+			return nColl, err
+		}
 
-		post.Preview = GetObjectPreview(db, previewID)
+		post.Preview, err = GetObjectPreview(previewID)
+		if err != nil {
+			return nColl, err
+		}
 
 		result = append(result, post)
 	}
 
 	nColl.OrderedItems = result
 
-	return nColl
+	return nColl, nil
 }
 
-func GetObjectFromDB(db *sql.DB, id string) Collection {
-	var nColl Collection
-	var result []ObjectBase
+func GetObjectFromDB(id string) (activitypub.Collection, error) {
+	var nColl activitypub.Collection
+	var result []activitypub.ObjectBase
 
 	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where id=$1 union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where id=$1 order by updated desc`
 
 	rows, err := db.Query(query, id)
-
-	CheckError(err, "error query object from db")
+	if err != nil {
+		return nColl, err
+	}
 
 	defer rows.Close()
 	for rows.Next() {
-		var post ObjectBase
-		var actor Actor
+		var post activitypub.ObjectBase
+		var actor activitypub.Actor
 		var attachID string
 		var previewID string
 
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
-
-		CheckError(err, "error scan object into post struct")
+		if err := rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
+			return nColl, err
+		}
 
 		post.Actor = actor.Id
 
 		var postCnt int
 		var imgCnt int
-		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
+		post.Replies, postCnt, imgCnt, err = GetObjectRepliesDB(post)
+		if err != nil {
+			return nColl, err
+		}
 
 		post.Replies.TotalItems = postCnt
 		post.Replies.TotalImgs = imgCnt
 
-		post.Attachment = GetObjectAttachment(db, attachID)
+		post.Attachment, err = GetObjectAttachment(attachID)
+		if err != nil {
+			return nColl, err
+		}
 
-		post.Preview = GetObjectPreview(db, previewID)
+		post.Preview, err = GetObjectPreview(previewID)
+		if err != nil {
+			return nColl, err
+		}
 
 		result = append(result, post)
 	}
 
 	nColl.OrderedItems = result
 
-	return nColl
+	return nColl, nil
 }
 
-func GetObjectFromDBFromID(db *sql.DB, id string) Collection {
-	var nColl Collection
-	var result []ObjectBase
+func GetObjectFromDBFromID(id string) (activitypub.Collection, error) {
+	var nColl activitypub.Collection
+	var result []activitypub.ObjectBase
 
 	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where id like $1 and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where id like $1 and type='Note') as x order by x.updated`
 
@@ -673,104 +789,128 @@ func GetObjectFromDBFromID(db *sql.DB, id string) Collection {
 	}
 
 	rows, err := db.Query(query, id)
-
-	CheckError(err, "error query object from db")
+	if err != nil {
+		return nColl, err
+	}
 
 	defer rows.Close()
 	for rows.Next() {
-		var post ObjectBase
-		var actor Actor
+		var post activitypub.ObjectBase
+		var actor activitypub.Actor
 		var attachID string
 		var previewID string
 
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
-
-		CheckError(err, "error scan object into post struct")
+		if err := rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
+			return nColl, err
+		}
 
 		post.Actor = actor.Id
 
 		var postCnt int
 		var imgCnt int
-		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
+		post.Replies, postCnt, imgCnt, err = GetObjectRepliesDB(post)
+		if err != nil {
+			return nColl, err
+		}
 
 		post.Replies.TotalItems = postCnt
 		post.Replies.TotalImgs = imgCnt
 
-		post.Attachment = GetObjectAttachment(db, attachID)
+		post.Attachment, err = GetObjectAttachment(attachID)
+		if err != nil {
+			return nColl, err
+		}
 
-		post.Preview = GetObjectPreview(db, previewID)
+		post.Preview, err = GetObjectPreview(previewID)
+		if err != nil {
+			return nColl, err
+		}
 
 		result = append(result, post)
 	}
 
 	nColl.OrderedItems = result
 
-	return nColl
+	return nColl, nil
 }
 
-func GetObjectFromDBCatalog(db *sql.DB, id string) Collection {
-	var nColl Collection
-	var result []ObjectBase
+func GetObjectFromDBCatalog(id string) (activitypub.Collection, error) {
+	var nColl activitypub.Collection
+	var result []activitypub.ObjectBase
 
 	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc limit 165`
 
 	rows, err := db.Query(query, id)
-
-	CheckError(err, "error query object from db")
+	if err != nil {
+		return nColl, err
+	}
 
 	defer rows.Close()
 	for rows.Next() {
-		var post ObjectBase
-		var actor Actor
+		var post activitypub.ObjectBase
+		var actor activitypub.Actor
 		var attachID string
 		var previewID string
 
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
-
-		CheckError(err, "error scan object into post struct")
+		if err := rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
+			return nColl, err
+		}
 
 		post.Actor = actor.Id
 
-		var replies CollectionBase
+		var replies activitypub.CollectionBase
 
 		post.Replies = &replies
 
-		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCount(db, post)
+		post.Replies.TotalItems, post.Replies.TotalImgs, err = GetObjectRepliesCount(post)
+		if err != nil {
+			return nColl, err
+		}
 
-		post.Attachment = GetObjectAttachment(db, attachID)
+		post.Attachment, err = GetObjectAttachment(attachID)
+		if err != nil {
+			return nColl, err
+		}
 
-		post.Preview = GetObjectPreview(db, previewID)
+		post.Preview, err = GetObjectPreview(previewID)
+		if err != nil {
+			return nColl, err
+		}
 
 		result = append(result, post)
 	}
 
 	nColl.OrderedItems = result
 
-	return nColl
+	return nColl, nil
 }
 
-func GetObjectByIDFromDB(db *sql.DB, postID string) Collection {
-	var nColl Collection
-	var result []ObjectBase
+func GetObjectByIDFromDB(postID string) (activitypub.Collection, error) {
+	var nColl activitypub.Collection
+	var result []activitypub.ObjectBase
 
 	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where id=$1 and (type='Note' or type='Archive') union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where id=$1 and (type='Note' or type='Archive')) as x`
 
 	rows, err := db.Query(query, postID)
-
-	CheckError(err, "error query object from db")
-
+	if err != nil {
+		return nColl, err
+	}
 	defer rows.Close()
+
 	for rows.Next() {
-		var post ObjectBase
-		var actor Actor
+		var post activitypub.ObjectBase
+		var actor activitypub.Actor
 		var attachID string
 		var previewID string
 
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
+		if err := rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
+			return nColl, err
+		}
 
-		CheckError(err, "error scan object into post struct")
-
-		actor = GetActorFromDB(db, actor.Id)
+		actor, err = GetActorFromDB(actor.Id)
+		if err != nil {
+			return nColl, err
+		}
 
 		post.Actor = actor.Id
 
@@ -778,84 +918,105 @@ func GetObjectByIDFromDB(db *sql.DB, postID string) Collection {
 
 		var postCnt int
 		var imgCnt int
-		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
+		post.Replies, postCnt, imgCnt, err = GetObjectRepliesDB(post)
+		if err != nil {
+			return nColl, err
+		}
 
 		post.Replies.TotalItems = postCnt
 		post.Replies.TotalImgs = imgCnt
 
-		post.Attachment = GetObjectAttachment(db, attachID)
+		post.Attachment, err = GetObjectAttachment(attachID)
+		if err != nil {
+			return nColl, err
+		}
 
-		post.Preview = GetObjectPreview(db, previewID)
+		post.Preview, err = GetObjectPreview(previewID)
+		if err != nil {
+			return nColl, err
+		}
 
 		result = append(result, post)
 	}
 
 	nColl.OrderedItems = result
 
-	return nColl
+	return nColl, nil
 }
 
-func GetInReplyToDB(db *sql.DB, parent ObjectBase) []ObjectBase {
-	var result []ObjectBase
+func GetInReplyToDB(parent activitypub.ObjectBase) ([]activitypub.ObjectBase, error) {
+	var result []activitypub.ObjectBase
 
 	query := `select inreplyto from replies where id =$1`
 
 	rows, err := db.Query(query, parent.Id)
-
-	CheckError(err, "error with inreplyto db query")
+	if err != nil {
+		return result, err
+	}
 
 	defer rows.Close()
 	for rows.Next() {
-		var post ObjectBase
+		var post activitypub.ObjectBase
 
-		rows.Scan(&post.Id)
+		if err := rows.Scan(&post.Id); err != nil {
+			return result, err
+		}
 
 		result = append(result, post)
 	}
 
-	return result
+	return result, nil
 }
 
-func GetObjectRepliesDBLimit(db *sql.DB, parent ObjectBase, limit int) (*CollectionBase, int, int) {
-
-	var nColl CollectionBase
-	var result []ObjectBase
+func GetObjectRepliesDBLimit(parent activitypub.ObjectBase, limit int) (*activitypub.CollectionBase, int, int, error) {
+	var nColl activitypub.CollectionBase
+	var result []activitypub.ObjectBase
 
 	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over(), x.id, x.name, x.content, x.type, x.published, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select * from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' union select * from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note') as x order by x.published desc limit $2`
 
 	rows, err := db.Query(query, parent.Id, limit)
-
-	CheckError(err, "error with replies db query")
+	if err != nil {
+		return nil, 0, 0, err
+	}
 
 	var postCount int
 	var attachCount int
 
 	defer rows.Close()
 	for rows.Next() {
-		var post ObjectBase
-		var actor Actor
+		var post activitypub.ObjectBase
+		var actor activitypub.Actor
 		var attachID string
 		var previewID string
 
 		post.InReplyTo = append(post.InReplyTo, parent)
 
-		err = rows.Scan(&postCount, &attachCount, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
-
-		CheckError(err, "error with replies db scan")
+		if err := rows.Scan(&postCount, &attachCount, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
+			return &nColl, postCount, attachCount, err
+		}
 
 		post.Actor = actor.Id
 
 		var postCnt int
 		var imgCnt int
 
-		post.Replies, postCnt, imgCnt = GetObjectRepliesRepliesDB(db, post)
+		post.Replies, postCnt, imgCnt, err = GetObjectRepliesRepliesDB(post)
+		if err != nil {
+			return &nColl, postCount, attachCount, err
+		}
 
 		post.Replies.TotalItems = postCnt
 		post.Replies.TotalImgs = imgCnt
 
-		post.Attachment = GetObjectAttachment(db, attachID)
+		post.Attachment, err = GetObjectAttachment(attachID)
+		if err != nil {
+			return &nColl, postCount, attachCount, err
+		}
 
-		post.Preview = GetObjectPreview(db, previewID)
+		post.Preview, err = GetObjectPreview(previewID)
+		if err != nil {
+			return &nColl, postCount, attachCount, err
+		}
 
 		result = append(result, post)
 	}
@@ -864,134 +1025,155 @@ func GetObjectRepliesDBLimit(db *sql.DB, parent ObjectBase, limit int) (*Collect
 
 	sort.Sort(ObjectBaseSortAsc(nColl.OrderedItems))
 
-	return &nColl, postCount, attachCount
+	return &nColl, postCount, attachCount, nil
 }
 
-func GetObjectRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, int) {
-
-	var nColl CollectionBase
-	var result []ObjectBase
+func GetObjectRepliesDB(parent activitypub.ObjectBase) (*activitypub.CollectionBase, int, int, error) {
+	var nColl activitypub.CollectionBase
+	var result []activitypub.ObjectBase
 
 	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over(), x.id, x.name, x.content, x.type, x.published, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select * from activitystream where id in (select id from replies where inreplyto=$1) and (type='Note' or type='Archive') union select * from cacheactivitystream where id in (select id from replies where inreplyto=$1) and (type='Note' or type='Archive')) as x order by x.published asc`
 
 	rows, err := db.Query(query, parent.Id)
-
-	CheckError(err, "error with replies db query")
+	if err != nil {
+		return nil, 0, 0, err
+	}
 
 	var postCount int
 	var attachCount int
 
 	defer rows.Close()
 	for rows.Next() {
-		var post ObjectBase
-		var actor Actor
+		var post activitypub.ObjectBase
+		var actor activitypub.Actor
 		var attachID string
 		var previewID string
 
 		post.InReplyTo = append(post.InReplyTo, parent)
 
-		err = rows.Scan(&postCount, &attachCount, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
-
-		CheckError(err, "error with replies db scan")
+		if err := rows.Scan(&postCount, &attachCount, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
+			return &nColl, postCount, attachCount, err
+		}
 
 		post.Actor = actor.Id
 
 		var postCnt int
 		var imgCnt int
 
-		post.Replies, postCnt, imgCnt = GetObjectRepliesRepliesDB(db, post)
+		post.Replies, postCnt, imgCnt, err = GetObjectRepliesRepliesDB(post)
+		if err != nil {
+			return &nColl, postCount, attachCount, err
+		}
 
 		post.Replies.TotalItems = postCnt
 		post.Replies.TotalImgs = imgCnt
 
-		post.Attachment = GetObjectAttachment(db, attachID)
+		post.Attachment, err = GetObjectAttachment(attachID)
+		if err != nil {
+			return &nColl, postCount, attachCount, err
+		}
 
-		post.Preview = GetObjectPreview(db, previewID)
+		post.Preview, err = GetObjectPreview(previewID)
+		if err != nil {
+			return &nColl, postCount, attachCount, err
+		}
 
 		result = append(result, post)
 	}
 
 	nColl.OrderedItems = result
 
-	return &nColl, postCount, attachCount
+	return &nColl, postCount, attachCount, nil
 }
 
-func GetObjectRepliesReplies(db *sql.DB, parent ObjectBase) (*CollectionBase, int, int) {
-
-	var nColl CollectionBase
-	var result []ObjectBase
+func GetObjectRepliesReplies(parent activitypub.ObjectBase) (*activitypub.CollectionBase, int, int, error) {
+	var nColl activitypub.CollectionBase
+	var result []activitypub.ObjectBase
 
 	query := `select id, name, content, type, published, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where id in (select id from replies where inreplyto=$1) and (type='Note' or type='Archive') order by updated asc`
 
 	rows, err := db.Query(query, parent.Id)
-
-	CheckError(err, "error with replies replies db query")
+	if err != nil {
+		return &nColl, 0, 0, err
+	}
 
 	defer rows.Close()
 	for rows.Next() {
-		var post ObjectBase
-		var actor Actor
+		var post activitypub.ObjectBase
+		var actor activitypub.Actor
 		var attachID string
 		var previewID string
 
 		post.InReplyTo = append(post.InReplyTo, parent)
 
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
-
-		CheckError(err, "error with replies replies db scan")
+		if err := rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
+			return &nColl, 0, 0, err
+		}
 
 		post.Actor = actor.Id
 
-		post.Attachment = GetObjectAttachment(db, attachID)
+		post.Attachment, err = GetObjectAttachment(attachID)
+		if err != nil {
+			return &nColl, 0, 0, err
+		}
 
-		post.Preview = GetObjectPreview(db, previewID)
+		post.Preview, err = GetObjectPreview(previewID)
+		if err != nil {
+			return &nColl, 0, 0, err
+		}
 
 		result = append(result, post)
 	}
 
 	nColl.OrderedItems = result
 
-	return &nColl, 0, 0
+	return &nColl, 0, 0, nil
 }
 
-func GetObjectRepliesRepliesDB(db *sql.DB, parent ObjectBase) (*CollectionBase, int, int) {
-
-	var nColl CollectionBase
-	var result []ObjectBase
+func GetObjectRepliesRepliesDB(parent activitypub.ObjectBase) (*activitypub.CollectionBase, int, int, error) {
+	var nColl activitypub.CollectionBase
+	var result []activitypub.ObjectBase
 
 	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over(), x.id, x.name, x.content, x.type, x.published, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select * from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' union select * from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note') as x order by x.published asc`
 
 	rows, err := db.Query(query, parent.Id)
-
-	CheckError(err, "error with replies replies db query")
+	if err != nil {
+		return &nColl, 0, 0, err
+	}
 
 	var postCount int
 	var attachCount int
 	defer rows.Close()
 	for rows.Next() {
-		var post ObjectBase
-		var actor Actor
+		var post activitypub.ObjectBase
+		var actor activitypub.Actor
 		var attachID string
 		var previewID string
 
 		post.InReplyTo = append(post.InReplyTo, parent)
 
-		err = rows.Scan(&postCount, &attachCount, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive)
-
-		CheckError(err, "error with replies replies db scan")
+		if err := rows.Scan(&postCount, &attachCount, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
+			return &nColl, postCount, attachCount, err
+		}
 
 		post.Actor = actor.Id
 
-		post.Attachment = GetObjectAttachment(db, attachID)
+		post.Attachment, err = GetObjectAttachment(attachID)
+		if err != nil {
+			return &nColl, postCount, attachCount, err
+		}
 
-		post.Preview = GetObjectPreview(db, previewID)
+		post.Preview, err = GetObjectPreview(previewID)
+		if err != nil {
+			return &nColl, postCount, attachCount, err
+		}
 
 		result = append(result, post)
 	}
 
 	nColl.OrderedItems = result
 
-	return &nColl, postCount, attachCount
+	return &nColl, postCount, attachCount, nil
 }
 
 func CheckIfObjectOP(id string) (bool, error) {
@@ -1204,9 +1386,10 @@ func DeleteAttachmentFromFile(id string) error {
 		}
 	}
 
+	return nil
 }
 
-func TombstonePreviewRepliesFromDB(db *sql.DB, id string) error {
+func TombstonePreviewRepliesFromDB(id string) error {
 	query := `select id from activitystream where id in (select id from replies where inreplyto=$1)`
 
 	rows, err := db.Query(query, id)
@@ -1277,7 +1460,7 @@ func TombstoneAttachmentFromDB(id string) error {
 	return err
 }
 
-func DeleteAttachmentFromDB(db *sql.DB, id string) error {
+func DeleteAttachmentFromDB(id string) error {
 	query := `delete from activitystream where id in (select attachment from activitystream where id=$1)`
 
 	if _, err := db.Exec(query, id); err != nil {
@@ -1403,7 +1586,7 @@ func SetAttachmentRepliesFromDB(id string, _type string) error {
 	return err
 }
 
-func SetPreviewFromDB(db *sql.DB, id string, _type string) error {
+func SetPreviewFromDB(id string, _type string) error {
 	datetime := time.Now().UTC().Format(time.RFC3339)
 
 	query := `update activitystream set type=$1, deleted=$2 where id in (select preview from activitystream where id=$3)`
@@ -1725,47 +1908,7 @@ func GetActorReportedDB(id string) ([]activitypub.ObjectBase, error) {
 	return nObj, nil
 }
 
-func GetActorPemFromDB(pemID string) (activitypub.PublicKeyPem, error) {
-	var pem activitypub.PublicKeyPem
-
-	query := `select id, owner, file from publickeypem where id=$1`
-
-	rows, err := db.Query(query, pemID)
-	if err != nil {
-		return pem, err
-	}
-
-	defer rows.Close()
-
-	rows.Next()
-	rows.Scan(&pem.Id, &pem.Owner, &pem.PublicKeyPem)
-	f, err := os.ReadFile(pem.PublicKeyPem)
-	if err != nil {
-		return pem, err
-	}
-
-	pem.PublicKeyPem = strings.ReplaceAll(string(f), "\r\n", `\n`)
-
-	return pem, nil
-}
-
-func GetActorPemFileFromDB(db *sql.DB, pemID string) (string, error) {
-	query := `select file from publickeypem where id=$1`
-	rows, err := db.Query(query, pemID)
-	if err != nil {
-		return "", err
-	}
-
-	defer rows.Close()
-
-	var file string
-	rows.Next()
-	rows.Scan(&file)
-
-	return file, nil
-}
-
-func MarkObjectSensitive(db *sql.DB, id string, sensitive bool) error {
+func MarkObjectSensitive(id string, sensitive bool) error {
 	var query = `update activitystream set sensitive=$1 where id=$2`
 	if _, err := db.Exec(query, sensitive, id); err != nil {
 		return err
@@ -1852,57 +1995,6 @@ func WriteNewsToDB(news NewsItem) error {
 	return err
 }
 
-func WriteRegexBlacklistDB(regex string) error {
-	query := `select from postblacklist where regex=$1`
-
-	rows, err := db.Query(query, regex)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	var re string
-	rows.Next()
-	rows.Scan(&re)
-
-	if re != "" {
-		return nil
-	}
-
-	query = `insert into postblacklist (regex) values ($1)`
-
-	_, err = db.Exec(query, regex)
-	return err
-}
-
-func GetRegexBlacklistDB() ([]PostBlacklist, error) {
-	query := `select id, regex from postblacklist`
-
-	rows, err := db.Query(query)
-	if err != nil {
-		return err
-	}
-
-	var List []PostBlacklist
-
-	defer rows.Close()
-	for rows.Next() {
-		var temp PostBlacklist
-		rows.Scan(&temp.Id, &temp.Regex)
-
-		List = append(List, temp)
-	}
-
-	return List, nil
-}
-
-func DeleteRegexBlacklistDB(id int) error {
-	query := `delete from postblacklist where id=$1`
-
-	_, err := db.Exec(query, id)
-	return err
-}
-
 func GetActorAutoSubscribeDB(id string) (bool, error) {
 	query := `select autosubscribe from actor where id=$1`
 
@@ -1914,9 +2006,8 @@ func GetActorAutoSubscribeDB(id string) (bool, error) {
 	var subscribed bool
 	defer rows.Close()
 	rows.Next()
-	rows.Scan(&subscribed)
-
-	return subscribed
+	err = rows.Scan(&subscribed)
+	return subscribed, err
 }
 
 func SetActorAutoSubscribeDB(id string) error {
@@ -1985,7 +2076,7 @@ func IsInactiveTimestamp(timeStamp string) bool {
 }
 
 func ArchivePosts(actor activitypub.Actor) error {
-	if actor.Id != "" && actor.Id != Domain {
+	if actor.Id != "" && actor.Id != config.Domain {
 		col, err := GetAllActorArchiveDB(actor.Id, 165)
 		if err != nil {
 			return err
@@ -2003,6 +2094,8 @@ func ArchivePosts(actor activitypub.Actor) error {
 			}
 		}
 	}
+
+	return nil
 }
 
 func GetAllActorArchiveDB(id string, offset int) (activitypub.Collection, error) {
@@ -2034,7 +2127,7 @@ func GetAllActorArchiveDB(id string, offset int) (activitypub.Collection, error)
 	return nColl, nil
 }
 
-func GetActorCollectionDBType(actorId string, nType string) (activitypub.Collection, err) {
+func GetActorCollectionDBType(actorId string, nType string) (activitypub.Collection, error) {
 	var nColl activitypub.Collection
 	var result []activitypub.ObjectBase
 
@@ -2053,7 +2146,7 @@ func GetActorCollectionDBType(actorId string, nType string) (activitypub.Collect
 		var previewID string
 
 		if err := rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
-			return err
+			return nColl, err
 		}
 
 		post.Actor = actor.Id
@@ -2115,17 +2208,17 @@ func GetActorCollectionDBTypeLimit(actorId string, nType string, limit int) (act
 		post.Replies = &replies
 
 		var err error
-		post.Replies.TotalItems, post.Replies.TotalImgs, err = GetObjectRepliesCount(db, post)
+		post.Replies.TotalItems, post.Replies.TotalImgs, err = GetObjectRepliesCount(post)
 		if err != nil {
 			return nColl, err
 		}
 
-		post.Attachment, err = GetObjectAttachment(db, attachID)
+		post.Attachment, err = GetObjectAttachment(attachID)
 		if err != nil {
 			return nColl, err
 		}
 
-		post.Preview, err = GetObjectPreview(db, previewID)
+		post.Preview, err = GetObjectPreview(previewID)
 		if err != nil {
 			return nColl, err
 		}
@@ -2184,6 +2277,8 @@ func SetObjectType(id string, nType string) error {
 			return err
 		}
 	}
+
+	return nil
 }
 
 func GetObjectTypeDB(id string) (string, error) {
