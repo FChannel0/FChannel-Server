@@ -2,6 +2,7 @@ package util
 
 import (
 	"regexp"
+	"strings"
 )
 
 func IsOnion(url string) bool {
@@ -48,4 +49,17 @@ func GetActorInstance(path string) (string, string) {
 	}
 
 	return "", ""
+}
+
+func GetActorFollowNameFromPath(path string) string {
+	var actor string
+
+	re := regexp.MustCompile("f\\w+-")
+
+	actor = re.FindString(path)
+
+	actor = strings.Replace(actor, "f", "", 1)
+	actor = strings.Replace(actor, "-", "", 1)
+
+	return actor
 }

@@ -3,11 +3,12 @@ package routes
 import (
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
+	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
 )
 
 func Index(c *fiber.Ctx) error {
-	actor, err := db.GetActor(config.Domain)
+	actor, err := db.GetActorFromDB(config.Domain)
 	if err != nil {
 		return err
 	}
@@ -15,11 +16,11 @@ func Index(c *fiber.Ctx) error {
 	var data PageData
 	data.Title = "Welcome to " + actor.PreferredUsername
 	data.PreferredUsername = actor.PreferredUsername
-	data.Boards = Boards
+	data.Boards = db.Boards
 	data.Board.Name = ""
-	data.Key = *Key
+	data.Key = config.Key
 	data.Board.Domain = config.Domain
-	data.Board.ModCred, _ = GetPasswordFromCtx(c)
+	data.Board.ModCred, _ = getPassword(c)
 	data.Board.Actor = actor
 	data.Board.Post.Actor = actor.Id
 	data.Board.Restricted = actor.Restricted
@@ -30,7 +31,10 @@ func Index(c *fiber.Ctx) error {
 		data.BoardRemainer = make([]int, 0)
 	}
 
-	col := GetCollectionFromReq("https://fchan.xyz/followers")
+	col, err := webfinger.GetCollectionFromReq("https://fchan.xyz/followers")
+	if err != nil {
+		return err
+	}
 
 	if len(col.Items) > 0 {
 		data.InstanceIndex = col.Items
@@ -41,7 +45,7 @@ func Index(c *fiber.Ctx) error {
 		return err
 	}
 
-	data.Themes = &Themes
+	data.Themes = &config.Themes
 
 	data.ThemeCookie = getThemeCookie(c)
 

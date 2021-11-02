@@ -44,34 +44,46 @@ func init() {
 }
 
 func main() {
+	var err error
 
 	CreatedNeededDirectories()
 
-	InitCache()
-
 	db.ConnectDB()
 	defer db.Close()
+
+	db.InitCache()
+	defer db.CloseCache()
 
 	db.RunDatabaseSchema()
 
 	go MakeCaptchas(DB, 100)
 
-	*Key = util.CreateKey(32)
+	config.Key = util.CreateKey(32)
 
-	FollowingBoards = GetActorFollowingDB(DB, Domain)
+	db.FollowingBoards, err = db.GetActorFollowingDB(config.Domain)
+	if err != nil {
+		panic(err)
+	}
 
 	go StartupArchive(DB)
 
 	go CheckInactive(DB)
 
-	Boards = GetBoardCollection(DB)
+	db.Boards, err = db.GetBoardCollection()
+	if err != nil {
+		panic(err)
+	}
 
 	// root actor is used to follow remote feeds that are not local
 	//name, prefname, summary, auth requirements, restricted
-	if GetConfigValue("instancename", "") != "" {
-		CreateNewBoardDB(DB, *CreateNewActor("", GetConfigValue("instancename", ""), GetConfigValue("instancesummary", ""), authReq, false))
-		if PublicIndexing == "true" {
-			AddInstanceToIndex(Domain)
+	if config.InstanceName != "" {
+		if _, err = db.CreateNewBoardDB(*CreateNewActor("", config.InstanceName, config.InstanceSummary, authReq, false)); err != nil {
+			panic(err)
+		}
+
+		if config.PublicIndexing == "true" {
+			// TODO: comment out later
+			//AddInstanceToIndex(config.Domain)
 		}
 	}
 
@@ -83,7 +95,7 @@ func main() {
 
 	for _, f := range themes {
 		if e := path.Ext(f.Name()); e == ".css" {
-			Themes = append(Themes, strings.TrimSuffix(f.Name(), e))
+			config.Themes = append(config.Themes, strings.TrimSuffix(f.Name(), e))
 		}
 	}
 

@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -17,79 +16,6 @@ import (
 )
 
 var Key *string = new(string)
-
-var FollowingBoards []ObjectBase
-
-var Boards []Board
-
-type Board struct {
-	Name        string
-	Actor       Actor
-	Summary     string
-	PrefName    string
-	InReplyTo   string
-	Location    string
-	To          string
-	RedirectTo  string
-	Captcha     string
-	CaptchaCode string
-	ModCred     string
-	Domain      string
-	TP          string
-	Restricted  bool
-	Post        ObjectBase
-}
-
-type PageData struct {
-	Title             string
-	PreferredUsername string
-	Board             Board
-	Pages             []int
-	CurrentPage       int
-	TotalPage         int
-	Boards            []Board
-	Posts             []ObjectBase
-	Key               string
-	PostId            string
-	Instance          Actor
-	InstanceIndex     []ObjectBase
-	ReturnTo          string
-	NewsItems         []NewsItem
-	BoardRemainer     []int
-
-	Themes      *[]string
-	ThemeCookie string
-}
-
-type AdminPage struct {
-	Title         string
-	Board         Board
-	Key           string
-	Actor         string
-	Boards        []Board
-	Following     []string
-	Followers     []string
-	Reported      []Report
-	Domain        string
-	IsLocal       bool
-	PostBlacklist []PostBlacklist
-	AutoSubscribe bool
-
-	Themes      *[]string
-	ThemeCookie string
-}
-
-type Report struct {
-	ID     string
-	Count  int
-	Reason string
-}
-
-type Removed struct {
-	ID    string
-	Type  string
-	Board string
-}
 
 func mod(i, j int) bool {
 	return i%j == 0
@@ -438,27 +364,6 @@ func PostGet(c *fiber.Ctx) error {
 	}, "layouts/main")
 }
 
-func GetBoardCollection(db *sql.DB) []Board {
-	var collection []Board
-	for _, e := range FollowingBoards {
-		var board Board
-		boardActor := GetActorFromDB(db, e.Id)
-		if boardActor.Id == "" {
-			boardActor = FingerActor(e.Id)
-		}
-		board.Name = boardActor.Name
-		board.PrefName = boardActor.PreferredUsername
-		board.Location = "/" + boardActor.Name
-		board.Actor = boardActor
-		board.Restricted = boardActor.Restricted
-		collection = append(collection, board)
-	}
-
-	sort.Sort(BoardSortAsc(collection))
-
-	return collection
-}
-
 func WantToServePage(db *sql.DB, actorName string, page int) (Collection, bool) {
 
 	var collection Collection
@@ -531,135 +436,6 @@ func GetCaptchaCode(captcha string) string {
 	return code
 }
 
-func CreateLocalDeleteDB(db *sql.DB, id string, _type string) {
-	query := `select id from removed where id=$1`
-
-	rows, err := db.Query(query, id)
-
-	CheckError(err, "could not query removed")
-
-	defer rows.Close()
-
-	if rows.Next() {
-		var i string
-
-		rows.Scan(&i)
-
-		if i != "" {
-			query := `update removed set type=$1 where id=$2`
-
-			_, err := db.Exec(query, _type, id)
-
-			CheckError(err, "Could not update removed post")
-
-		}
-	} else {
-		query := `insert into removed (id, type) values ($1, $2)`
-
-		_, err := db.Exec(query, id, _type)
-
-		CheckError(err, "Could not insert removed post")
-	}
-}
-
-func GetLocalDeleteDB(db *sql.DB) []Removed {
-	var deleted []Removed
-
-	query := `select id, type from removed`
-
-	rows, err := db.Query(query)
-
-	CheckError(err, "could not query removed")
-
-	defer rows.Close()
-
-	for rows.Next() {
-		var r Removed
-
-		rows.Scan(&r.ID, &r.Type)
-
-		deleted = append(deleted, r)
-	}
-
-	return deleted
-}
-
-func CreateLocalReportDB(db *sql.DB, id string, board string, reason string) {
-	query := `select id, count from reported where id=$1 and board=$2`
-
-	rows, err := db.Query(query, id, board)
-
-	CheckError(err, "could not query reported")
-
-	defer rows.Close()
-
-	if rows.Next() {
-		var i string
-		var count int
-
-		rows.Scan(&i, &count)
-
-		if i != "" {
-			count = count + 1
-			query := `update reported set count=$1 where id=$2`
-
-			_, err := db.Exec(query, count, id)
-
-			CheckError(err, "Could not update reported post")
-		}
-	} else {
-		query := `insert into reported (id, count, board, reason) values ($1, $2, $3, $4)`
-
-		_, err := db.Exec(query, id, 1, board, reason)
-
-		CheckError(err, "Could not insert reported post")
-	}
-
-}
-
-func GetLocalReportDB(db *sql.DB, board string) []Report {
-	var reported []Report
-
-	query := `select id, count, reason from reported where board=$1`
-
-	rows, err := db.Query(query, board)
-
-	CheckError(err, "could not query reported")
-
-	defer rows.Close()
-
-	for rows.Next() {
-		var r Report
-
-		rows.Scan(&r.ID, &r.Count, &r.Reason)
-
-		reported = append(reported, r)
-	}
-
-	return reported
-}
-
-func CloseLocalReportDB(db *sql.DB, id string, board string) {
-	query := `delete from reported where id=$1 and board=$2`
-
-	_, err := db.Exec(query, id, board)
-
-	CheckError(err, "Could not delete local report from db")
-}
-
-func GetActorFollowNameFromPath(path string) string {
-	var actor string
-
-	re := regexp.MustCompile("f\\w+-")
-
-	actor = re.FindString(path)
-
-	actor = strings.Replace(actor, "f", "", 1)
-	actor = strings.Replace(actor, "-", "", 1)
-
-	return actor
-}
-
 func GetActorsFollowFromName(actor Actor, name string) []string {
 	var followingActors []string
 	follow := GetActorCollection(actor.Following)
@@ -688,12 +464,6 @@ func GetActorsFollowPostFromId(db *sql.DB, actors []string, id string) Collectio
 
 	return collection
 }
-
-type BoardSortAsc []Board
-
-func (a BoardSortAsc) Len() int           { return len(a) }
-func (a BoardSortAsc) Less(i, j int) bool { return a[i].Name < a[j].Name }
-func (a BoardSortAsc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 func MediaProxy(url string) string {
 	re := regexp.MustCompile("(.+)?" + Domain + "(.+)?")

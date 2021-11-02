@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/FChannel0/FChannel-Server/db"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -22,7 +23,7 @@ func getPassword(r *fiber.Ctx) (string, string) {
 
 	sessionToken := c
 
-	response, err := cache.Do("GET", sessionToken)
+	response, err := db.Cache.Do("GET", sessionToken)
 	if err != nil {
 		return "", ""
 	}
