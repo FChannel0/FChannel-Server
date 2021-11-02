@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
@@ -142,4 +143,38 @@ func FingerRequest(actor string, instance string) (*http.Response, error) {
 	}
 
 	return resp, nil
+}
+
+func CheckValidActivity(id string) (activitypub.Collection, bool, error) {
+	var respCollection activitypub.Collection
+
+	re := regexp.MustCompile(`.+\.onion(.+)?`)
+	if re.MatchString(id) {
+		id = strings.Replace(id, "https", "http", 1)
+	}
+
+	req, err := http.NewRequest("GET", id, nil)
+	if err != nil {
+		return respCollection, false, err
+	}
+
+	req.Header.Set("Accept", config.ActivityStreams)
+
+	resp, err := util.RouteProxy(req)
+	if err != nil {
+		return respCollection, false, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	if err := json.Unmarshal(body, &respCollection); err != nil {
+		return respCollection, false, err
+	}
+
+	if respCollection.AtContext.Context == "https://www.w3.org/ns/activitystreams" && respCollection.OrderedItems[0].Id != "" {
+		return respCollection, true, nil
+	}
+
+	return respCollection, false, nil
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/util"
+	"github.com/FChannel0/FChannel-Server/webfinger"
 	_ "github.com/lib/pq"
 )
 
@@ -2316,7 +2317,7 @@ func GetObjectTypeDB(id string) (string, error) {
 }
 
 func IsReplyInThread(inReplyTo string, id string) (bool, error) {
-	obj, _, err := CheckValidActivity(inReplyTo)
+	obj, _, err := webfinger.CheckValidActivity(inReplyTo)
 	if err != nil {
 		return false, err
 	}

@@ -525,81 +525,6 @@ func ParseCommentForReplies(db *sql.DB, comment string, op string) []ObjectBase 
 	return validLinks
 }
 
-func CheckValidActivity(id string) (Collection, bool) {
-	var respCollection Collection
-
-	re := regexp.MustCompile(`.+\.onion(.+)?`)
-	if re.MatchString(id) {
-		id = strings.Replace(id, "https", "http", 1)
-	}
-
-	req, err := http.NewRequest("GET", id, nil)
-
-	if err != nil {
-		fmt.Println("error with request")
-	}
-
-	req.Header.Set("Accept", activitystreams)
-
-	resp, err := RouteProxy(req)
-
-	if err != nil {
-		fmt.Println("error with response")
-		return respCollection, false
-	}
-
-	defer resp.Body.Close()
-
-	body, _ := ioutil.ReadAll(resp.Body)
-
-	err = json.Unmarshal(body, &respCollection)
-
-	if err != nil {
-		panic(err)
-	}
-
-	if respCollection.AtContext.Context == "https://www.w3.org/ns/activitystreams" && respCollection.OrderedItems[0].Id != "" {
-		return respCollection, true
-	}
-
-	return respCollection, false
-}
-
-func GetActorCollection(collection string) activitypub.Collection {
-	var nCollection activitypub.Collection
-
-	if collection == "" {
-		return nCollection
-	}
-
-	req, err := http.NewRequest("GET", collection, nil)
-
-	CheckError(err, "error with getting actor collection req "+collection)
-
-	req.Header.Set("Accept", activitystreams)
-
-	resp, err := RouteProxy(req)
-
-	if err != nil {
-		fmt.Println("error with getting actor collection resp " + collection)
-		return nCollection
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode == 200 {
-		body, _ := ioutil.ReadAll(resp.Body)
-
-		if len(body) > 0 {
-			err = json.Unmarshal(body, &nCollection)
-
-			CheckError(err, "error getting actor collection from body "+collection)
-		}
-	}
-
-	return nCollection
-}
-
 func IsValidActor(id string) (Actor, bool) {
 
 	actor := FingerActor(id)
@@ -1098,27 +1023,6 @@ func AddInstanceToIndexDB(db *sql.DB, actor string) {
 
 		CheckError(err, "Error with add to index query")
 	}
-}
-
-func GetCollectionFromReq(path string) Collection {
-	req, err := http.NewRequest("GET", path, nil)
-	CheckError(err, "error with getting collection from req")
-
-	req.Header.Set("Accept", activitystreams)
-
-	resp, err := RouteProxy(req)
-
-	CheckError(err, "error getting resp from collection req")
-
-	defer resp.Body.Close()
-
-	body, _ := ioutil.ReadAll(resp.Body)
-
-	var respCollection Collection
-
-	_ = json.Unmarshal(body, &respCollection)
-
-	return respCollection
 }
 
 func HashMedia(media string) string {

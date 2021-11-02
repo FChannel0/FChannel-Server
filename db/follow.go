@@ -262,7 +262,10 @@ func SetActorFollowingDB(activity activitypub.Activity) (activitypub.Activity, e
 		return activity, err
 	}
 
-	remoteActorFollowerCol := GetCollectionFromReq(actor.Followers)
+	remoteActorFollowerCol, err := webfinger.GetCollectionFromReq(actor.Followers)
+	if err != nil {
+		return activity, err
+	}
 
 	for _, e := range following {
 		if e.Id == activity.Actor.Id {

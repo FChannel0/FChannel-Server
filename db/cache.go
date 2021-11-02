@@ -290,7 +290,11 @@ func WriteActorToCache(actorID string) error {
 	if err != nil {
 		return err
 	}
-	collection := GetActorCollection(actor.Outbox)
+
+	collection, err := webfinger.GetActorCollection(actor.Outbox)
+	if err != nil {
+		return err
+	}
 
 	for _, e := range collection.OrderedItems {
 		if _, err := WriteActorObjectToCache(e); err != nil {
