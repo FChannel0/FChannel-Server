@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -26,7 +25,6 @@ import (
 	"math/rand"
 	"mime/multipart"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -37,13 +35,7 @@ import (
 
 var authReq = []string{"captcha", "email", "passphrase"}
 
-var supportedFiles = []string{"image/gif", "image/jpeg", "image/png", "image/webp", "image/apng", "video/mp4", "video/ogg", "video/webm", "audio/mpeg", "audio/ogg", "audio/wav", "audio/wave", "audio/x-wav"}
-
-var activitystreams = "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
-
 var MediaHashs = make(map[string]string)
-
-var ActorCache = make(map[string]activitypub.Actor)
 
 var Themes []string
 
@@ -60,7 +52,7 @@ func main() {
 	db.ConnectDB()
 	defer db.Close()
 
-	RunDatabaseSchema(DB)
+	db.RunDatabaseSchema()
 
 	go MakeCaptchas(DB, 100)
 
@@ -573,49 +565,8 @@ func CheckValidActivity(id string) (Collection, bool) {
 	return respCollection, false
 }
 
-func GetActor(id string) Actor {
-
-	var respActor Actor
-
-	if id == "" {
-		return respActor
-	}
-
-	actor, instance := GetActorInstance(id)
-
-	if ActorCache[actor+"@"+instance].Id != "" {
-		respActor = ActorCache[actor+"@"+instance]
-	} else {
-		req, err := http.NewRequest("GET", strings.TrimSpace(id), nil)
-
-		CheckError(err, "error with getting actor req")
-
-		req.Header.Set("Accept", activitystreams)
-
-		resp, err := RouteProxy(req)
-
-		if err != nil {
-			return respActor
-		}
-
-		defer resp.Body.Close()
-
-		body, _ := ioutil.ReadAll(resp.Body)
-
-		err = json.Unmarshal(body, &respActor)
-
-		if err != nil {
-			return respActor
-		}
-
-		ActorCache[actor+"@"+instance] = respActor
-	}
-
-	return respActor
-}
-
-func GetActorCollection(collection string) Collection {
-	var nCollection Collection
+func GetActorCollection(collection string) activitypub.Collection {
+	var nCollection activitypub.Collection
 
 	if collection == "" {
 		return nCollection
@@ -708,17 +659,6 @@ func GetFileContentType(out multipart.File) (string, error) {
 	return contentType, nil
 }
 
-func IsReplyInThread(db *sql.DB, inReplyTo string, id string) bool {
-	obj, _ := CheckValidActivity(inReplyTo)
-
-	for _, e := range obj.OrderedItems[0].Replies.OrderedItems {
-		if e.Id == id {
-			return true
-		}
-	}
-	return false
-}
-
 func SupportedMIMEType(mime string) bool {
 	for _, e := range supportedFiles {
 		if e == mime {
@@ -756,91 +696,6 @@ func GetActorReported(w http.ResponseWriter, r *http.Request, db *sql.DB, id str
 	enc, _ := json.MarshalIndent(following, "", "\t")
 	w.Header().Set("Content-Type", activitystreams)
 	w.Write(enc)
-}
-
-func MakeActivityRequestOutbox(db *sql.DB, activity Activity) {
-	j, _ := json.Marshal(activity)
-
-	if activity.Actor.Outbox == "" {
-		return
-	}
-
-	req, err := http.NewRequest("POST", activity.Actor.Outbox, bytes.NewBuffer(j))
-
-	CheckError(err, "error with sending activity req to outbox")
-
-	re := regexp.MustCompile("https?://(www.)?")
-
-	var instance string
-	if activity.Actor.Id == Domain {
-		instance = re.ReplaceAllString(Domain, "")
-	} else {
-		_, instance = GetActorInstance(activity.Actor.Id)
-	}
-
-	date := time.Now().UTC().Format(time.RFC1123)
-	path := strings.Replace(activity.Actor.Outbox, instance, "", 1)
-
-	path = re.ReplaceAllString(path, "")
-
-	sig := fmt.Sprintf("(request-target): %s %s\nhost: %s\ndate: %s", "post", path, instance, date)
-	encSig, err := ActivitySign(db, *activity.Actor, sig)
-	CheckError(err, "unable to sign activity response")
-	signature := fmt.Sprintf("keyId=\"%s\",headers=\"(request-target) host date\",signature=\"%s\"", activity.Actor.PublicKey.Id, encSig)
-
-	req.Header.Set("Content-Type", activitystreams)
-	req.Header.Set("Date", date)
-	req.Header.Set("Signature", signature)
-	req.Host = instance
-
-	_, err = RouteProxy(req)
-
-	CheckError(err, "error with sending activity resp to")
-}
-
-func MakeActivityRequest(db *sql.DB, activity Activity) {
-
-	j, _ := json.MarshalIndent(activity, "", "\t")
-
-	for _, e := range activity.To {
-		if e != activity.Actor.Id {
-
-			actor := FingerActor(e)
-
-			if actor.Id != "" {
-				_, instance := GetActorInstance(actor.Id)
-
-				if actor.Inbox != "" {
-
-					req, err := http.NewRequest("POST", actor.Inbox, bytes.NewBuffer(j))
-
-					CheckError(err, "error with sending activity req to")
-
-					date := time.Now().UTC().Format(time.RFC1123)
-					path := strings.Replace(actor.Inbox, instance, "", 1)
-
-					re := regexp.MustCompile("https?://(www.)?")
-					path = re.ReplaceAllString(path, "")
-
-					sig := fmt.Sprintf("(request-target): %s %s\nhost: %s\ndate: %s", "post", path, instance, date)
-					encSig, err := ActivitySign(db, *activity.Actor, sig)
-					CheckError(err, "unable to sign activity response")
-					signature := fmt.Sprintf("keyId=\"%s\",headers=\"(request-target) host date\",signature=\"%s\"", activity.Actor.PublicKey.Id, encSig)
-
-					req.Header.Set("Content-Type", activitystreams)
-					req.Header.Set("Date", date)
-					req.Header.Set("Signature", signature)
-					req.Host = instance
-
-					_, err = RouteProxy(req)
-
-					if err != nil {
-						fmt.Println("error with sending activity resp to actor " + instance)
-					}
-				}
-			}
-		}
-	}
 }
 
 func GetCollectionFromID(id string) Collection {
@@ -1178,43 +1033,6 @@ func remoteShort(url string) string {
 	return "f" + actorname + "-" + id
 }
 
-func RouteProxy(req *http.Request) (*http.Response, error) {
-
-	var proxyType = GetPathProxyType(req.URL.Host)
-
-	if proxyType == "tor" {
-		proxyUrl, err := url.Parse("socks5://" + TorProxy)
-
-		CheckError(err, "error parsing tor proxy url")
-
-		proxyTransport := &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
-		client := &http.Client{Transport: proxyTransport, Timeout: time.Second * 15}
-		return client.Do(req)
-	}
-
-	return http.DefaultClient.Do(req)
-}
-
-func GetPathProxyType(path string) string {
-	if TorProxy != "" {
-		re := regexp.MustCompile(`(http://|http://)?(www.)?\w+\.onion`)
-		onion := re.MatchString(path)
-		if onion {
-			return "tor"
-		}
-	}
-
-	return "clearnet"
-}
-
-func RunDatabaseSchema(db *sql.DB) {
-	query, err := ioutil.ReadFile("databaseschema.psql")
-	CheckError(err, "could not read databaseschema.psql file")
-	if _, err := db.Exec(string(query)); err != nil {
-		CheckError(err, "could not exec databaseschema.psql")
-	}
-}
-
 func CreatedNeededDirectories() {
 	if _, err := os.Stat("./public"); os.IsNotExist(err) {
 		os.Mkdir("./public", 0755)
@@ -1223,116 +1041,6 @@ func CreatedNeededDirectories() {
 	if _, err := os.Stat("./pem/board"); os.IsNotExist(err) {
 		os.MkdirAll("./pem/board", 0700)
 	}
-}
-
-//looks for actor with pattern of board@instance
-func FingerActor(path string) Actor {
-
-	var nActor Actor
-
-	actor, instance := GetActorInstance(path)
-
-	if actor == "" && instance == "" {
-		return nActor
-	}
-
-	if ActorCache[actor+"@"+instance].Id != "" {
-		nActor = ActorCache[actor+"@"+instance]
-	} else {
-		r := FingerRequest(actor, instance)
-		if r != nil && r.StatusCode == 200 {
-			defer r.Body.Close()
-
-			body, _ := ioutil.ReadAll(r.Body)
-
-			err := json.Unmarshal(body, &nActor)
-
-			CheckError(err, "error getting fingerrequet resp from json body")
-
-			ActorCache[actor+"@"+instance] = nActor
-		}
-	}
-
-	return nActor
-}
-
-func FingerRequest(actor string, instance string) *http.Response {
-	acct := "acct:" + actor + "@" + instance
-	req, err := http.NewRequest("GET", "http://"+instance+"/.well-known/webfinger?resource="+acct, nil)
-
-	CheckError(err, "could not get finger request from id req")
-
-	resp, err := RouteProxy(req)
-
-	var finger Webfinger
-
-	if err != nil {
-		return resp
-	}
-
-	if resp.StatusCode == 200 {
-		defer resp.Body.Close()
-
-		body, _ := ioutil.ReadAll(resp.Body)
-
-		err := json.Unmarshal(body, &finger)
-
-		CheckError(err, "error getting fingerrequet resp from json body")
-	}
-
-	if len(finger.Links) > 0 {
-		for _, e := range finger.Links {
-			if e.Type == "application/activity+json" {
-				req, err := http.NewRequest("GET", e.Href, nil)
-
-				CheckError(err, "could not get finger request from id req")
-
-				req.Header.Set("Accept", activitystreams)
-
-				resp, err := RouteProxy(req)
-				return resp
-			}
-		}
-	}
-
-	return resp
-}
-
-func GetActorInstance(path string) (string, string) {
-	re := regexp.MustCompile(`([@]?([\w\d.-_]+)[@](.+))`)
-	atFormat := re.MatchString(path)
-
-	if atFormat {
-		match := re.FindStringSubmatch(path)
-		if len(match) > 2 {
-			return match[2], match[3]
-		}
-	}
-
-	re = regexp.MustCompile(`(https?://)(www)?([\w\d-_.:]+)(/|\s+|\r|\r\n)?$`)
-	mainActor := re.MatchString(path)
-	if mainActor {
-		match := re.FindStringSubmatch(path)
-		if len(match) > 2 {
-			return "main", match[3]
-		}
-	}
-
-	re = regexp.MustCompile(`(https?://)?(www)?([\w\d-_.:]+)\/([\w\d-_.]+)(\/([\w\d-_.]+))?`)
-	httpFormat := re.MatchString(path)
-
-	if httpFormat {
-		match := re.FindStringSubmatch(path)
-		if len(match) > 3 {
-			if match[4] == "users" {
-				return match[6], match[3]
-			}
-
-			return match[4], match[3]
-		}
-	}
-
-	return "", ""
 }
 
 func AddInstanceToIndex(actor string) {

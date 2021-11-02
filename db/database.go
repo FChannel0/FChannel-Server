@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"os"
 	"regexp"
 	"sort"
@@ -55,7 +56,7 @@ func Close() error {
 	return db.Close()
 }
 
-func CreateUniqueID(db *sql.DB, actor string) (string, error) {
+func CreateUniqueID(actor string) (string, error) {
 	var newID string
 	isUnique := false
 	for !isUnique {
@@ -81,6 +82,16 @@ func CreateUniqueID(db *sql.DB, actor string) (string, error) {
 	}
 
 	return newID, nil
+}
+
+func RunDatabaseSchema() error {
+	query, err := ioutil.ReadFile("databaseschema.psql")
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(string(query))
+	return err
 }
 
 func GetActorFromDB(id string) (activitypub.Actor, error) {
@@ -222,8 +233,12 @@ func CreateNewBoardDB(actor activitypub.Actor) (activitypub.Actor, error) {
 			nActivity.To = append(nActivity.To, actor.Id)
 
 			response := AcceptFollow(nActivity)
-			SetActorFollowingDB(db, response)
-			MakeActivityRequest(db, nActivity)
+			if _, err := SetActorFollowingDB(response); err != nil {
+				return actor, err
+			}
+			if err := MakeActivityRequest(nActivity); err != nil {
+				return actor, err
+			}
 		}
 
 	}
@@ -256,7 +271,7 @@ func GetBoards() ([]activitypub.Actor, error) {
 }
 
 func WriteObjectToDB(obj activitypub.ObjectBase) (activitypub.ObjectBase, error) {
-	id, err := CreateUniqueID(db, obj.Actor)
+	id, err := CreateUniqueID(obj.Actor)
 	if err != nil {
 		return obj, err
 	}
@@ -264,7 +279,7 @@ func WriteObjectToDB(obj activitypub.ObjectBase) (activitypub.ObjectBase, error)
 	obj.Id = fmt.Sprintf("%s/%s", obj.Actor, id)
 	if len(obj.Attachment) > 0 {
 		if obj.Preview.Href != "" {
-			id, err := CreateUniqueID(db, obj.Actor)
+			id, err := CreateUniqueID(obj.Actor)
 			if err != nil {
 				return obj, err
 			}
@@ -277,7 +292,7 @@ func WriteObjectToDB(obj activitypub.ObjectBase) (activitypub.ObjectBase, error)
 		}
 
 		for i, _ := range obj.Attachment {
-			id, err := CreateUniqueID(db, obj.Actor)
+			id, err := CreateUniqueID(obj.Actor)
 			if err != nil {
 				return obj, err
 			}
@@ -1023,7 +1038,7 @@ func GetObjectRepliesDBLimit(parent activitypub.ObjectBase, limit int) (*activit
 
 	nColl.OrderedItems = result
 
-	sort.Sort(ObjectBaseSortAsc(nColl.OrderedItems))
+	sort.Sort(activitypub.ObjectBaseSortAsc(nColl.OrderedItems))
 
 	return &nColl, postCount, attachCount, nil
 }
@@ -2244,6 +2259,9 @@ func UpdateObjectTypeDB(id string, nType string) error {
 
 func UnArchiveLast(actorId string) error {
 	col, err := GetActorCollectionDBTypeLimit(actorId, "Archive", 1)
+	if err != nil {
+		return err
+	}
 
 	for _, e := range col.OrderedItems {
 		for _, k := range e.Replies.OrderedItems {
@@ -2295,4 +2313,19 @@ func GetObjectTypeDB(id string) (string, error) {
 	rows.Scan(&nType)
 
 	return nType, nil
+}
+
+func IsReplyInThread(inReplyTo string, id string) (bool, error) {
+	obj, _, err := CheckValidActivity(inReplyTo)
+	if err != nil {
+		return false, err
+	}
+
+	for _, e := range obj.OrderedItems[0].Replies.OrderedItems {
+		if e.Id == id {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

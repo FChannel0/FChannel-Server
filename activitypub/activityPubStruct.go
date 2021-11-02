@@ -204,3 +204,15 @@ type Collection struct {
 	AtContext
 	CollectionBase
 }
+
+type ObjectBaseSortDesc []ObjectBase
+
+func (a ObjectBaseSortDesc) Len() int           { return len(a) }
+func (a ObjectBaseSortDesc) Less(i, j int) bool { return a[i].Updated.After(a[j].Updated) }
+func (a ObjectBaseSortDesc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
+type ObjectBaseSortAsc []ObjectBase
+
+func (a ObjectBaseSortAsc) Len() int           { return len(a) }
+func (a ObjectBaseSortAsc) Less(i, j int) bool { return a[i].Published.Before(a[j].Published) }
+func (a ObjectBaseSortAsc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
