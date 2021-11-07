@@ -65,9 +65,9 @@ func main() {
 		panic(err)
 	}
 
-	go StartupArchive(DB)
+	go db.StartupArchive()
 
-	go CheckInactive(DB)
+	go db.CheckInactive()
 
 	db.Boards, err = db.GetBoardCollection()
 	if err != nil {
@@ -120,11 +120,6 @@ func main() {
 	app.Static("/public", "./public")
 	app.Static("/static", "./views")
 
-	// Pass variables such as the DB
-	app.Use(func(c *fiber.Ctx) {
-		c.Locals("db", DB)
-	})
-
 	/*
 	 Main actor
 	*/
@@ -163,12 +158,12 @@ func main() {
 
 	app.Get("/auth", routes.AdminAuth)
 
-	app.Get("/"+*Key+"/", routes.AdminIndex)
+	app.Get("/"+config.Key+"/", routes.AdminIndex)
 
-	app.Get("/"+*Key+"/addboard", routes.AdminAddBoard)
+	app.Get("/"+config.Key+"/addboard", routes.AdminAddBoard)
 
-	app.Get("/"+*Key+"/postnews", routes.AdminPostNews)
-	app.Get("/"+*Key+"/newsdelete", routes.AdminNewsDelete)
+	app.Get("/"+config.Key+"/postnews", routes.AdminPostNews)
+	app.Get("/"+config.Key+"/newsdelete", routes.AdminNewsDelete)
 	app.Get("/news", routes.NewsGet)
 
 	/*
@@ -216,7 +211,7 @@ func main() {
 			actorDomain[0] = "/" + actorDomain[0]
 		}
 
-		if !IsActorLocal(TP + "" + actorDomain[1] + "" + actorDomain[0]) {
+		if !IsActorLocal(config.TP + "" + actorDomain[1] + "" + actorDomain[0]) {
 			c.Status(fiber.StatusBadRequest)
 			return c.Send([]byte("actor not local"))
 		}
@@ -227,13 +222,13 @@ func main() {
 		finger.Subject = "acct:" + actorDomain[0] + "@" + actorDomain[1]
 		link.Rel = "self"
 		link.Type = "application/activity+json"
-		link.Href = TP + "" + actorDomain[1] + "" + actorDomain[0]
+		link.Href = config.TP + "" + actorDomain[1] + "" + actorDomain[0]
 
 		finger.Links = append(finger.Links, link)
 
 		enc, _ := json.Marshal(finger)
 
-		c.Set("Content-Type", activitystreams)
+		c.Set("Content-Type", config.ActivityStreams)
 		return c.Send(enc)
 	})
 
@@ -244,10 +239,8 @@ func main() {
 	// 404 handler
 	app.Use(routes.NotFound)
 
-	fmt.Println("Server for " + Domain + " running on port " + Port)
-
-	fmt.Println("Mod key: " + *Key)
-	PrintAdminAuth(DB)
+	fmt.Println("Mod key: " + config.Key)
+	PrintAdminAuth()
 
 	app.Listen(Port)
 }
@@ -288,10 +281,10 @@ func CreateNewActor(board string, prefName string, summary string, authReq []str
 
 	var path string
 	if board == "" {
-		path = Domain
+		path = config.Domain
 		actor.Name = "main"
 	} else {
-		path = Domain + "/" + board
+		path = config.Domain + "/" + board
 		actor.Name = board
 	}
 
@@ -429,7 +422,7 @@ func CreatePreviewObject(obj activitypub.ObjectBase) *activitypub.NestedObjectBa
 
 	nPreview.Type = "Preview"
 	nPreview.Name = obj.Name
-	nPreview.Href = Domain + "" + href
+	nPreview.Href = config.Domain + "" + href
 	nPreview.MediaType = obj.MediaType
 	nPreview.Size = obj.Size
 	nPreview.Published = obj.Published
@@ -466,7 +459,7 @@ func CreateAttachmentObject(file multipart.File, header *multipart.FileHeader) (
 
 	image.Type = "Attachment"
 	image.Name = filename
-	image.Href = Domain + "/" + tempFile.Name()
+	image.Href = config.Domain + "/" + tempFile.Name()
 	image.MediaType = contentType
 	image.Size = size
 	image.Published = time.Now().UTC()
@@ -488,7 +481,7 @@ func ParseCommentForReplies(comment string, op string) []activitypub.ObjectBase 
 		str = strings.Replace(str, "www.", "", 1)
 		str = strings.Replace(str, "http://", "", 1)
 		str = strings.Replace(str, "https://", "", 1)
-		str = TP + "" + str
+		str = config.TP + "" + str
 		_, isReply := IsReplyToOP(op, str)
 		if !IsInStringArray(links, str) && isReply {
 			links = append(links, str)
@@ -603,7 +596,7 @@ func GetActorReported(w http.ResponseWriter, r *http.Request, db *sql.DB, id str
 	following.Items = GetActorReportedDB(id)
 
 	enc, _ := json.MarshalIndent(following, "", "\t")
-	w.Header().Set("Content-Type", activitystreams)
+	w.Header().Set("Content-Type", config.ActivityStreams)
 	w.Write(enc)
 }
 
@@ -614,7 +607,7 @@ func GetCollectionFromID(id string) activitypub.Collection {
 
 	CheckError(err, "could not get collection from id req")
 
-	req.Header.Set("Accept", activitystreams)
+	req.Header.Set("Accept", config.ActivityStreams)
 
 	resp, err := RouteProxy(req)
 
@@ -638,11 +631,11 @@ func GetCollectionFromID(id string) activitypub.Collection {
 }
 
 func PrintAdminAuth(db *sql.DB) {
-	query := fmt.Sprintf("select identifier, code from boardaccess where board='%s' and type='admin'", Domain)
+	query := fmt.Sprintf("select identifier, code from boardaccess where board='%s' and type='admin'", config.Domain)
 
 	rows, err := db.Query(query)
 
-	CheckError(err, "Error getting Domain auth")
+	CheckError(err, "Error getting config.Domain auth")
 
 	var code string
 	var identifier string
@@ -663,12 +656,12 @@ func IsInStringArray(array []string, value string) bool {
 }
 
 func GetUniqueFilename(_type string) string {
-	id := RandomID(8)
+	id := util.RandomID(8)
 	file := "/public/" + id + "." + _type
 
 	for true {
 		if _, err := os.Stat("." + file); err == nil {
-			id = RandomID(8)
+			id = util.RandomID(8)
 			file = "/public/" + id + "." + _type
 		} else {
 			return "/public/" + id + "." + _type
@@ -770,7 +763,7 @@ func ResizeAttachmentToPreview(db *sql.DB) {
 			nPreview.Type = "Preview"
 			nPreview.Id = fmt.Sprintf("%s/%s", actor, CreateUniqueID(actor))
 			nPreview.Name = name
-			nPreview.Href = Domain + "" + nHref
+			nPreview.Href = config.Domain + "" + nHref
 			nPreview.MediaType = mediatype
 			nPreview.Size = int64(size)
 			nPreview.Published = published
@@ -838,7 +831,7 @@ func GetActorCollectionReq(r *http.Request, collection string) activitypub.Colle
 
 	_, pass := GetPasswordFromSession(r)
 
-	req.Header.Set("Accept", activitystreams)
+	req.Header.Set("Accept", config.ActivityStreams)
 
 	req.Header.Set("Authorization", "Basic "+pass)
 
@@ -984,17 +977,29 @@ func HasValidation(w http.ResponseWriter, r *http.Request, actor activitypub.Act
 }
 
 func TemplateFunctions(engine *html.Engine) {
-	engine.AddFunc(
-		"mod", mod,
-	)
+	engine.AddFunc("mod", func(i, j int) bool {
+		return i%j == 0
+	})
 
-	engine.AddFunc(
-		"sub", sub,
-	)
+	engine.AddFunc("sub", func(i, j int) int {
+		return i - j
+	})
 
-	engine.AddFunc(
-		"unixtoreadable", unixToReadable,
-	)
+	engine.AddFunc("add", func(i, j int) int {
+		return i + j
+	})
+
+	engine.AddFunc("unixtoreadable", func(u int) string {
+		return time.Unix(int64(u), 0).Format("Jan 02, 2006")
+	})
+
+	engine.AddFunc("timeToReadableLong", func(t time.Time) string {
+		return t.Format("01/02/06(Mon)15:04:05")
+	})
+
+	engine.AddFunc("timeToUnix", func(t time.Time) string {
+		return fmt.Sprint(t.Unix())
+	})
 
 	engine.AddFunc("proxy", MediaProxy)
 
@@ -1017,22 +1022,6 @@ func TemplateFunctions(engine *html.Engine) {
 		link := fmt.Sprintf("<a href=\"%s/%s#%s\" title=\"%s\" class=\"replyLink\">&gt;&gt;%s</a>", actor.Name, util.ShortURL(actor.Outbox, op), util.ShortURL(actor.Outbox, id), title, util.ShortURL(actor.Outbox, id))
 		return template.HTML(link)
 	})
-
-	engine.AddFunc("add", func(i, j int) int {
-		return i + j
-	})
-
-	engine.AddFunc(
-		"timeToReadableLong", timeToReadableLong,
-	)
-
-	engine.AddFunc(
-		"timeToUnix", timeToUnix,
-	)
-
-	engine.AddFunc(
-		"sub", sub,
-	)
 
 	engine.AddFunc("shortExcerpt",
 		func(post activitypub.ObjectBase) string {

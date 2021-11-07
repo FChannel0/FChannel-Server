@@ -1,13 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"html/template"
-	"log"
-	"net/http"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
@@ -16,86 +12,6 @@ import (
 	"github.com/FChannel0/FChannel-Server/webfinger"
 	_ "github.com/lib/pq"
 )
-
-var Key *string = new(string)
-
-func mod(i, j int) bool {
-	return i%j == 0
-}
-
-func sub(i, j int) int {
-	return i - j
-}
-
-func unixToReadable(u int) string {
-	return time.Unix(int64(u), 0).Format("Jan 02, 2006")
-}
-
-func timeToReadableLong(t time.Time) string {
-	return t.Format("01/02/06(Mon)15:04:05")
-}
-
-func timeToUnix(t time.Time) string {
-	return fmt.Sprint(t.Unix())
-}
-
-func CatalogGet(w http.ResponseWriter, r *http.Request, collection activitypub.Collection) error {
-	t := template.Must(template.New("").Funcs(template.FuncMap{
-		"showArchive": func() bool {
-			col := GetActorCollectionDBTypeLimit(collection.Actor.Id, "Archive", 1)
-
-			if len(col.OrderedItems) > 0 {
-				return true
-			}
-			return false
-		},
-		"sub": sub}).ParseFiles("./static/main.html", "./static/ncatalog.html", "./static/top.html"))
-
-	actor := collection.Actor
-
-	var returnData PageData
-	returnData.Board.Name = actor.Name
-	returnData.Board.PrefName = actor.PreferredUsername
-	returnData.Board.InReplyTo = ""
-	returnData.Board.To = actor.Outbox
-	returnData.Board.Actor = *actor
-	returnData.Board.Summary = actor.Summary
-	returnData.Board.ModCred, _ = GetPasswordFromSession(r)
-	returnData.Board.Domain = config.Domain
-	returnData.Board.Restricted = actor.Restricted
-	returnData.Key = *Key
-	returnData.ReturnTo = "catalog"
-
-	returnData.Board.Post.Actor = actor.Id
-
-	var err error
-	returnData.Instance, err = db.GetActorFromDB(config.Domain)
-	if err != nil {
-		return err
-	}
-
-	capt, err := db.GetRandomCaptcha()
-	if err != nil {
-		return err
-	}
-	returnData.Board.Captcha = config.Domain + "/" + capt
-	returnData.Board.CaptchaCode = util.GetCaptchaCode(returnData.Board.Captcha)
-
-	returnData.Title = "/" + actor.Name + "/ - " + actor.PreferredUsername
-
-	returnData.Boards = db.Boards
-
-	returnData.Posts = collection.OrderedItems
-
-	returnData.Themes = &Themes
-	returnData.ThemeCookie = getThemeCookie(ctx)
-
-	err := t.ExecuteTemplate(w, "layout", returnData)
-	if err != nil {
-		// TODO: actual error handler
-		log.Printf("CatalogGet: %s\n", err)
-	}
-}
 
 func MediaProxy(url string) string {
 	re := regexp.MustCompile("(.+)?" + config.Domain + "(.+)?")

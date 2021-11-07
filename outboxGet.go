@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
+	"github.com/FChannel0/FChannel-Server/db"
 	_ "github.com/lib/pq"
-	"golang.org/x/perf/storage/db"
 )
 
 func GetActorOutbox(w http.ResponseWriter, r *http.Request, db *sql.DB) {

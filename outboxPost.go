@@ -13,13 +13,13 @@ import (
 	"strings"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
+	"github.com/FChannel0/FChannel-Server/db"
 	_ "github.com/lib/pq"
-	"golang.org/x/perf/storage/db"
 )
 
 func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
-	var activity Activity
+	var activity activitypub.Activity
 
 	actor := GetActorFromPath(r.URL.Path, "/")
 	contentType := GetContentType(r.Header.Get("content-type"))
@@ -107,7 +107,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				validActor = (activity.Object.Actor != "")
 				validLocalActor = (activity.Actor.Id == actor.Id)
 
-				var rActivity Activity
+				var rActivity activitypub.Activity
 				if validActor && validLocalActor {
 					rActivity = AcceptFollow(activity)
 					rActivity = SetActorFollowingDB(rActivity)
@@ -138,8 +138,8 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				actor := CreateNewBoardDB(*CreateNewActor(name, prefname, summary, authReq, restricted))
 
 				if actor.Id != "" {
-					var board []ObjectBase
-					var item ObjectBase
+					var board []activitypub.ObjectBase
+					var item activitypub.ObjectBase
 					var removed bool = false
 
 					item.Id = actor.Id

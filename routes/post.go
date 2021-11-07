@@ -3,6 +3,7 @@ package routes
 import (
 	"regexp"
 
+	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
 	"github.com/FChannel0/FChannel-Server/util"
@@ -99,6 +100,68 @@ func PostGet(ctx *fiber.Ctx) error {
 	returnData.ThemeCookie = getThemeCookie(ctx)
 
 	return ctx.Render("npost", fiber.Map{
+		"page": returnData,
+	}, "layouts/main")
+}
+
+func CatalogGet(ctx *fiber.Ctx) error {
+	// TODO:
+	collection := ctx.Locals("collection").(activitypub.Collection)
+
+	// TODO: implement this in template functions
+	//	"showArchive": func() bool {
+	//	col, err := db.GetActorCollectionDBTypeLimit(collection.Actor.Id, "Archive", 1)
+	//	if err != nil {
+	//		// TODO: figure out what to do here
+	//		panic(err)
+	//	}
+	//
+	//	if len(col.OrderedItems) > 0 {
+	//		return true
+	//	}
+	//	return false
+	//},
+
+	actor := collection.Actor
+
+	var returnData PageData
+	returnData.Board.Name = actor.Name
+	returnData.Board.PrefName = actor.PreferredUsername
+	returnData.Board.InReplyTo = ""
+	returnData.Board.To = actor.Outbox
+	returnData.Board.Actor = *actor
+	returnData.Board.Summary = actor.Summary
+	returnData.Board.ModCred, _ = getPassword(ctx)
+	returnData.Board.Domain = config.Domain
+	returnData.Board.Restricted = actor.Restricted
+	returnData.Key = config.Key
+	returnData.ReturnTo = "catalog"
+
+	returnData.Board.Post.Actor = actor.Id
+
+	var err error
+	returnData.Instance, err = db.GetActorFromDB(config.Domain)
+	if err != nil {
+		return err
+	}
+
+	capt, err := db.GetRandomCaptcha()
+	if err != nil {
+		return err
+	}
+	returnData.Board.Captcha = config.Domain + "/" + capt
+	returnData.Board.CaptchaCode = util.GetCaptchaCode(returnData.Board.Captcha)
+
+	returnData.Title = "/" + actor.Name + "/ - " + actor.PreferredUsername
+
+	returnData.Boards = db.Boards
+
+	returnData.Posts = collection.OrderedItems
+
+	returnData.Themes = &config.Themes
+	returnData.ThemeCookie = getThemeCookie(ctx)
+
+	return ctx.Render("ncatalog", fiber.Map{
 		"page": returnData,
 	}, "layouts/main")
 }
