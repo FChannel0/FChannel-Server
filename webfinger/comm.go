@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
@@ -67,4 +68,22 @@ func GetCollectionFromReq(path string) (activitypub.Collection, error) {
 
 	err = json.Unmarshal(body, &respCollection)
 	return respCollection, err
+}
+
+func GetActorsFollowFromName(actor activitypub.Actor, name string) ([]string, error) {
+	var followingActors []string
+	follow, err := GetActorCollection(actor.Following)
+	if err != nil {
+		return followingActors, err
+	}
+
+	re := regexp.MustCompile("\\w+?$")
+
+	for _, e := range follow.Items {
+		if re.FindString(e.Id) == name {
+			followingActors = append(followingActors, e.Id)
+		}
+	}
+
+	return followingActors, nil
 }

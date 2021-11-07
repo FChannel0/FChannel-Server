@@ -42,7 +42,8 @@ and to fix errors reported by `go vet`.
 - `git clone` the software
 - Copy `config-init` to `config` and change the values appropriately to reflect the instance.
 - Create the database, username, and password for psql that is used in the `config` file.
-- Start the server with `go run .`.
+- Build the server with `make`
+- Start the server with `./fchan`.
 
 ### Server Configuration
 

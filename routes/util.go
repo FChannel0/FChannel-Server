@@ -1,12 +1,16 @@
 package routes
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/db"
 	"github.com/gofiber/fiber/v2"
 )
+
+var ErrorPageLimit = errors.New("above page limit")
 
 func getThemeCookie(c *fiber.Ctx) string {
 	cookie := c.Cookies("theme")
@@ -37,4 +41,75 @@ func getPassword(r *fiber.Ctx) (string, string) {
 	}
 
 	return "", ""
+}
+
+func wantToServePage(actorName string, page int) (activitypub.Collection, bool, error) {
+	var collection activitypub.Collection
+	serve := false
+
+	// TODO: don't hard code?
+	if page > 10 {
+		return collection, serve, ErrorPageLimit
+	}
+
+	actor, err := db.GetActorByNameFromDB(actorName)
+	if err != nil {
+		return collection, false, err
+	}
+
+	if actor.Id != "" {
+		collection, err = db.GetObjectFromDBPage(actor.Id, page)
+		if err != nil {
+			return collection, false, err
+		}
+
+		collection.Actor = &actor
+		return collection, true, nil
+	}
+
+	return collection, serve, nil
+}
+
+func wantToServeCatalog(actorName string) (activitypub.Collection, bool, error) {
+	var collection activitypub.Collection
+	serve := false
+
+	actor, err := db.GetActorByNameFromDB(actorName)
+	if err != nil {
+		return collection, false, err
+	}
+
+	if actor.Id != "" {
+		collection, err = db.GetObjectFromDBCatalog(actor.Id)
+		if err != nil {
+			return collection, false, err
+		}
+
+		collection.Actor = &actor
+		return collection, true, nil
+	}
+
+	return collection, serve, nil
+}
+
+func wantToServeArchive(actorName string) (activitypub.Collection, bool, error) {
+	var collection activitypub.Collection
+	serve := false
+
+	actor, err := db.GetActorByNameFromDB(actorName)
+	if err != nil {
+		return collection, false, err
+	}
+
+	if actor.Id != "" {
+		collection, err = db.GetActorCollectionDBType(actor.Id, "Archive")
+		if err != nil {
+			return collection, false, err
+		}
+
+		collection.Actor = &actor
+		return collection, true, nil
+	}
+
+	return collection, serve, nil
 }

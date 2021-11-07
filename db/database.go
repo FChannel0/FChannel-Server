@@ -1975,7 +1975,7 @@ func GetNewsFromDB(limit int) ([]NewsItem, error) {
 	return news, nil
 }
 
-func getNewsItemFromDB(timestamp int) (NewsItem, error) {
+func GetNewsItemFromDB(timestamp int) (NewsItem, error) {
 	var news NewsItem
 	var content string
 	query := `select title, content, time from newsItem where time=$1 limit 1`
@@ -2329,4 +2329,151 @@ func IsReplyInThread(inReplyTo string, id string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func GetActorsFollowPostFromId(actors []string, id string) (activitypub.Collection, error) {
+	var collection activitypub.Collection
+
+	for _, e := range actors {
+		tempCol, err := GetObjectByIDFromDB(e + "/" + id)
+		if err != nil {
+			return collection, err
+		}
+
+		if len(tempCol.OrderedItems) > 0 {
+			collection = tempCol
+			return collection, nil
+		}
+	}
+
+	return collection, nil
+}
+
+func IsReplyToOP(op string, link string) (string, bool, error) {
+	if op == link {
+		return link, true, nil
+	}
+
+	re := regexp.MustCompile(`f(\w+)\-`)
+	match := re.FindStringSubmatch(link)
+
+	if len(match) > 0 {
+		re := regexp.MustCompile(`(.+)\-`)
+		link = re.ReplaceAllString(link, "")
+		link = "%" + match[1] + "/" + link
+	}
+
+	query := `select id from replies where id like $1 and inreplyto=$2`
+
+	rows, err := db.Query(query, link, op)
+	if err != nil {
+		return op, false, err
+	}
+	defer rows.Close()
+
+	var id string
+	rows.Next()
+	if err := rows.Scan(&id); err != nil {
+		return id, false, err
+	}
+
+	if id != "" {
+		return id, true, nil
+	}
+
+	return "", false, nil
+}
+
+func GetReplyOP(link string) (string, error) {
+	query := `select id from replies where id in (select inreplyto from replies where id=$1) and inreplyto=''`
+
+	rows, err := db.Query(query, link)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	var id string
+
+	rows.Next()
+	err = rows.Scan(&id)
+	return id, err
+}
+
+func StartupArchive() error {
+	for _, e := range FollowingBoards {
+		actor, err := GetActorFromDB(e.Id)
+		if err != nil {
+			return err
+		}
+
+		if err := ArchivePosts(actor); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func CheckInactive() {
+	for true {
+		CheckInactiveInstances()
+		time.Sleep(24 * time.Hour)
+	}
+}
+
+func CheckInactiveInstances() (map[string]string, error) {
+	instances := make(map[string]string)
+	query := `select following from following`
+
+	rows, err := db.Query(query)
+	if err != nil {
+		return instances, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var instance string
+		if err := rows.Scan(&instance); err != nil {
+			return instances, err
+		}
+
+		instances[instance] = instance
+	}
+
+	query = `select follower from follower`
+	rows, err = db.Query(query)
+	if err != nil {
+		return instances, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var instance string
+		if err := rows.Scan(&instance); err != nil {
+			return instances, err
+		}
+
+		instances[instance] = instance
+	}
+
+	re := regexp.MustCompile(config.Domain + `(.+)?`)
+	for _, e := range instances {
+		actor, err := webfinger.GetActor(e)
+		if err != nil {
+			return instances, err
+		}
+
+		if actor.Id == "" && !re.MatchString(e) {
+			if err := AddInstanceToInactiveDB(e); err != nil {
+				return instances, err
+			}
+		} else {
+			if err := DeleteInstanceFromInactiveDB(e); err != nil {
+				return instances, err
+			}
+		}
+	}
+
+	return instances, nil
 }

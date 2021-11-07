@@ -6,19 +6,21 @@ import (
 
 	"encoding/json"
 
+	"github.com/FChannel0/FChannel-Server/activitypub"
 	_ "github.com/lib/pq"
+	"golang.org/x/perf/storage/db"
 )
 
 func GetActorOutbox(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	actor := GetActorFromPath(db, r.URL.Path, "/")
-	var collection Collection
+	actor := GetActorFromPath(r.URL.Path, "/")
+	var collection activitypub.Collection
 
-	collection.OrderedItems = GetActorObjectCollectionFromDB(db, actor.Id).OrderedItems
+	collection.OrderedItems = GetActorObjectCollectionFromDB(actor.Id).OrderedItems
 	collection.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 	collection.Actor = &actor
 
-	collection.TotalItems = GetObjectPostsTotalDB(db, actor)
-	collection.TotalImgs = GetObjectImgsTotalDB(db, actor)
+	collection.TotalItems = GetObjectPostsTotalDB(actor)
+	collection.TotalImgs = GetObjectImgsTotalDB(actor)
 
 	enc, _ := json.Marshal(collection)
 
@@ -26,10 +28,10 @@ func GetActorOutbox(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	w.Write(enc)
 }
 
-func GetCollectionFromPath(db *sql.DB, path string) Collection {
+func GetCollectionFromPath(path string) activitypub.Collection {
 
-	var nColl Collection
-	var result []ObjectBase
+	var nColl activitypub.Collection
+	var result []activitypub.ObjectBase
 
 	query := `select id, name, content, type, published, attributedto, attachment, preview, actor from activitystream where id=$1 order by published desc`
 
@@ -40,8 +42,8 @@ func GetCollectionFromPath(db *sql.DB, path string) Collection {
 	defer rows.Close()
 
 	for rows.Next() {
-		var actor Actor
-		var post ObjectBase
+		var actor activitypub.Actor
+		var post activitypub.ObjectBase
 		var attachID string
 		var previewID string
 
@@ -51,20 +53,20 @@ func GetCollectionFromPath(db *sql.DB, path string) Collection {
 
 		post.Actor = actor.Id
 
-		post.InReplyTo = GetInReplyToDB(db, post)
+		post.InReplyTo = GetInReplyToDB(post)
 
 		var postCnt int
 		var imgCnt int
-		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, post)
+		post.Replies, postCnt, imgCnt = GetObjectRepliesDB(post)
 
-		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCount(db, post)
+		post.Replies.TotalItems, post.Replies.TotalImgs = GetObjectRepliesCount(post)
 
 		post.Replies.TotalItems = post.Replies.TotalItems + postCnt
 		post.Replies.TotalImgs = post.Replies.TotalImgs + imgCnt
 
-		post.Attachment = GetObjectAttachment(db, attachID)
+		post.Attachment = GetObjectAttachment(attachID)
 
-		post.Preview = GetObjectPreview(db, previewID)
+		post.Preview = GetObjectPreview(previewID)
 
 		result = append(result, post)
 	}
@@ -76,9 +78,8 @@ func GetCollectionFromPath(db *sql.DB, path string) Collection {
 	return nColl
 }
 
-func GetObjectFromPath(db *sql.DB, path string) ObjectBase {
-
-	var nObj ObjectBase
+func GetObjectFromPath(path string) activitypub.ObjectBase {
+	var nObj activitypub.ObjectBase
 
 	query := `select id, name, content, type, published, attributedto, attachment, preview, actor from activitystream where id=$1 order by published desc`
 
@@ -91,7 +92,7 @@ func GetObjectFromPath(db *sql.DB, path string) ObjectBase {
 	var attachID string
 	var previewID string
 
-	var nActor Actor
+	var nActor activitypub.Actor
 	nObj.Actor = nActor.Id
 
 	err = rows.Scan(&nObj.Id, &nObj.Name, &nObj.Content, &nObj.Type, &nObj.Published, &nObj.AttributedTo, &attachID, &previewID, &nObj.Actor)
@@ -101,16 +102,16 @@ func GetObjectFromPath(db *sql.DB, path string) ObjectBase {
 	var postCnt int
 	var imgCnt int
 
-	nObj.Replies, postCnt, imgCnt = GetObjectRepliesDB(db, nObj)
+	nObj.Replies, postCnt, imgCnt = GetObjectRepliesDB(nObj)
 
-	nObj.Replies.TotalItems, nObj.Replies.TotalImgs = GetObjectRepliesCount(db, nObj)
+	nObj.Replies.TotalItems, nObj.Replies.TotalImgs = GetObjectRepliesCount(nObj)
 
 	nObj.Replies.TotalItems = nObj.Replies.TotalItems + postCnt
 	nObj.Replies.TotalImgs = nObj.Replies.TotalImgs + imgCnt
 
-	nObj.Attachment = GetObjectAttachment(db, attachID)
+	nObj.Attachment = GetObjectAttachment(attachID)
 
-	nObj.Preview = GetObjectPreview(db, previewID)
+	nObj.Preview = GetObjectPreview(previewID)
 
 	return nObj
 }

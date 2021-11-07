@@ -1,17 +1,19 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/FChannel0/FChannel-Server/activitypub"
+	"github.com/FChannel0/FChannel-Server/config"
+	"github.com/FChannel0/FChannel-Server/db"
+	"github.com/FChannel0/FChannel-Server/util"
+	"github.com/FChannel0/FChannel-Server/webfinger"
 	_ "github.com/lib/pq"
 )
 
@@ -37,160 +39,10 @@ func timeToUnix(t time.Time) string {
 	return fmt.Sprint(t.Unix())
 }
 
-func NewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB, timestamp int) {
+func CatalogGet(w http.ResponseWriter, r *http.Request, collection activitypub.Collection) error {
 	t := template.Must(template.New("").Funcs(template.FuncMap{
-		"sub":            sub,
-		"unixtoreadable": unixToReadable}).ParseFiles("./static/main.html", "./static/news.html"))
-
-	actor := GetActorFromDB(db, Domain)
-
-	var data PageData
-	data.PreferredUsername = actor.PreferredUsername
-	data.Boards = Boards
-	data.Board.Name = ""
-	data.Key = *Key
-	data.Board.Domain = Domain
-	data.Board.ModCred, _ = GetPasswordFromSession(r)
-	data.Board.Actor = actor
-	data.Board.Post.Actor = actor.Id
-	data.Board.Restricted = actor.Restricted
-	data.NewsItems = []NewsItem{NewsItem{}}
-
-	var err error
-	data.NewsItems[0], err = getNewsItemFromDB(db, timestamp)
-
-	if err != nil {
-		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte("404 no path"))
-		return
-	}
-
-	data.Title = actor.PreferredUsername + ": " + data.NewsItems[0].Title
-
-	data.Themes = &Themes
-	if cookie, err := r.Cookie("theme"); err == nil {
-		data.ThemeCookie = strings.SplitN(cookie.String(), "=", 2)[1]
-	}
-
-	err = t.ExecuteTemplate(w, "layout", data)
-	if err != nil {
-		// TODO: actual error handler
-		log.Printf("NewsGet: %s\n", err)
-	}
-}
-
-func AllNewsGet(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	t := template.Must(template.New("").Funcs(template.FuncMap{
-		"mod":            mod,
-		"sub":            sub,
-		"unixtoreadable": unixToReadable}).ParseFiles("./static/main.html", "./static/anews.html"))
-
-	actor := GetActorFromDB(db, Domain)
-
-	var data PageData
-	data.PreferredUsername = actor.PreferredUsername
-	data.Title = actor.PreferredUsername + " News"
-	data.Boards = Boards
-	data.Board.Name = ""
-	data.Key = *Key
-	data.Board.Domain = Domain
-	data.Board.ModCred, _ = GetPasswordFromSession(r)
-	data.Board.Actor = actor
-	data.Board.Post.Actor = actor.Id
-	data.Board.Restricted = actor.Restricted
-	data.NewsItems = getNewsFromDB(db, 0)
-
-	data.Themes = &Themes
-	if cookie, err := r.Cookie("theme"); err == nil {
-		data.ThemeCookie = strings.SplitN(cookie.String(), "=", 2)[1]
-	}
-
-	err := t.ExecuteTemplate(w, "layout", data)
-	if err != nil {
-		// TODO: actual error handler
-		log.Printf("AllNewsGet: %s\n", err)
-	}
-}
-
-func OutboxGet(c *fiber.Ctx) error {
-	collection, valid := WantToServePage(DB, c.Params("actor"), 0)
-
-	if !valid {
-		return c.SendString("404")
-	}
-
-	actor := collection.Actor
-
-	postNum := c.Query("page")
-
-	page, _ := strconv.Atoi(postNum)
-
-	var returnData PageData
-
-	returnData.Board.Name = actor.Name
-	returnData.Board.PrefName = actor.PreferredUsername
-	returnData.Board.Summary = actor.Summary
-	returnData.Board.InReplyTo = ""
-	returnData.Board.To = actor.Outbox
-	returnData.Board.Actor = *actor
-	returnData.Board.ModCred, _ = GetPasswordFromCtx(c)
-	returnData.Board.Domain = Domain
-	returnData.Board.Restricted = actor.Restricted
-	returnData.CurrentPage = page
-	returnData.ReturnTo = "feed"
-
-	returnData.Board.Post.Actor = actor.Id
-
-	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(DB)
-	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)
-
-	returnData.Title = "/" + actor.Name + "/ - " + actor.PreferredUsername
-
-	returnData.Key = *Key
-
-	returnData.Boards = Boards
-	returnData.Posts = collection.OrderedItems
-
-	var offset = 15
-	var pages []int
-	pageLimit := (float64(collection.TotalItems) / float64(offset))
-
-	if pageLimit > 11 {
-		pageLimit = 11
-	}
-
-	for i := 0.0; i < pageLimit; i++ {
-		pages = append(pages, int(i))
-	}
-
-	returnData.Pages = pages
-	returnData.TotalPage = len(returnData.Pages) - 1
-
-	returnData.Themes = &Themes
-
-	returnData.ThemeCookie = GetThemeCookie(c)
-
-	return c.Render("nposts", fiber.Map{
-		"page": returnData,
-	}, "layouts/main")
-}
-
-func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection) {
-	t := template.Must(template.New("").Funcs(template.FuncMap{
-		"proxy": func(url string) string {
-			return MediaProxy(url)
-		},
-		"short": func(actorName string, url string) string {
-			return shortURL(actorName, url)
-		},
-		"parseAttachment": func(obj ObjectBase, catalog bool) template.HTML {
-			return ParseAttachment(obj, catalog)
-		},
-		"isOnion": func(url string) bool {
-			return IsOnion(url)
-		},
 		"showArchive": func() bool {
-			col := GetActorCollectionDBTypeLimit(db, collection.Actor.Id, "Archive", 1)
+			col := GetActorCollectionDBTypeLimit(collection.Actor.Id, "Archive", 1)
 
 			if len(col.OrderedItems) > 0 {
 				return true
@@ -209,28 +61,34 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	returnData.Board.Actor = *actor
 	returnData.Board.Summary = actor.Summary
 	returnData.Board.ModCred, _ = GetPasswordFromSession(r)
-	returnData.Board.Domain = Domain
+	returnData.Board.Domain = config.Domain
 	returnData.Board.Restricted = actor.Restricted
 	returnData.Key = *Key
 	returnData.ReturnTo = "catalog"
 
 	returnData.Board.Post.Actor = actor.Id
 
-	returnData.Instance = GetActorFromDB(db, Domain)
+	var err error
+	returnData.Instance, err = db.GetActorFromDB(config.Domain)
+	if err != nil {
+		return err
+	}
 
-	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
-	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)
+	capt, err := db.GetRandomCaptcha()
+	if err != nil {
+		return err
+	}
+	returnData.Board.Captcha = config.Domain + "/" + capt
+	returnData.Board.CaptchaCode = util.GetCaptchaCode(returnData.Board.Captcha)
 
 	returnData.Title = "/" + actor.Name + "/ - " + actor.PreferredUsername
 
-	returnData.Boards = Boards
+	returnData.Boards = db.Boards
 
 	returnData.Posts = collection.OrderedItems
 
 	returnData.Themes = &Themes
-	if cookie, err := r.Cookie("theme"); err == nil {
-		returnData.ThemeCookie = strings.SplitN(cookie.String(), "=", 2)[1]
-	}
+	returnData.ThemeCookie = getThemeCookie(ctx)
 
 	err := t.ExecuteTemplate(w, "layout", returnData)
 	if err != nil {
@@ -239,234 +97,8 @@ func CatalogGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection C
 	}
 }
 
-func ArchiveGet(w http.ResponseWriter, r *http.Request, db *sql.DB, collection Collection) {
-	t := template.Must(template.New("").Funcs(template.FuncMap{
-		"proxy": func(url string) string {
-			return MediaProxy(url)
-		},
-		"short": func(actorName string, url string) string {
-			return shortURL(actorName, url)
-		},
-		"shortExcerpt": func(post ObjectBase) template.HTML {
-			return template.HTML(ShortExcerpt(post))
-		},
-		"parseAttachment": func(obj ObjectBase, catalog bool) template.HTML {
-			return ParseAttachment(obj, catalog)
-		},
-		"mod": mod,
-		"sub": sub}).ParseFiles("./static/main.html", "./static/archive.html", "./static/bottom.html"))
-
-	actor := collection.Actor
-
-	var returnData PageData
-	returnData.Board.Name = actor.Name
-	returnData.Board.PrefName = actor.PreferredUsername
-	returnData.Board.InReplyTo = ""
-	returnData.Board.To = actor.Outbox
-	returnData.Board.Actor = *actor
-	returnData.Board.Summary = actor.Summary
-	returnData.Board.ModCred, _ = GetPasswordFromSession(r)
-	returnData.Board.Domain = Domain
-	returnData.Board.Restricted = actor.Restricted
-	returnData.Key = *Key
-	returnData.ReturnTo = "archive"
-
-	returnData.Board.Post.Actor = actor.Id
-
-	returnData.Instance = GetActorFromDB(db, Domain)
-
-	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(db)
-	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)
-
-	returnData.Title = "/" + actor.Name + "/ - " + actor.PreferredUsername
-
-	returnData.Boards = Boards
-
-	returnData.Posts = collection.OrderedItems
-
-	returnData.Themes = &Themes
-	if cookie, err := r.Cookie("theme"); err == nil {
-		returnData.ThemeCookie = strings.SplitN(cookie.String(), "=", 2)[1]
-	}
-
-	err := t.ExecuteTemplate(w, "layout", returnData)
-	if err != nil {
-		// TODO: actual error handler
-		log.Printf("ArchiveGet: %s\n", err)
-	}
-}
-
-func PostGet(c *fiber.Ctx) error {
-
-	actor := GetActorByNameFromDB(DB, c.Params("actor"))
-	postId := c.Params("post")
-
-	inReplyTo := actor.Id + "/" + postId
-
-	var returnData PageData
-	returnData.Board.Name = actor.Name
-	returnData.Board.PrefName = actor.PreferredUsername
-	returnData.Board.To = actor.Outbox
-	returnData.Board.Actor = actor
-	returnData.Board.Summary = actor.Summary
-	returnData.Board.ModCred, _ = GetPasswordFromCtx(c)
-	returnData.Board.Domain = Domain
-	returnData.Board.Restricted = actor.Restricted
-	returnData.ReturnTo = "feed"
-
-	returnData.Board.Captcha = Domain + "/" + GetRandomCaptcha(DB)
-	returnData.Board.CaptchaCode = GetCaptchaCode(returnData.Board.Captcha)
-
-	returnData.Instance = GetActorFromDB(DB, Domain)
-
-	returnData.Title = "/" + returnData.Board.Name + "/ - " + returnData.Board.PrefName
-
-	returnData.Key = *Key
-
-	returnData.Boards = Boards
-
-	re := regexp.MustCompile("f(\\w|[!@#$%^&*<>])+-(\\w|[!@#$%^&*<>])+")
-
-	if re.MatchString(postId) { // if non local actor post
-		name := GetActorFollowNameFromPath(postId)
-		followActors := GetActorsFollowFromName(actor, name)
-		followCollection := GetActorsFollowPostFromId(DB, followActors, postId)
-
-		if len(followCollection.OrderedItems) > 0 {
-			returnData.Board.InReplyTo = followCollection.OrderedItems[0].Id
-			returnData.Posts = append(returnData.Posts, followCollection.OrderedItems[0])
-			var actor Actor
-			actor = FingerActor(returnData.Board.InReplyTo)
-			returnData.Board.Post.Actor = actor.Id
-		}
-	} else {
-		collection := GetObjectByIDFromDB(DB, inReplyTo)
-		if collection.Actor != nil {
-			returnData.Board.Post.Actor = collection.Actor.Id
-			returnData.Board.InReplyTo = inReplyTo
-
-			if len(collection.OrderedItems) > 0 {
-				returnData.Posts = append(returnData.Posts, collection.OrderedItems[0])
-			}
-		}
-	}
-
-	if len(returnData.Posts) > 0 {
-		returnData.PostId = shortURL(returnData.Board.To, returnData.Posts[0].Id)
-	}
-
-	returnData.Themes = &Themes
-
-	returnData.ThemeCookie = GetThemeCookie(c)
-
-	return c.Render("npost", fiber.Map{
-		"page": returnData,
-	}, "layouts/main")
-}
-
-func WantToServePage(db *sql.DB, actorName string, page int) (Collection, bool) {
-
-	var collection Collection
-	serve := false
-
-	if page > 10 {
-		return collection, serve
-	}
-
-	actor := GetActorByNameFromDB(db, actorName)
-
-	if actor.Id != "" {
-		collection = GetObjectFromDBPage(db, actor.Id, page)
-		collection.Actor = &actor
-		return collection, true
-	}
-
-	return collection, serve
-}
-
-func WantToServeCatalog(db *sql.DB, actorName string) (Collection, bool) {
-
-	var collection Collection
-	serve := false
-
-	actor := GetActorByNameFromDB(db, actorName)
-
-	if actor.Id != "" {
-		collection = GetObjectFromDBCatalog(db, actor.Id)
-		collection.Actor = &actor
-		return collection, true
-	}
-
-	return collection, serve
-}
-
-func WantToServeArchive(db *sql.DB, actorName string) (Collection, bool) {
-
-	var collection Collection
-	serve := false
-
-	actor := GetActorByNameFromDB(db, actorName)
-
-	if actor.Id != "" {
-		collection = GetActorCollectionDBType(db, actor.Id, "Archive")
-		collection.Actor = &actor
-		return collection, true
-	}
-
-	return collection, serve
-}
-
-func StripTransferProtocol(value string) string {
-	re := regexp.MustCompile("(http://|https://)?(www.)?")
-
-	value = re.ReplaceAllString(value, "")
-
-	return value
-}
-
-func GetCaptchaCode(captcha string) string {
-	re := regexp.MustCompile("\\w+\\.\\w+$")
-
-	code := re.FindString(captcha)
-
-	re = regexp.MustCompile("\\w+")
-
-	code = re.FindString(code)
-
-	return code
-}
-
-func GetActorsFollowFromName(actor Actor, name string) []string {
-	var followingActors []string
-	follow := GetActorCollection(actor.Following)
-
-	re := regexp.MustCompile("\\w+?$")
-
-	for _, e := range follow.Items {
-		if re.FindString(e.Id) == name {
-			followingActors = append(followingActors, e.Id)
-		}
-	}
-
-	return followingActors
-}
-
-func GetActorsFollowPostFromId(db *sql.DB, actors []string, id string) Collection {
-	var collection Collection
-
-	for _, e := range actors {
-		tempCol := GetObjectByIDFromDB(db, e+"/"+id)
-		if len(tempCol.OrderedItems) > 0 {
-			collection = tempCol
-			return collection
-		}
-	}
-
-	return collection
-}
-
 func MediaProxy(url string) string {
-	re := regexp.MustCompile("(.+)?" + Domain + "(.+)?")
+	re := regexp.MustCompile("(.+)?" + config.Domain + "(.+)?")
 
 	if re.MatchString(url) {
 		return url
@@ -482,8 +114,7 @@ func MediaProxy(url string) string {
 	return "/api/media?hash=" + HashMedia(url)
 }
 
-func ParseAttachment(obj ObjectBase, catalog bool) template.HTML {
-
+func ParseAttachment(obj activitypub.ObjectBase, catalog bool) template.HTML {
 	if len(obj.Attachment) < 1 {
 		return ""
 	}
@@ -557,20 +188,23 @@ func ParseAttachment(obj ObjectBase, catalog bool) template.HTML {
 	return template.HTML(media)
 }
 
-func ParseContent(db *sql.DB, board Actor, op string, content string, thread ObjectBase) template.HTML {
+func ParseContent(board activitypub.Actor, op string, content string, thread activitypub.ObjectBase) (template.HTML, error) {
 
 	nContent := strings.ReplaceAll(content, `<`, "&lt;")
 
-	nContent = ParseLinkComments(db, board, op, nContent, thread)
+	nContent, err := ParseLinkComments(board, op, nContent, thread)
+	if err != nil {
+		return "", err
+	}
 
 	nContent = ParseCommentQuotes(nContent)
 
 	nContent = strings.ReplaceAll(nContent, `/\&lt;`, ">")
 
-	return template.HTML(nContent)
+	return template.HTML(nContent), nil
 }
 
-func ParseLinkComments(db *sql.DB, board Actor, op string, content string, thread ObjectBase) string {
+func ParseLinkComments(board activitypub.Actor, op string, content string, thread activitypub.ObjectBase) (string, error) {
 	re := regexp.MustCompile(`(>>(https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/)(f[A-Za-z0-9_.\-~]+-)?([A-Za-z0-9_.\-~]+)?#?([A-Za-z0-9_.\-~]+)?)`)
 	match := re.FindAllStringSubmatch(content, -1)
 
@@ -603,7 +237,11 @@ func ParseLinkComments(db *sql.DB, board Actor, op string, content string, threa
 			}
 
 			if quoteTitle == "" {
-				obj := GetObjectFromDBFromID(db, parsedLink)
+				obj, err := db.GetObjectFromDBFromID(parsedLink)
+				if err != nil {
+					return "", err
+				}
+
 				if len(obj.OrderedItems) > 0 {
 					quoteTitle = ParseLinkTitle(board.Outbox, op, obj.OrderedItems[0].Content)
 				} else {
@@ -613,29 +251,40 @@ func ParseLinkComments(db *sql.DB, board Actor, op string, content string, threa
 		}
 
 		//replace link with quote format
-		replyID, isReply := IsReplyToOP(db, op, parsedLink)
-		if isReply {
-			id := shortURL(board.Outbox, replyID)
+		replyID, isReply, err := db.IsReplyToOP(op, parsedLink)
+		if err != nil {
+			return "", err
+		}
 
-			content = strings.Replace(content, match[i][0], "<a class=\"reply\" title=\""+quoteTitle+"\" href=\"/"+board.Name+"/"+shortURL(board.Outbox, op)+"#"+id+"\">&gt;&gt;"+id+""+isOP+"</a>", -1)
+		if isReply {
+			id := util.ShortURL(board.Outbox, replyID)
+
+			content = strings.Replace(content, match[i][0], "<a class=\"reply\" title=\""+quoteTitle+"\" href=\"/"+board.Name+"/"+util.ShortURL(board.Outbox, op)+"#"+id+"\">&gt;&gt;"+id+""+isOP+"</a>", -1)
 
 		} else {
-
 			//this is a cross post
-			parsedOP := GetReplyOP(db, parsedLink)
-			actor := FingerActor(parsedLink)
+
+			parsedOP, err := db.GetReplyOP(parsedLink)
+			if err != nil {
+				return "", err
+			}
+
+			actor, err := webfinger.FingerActor(parsedLink)
+			if err != nil {
+				return "", err
+			}
 
 			if parsedOP != "" {
-				link = parsedOP + "#" + shortURL(parsedOP, parsedLink)
+				link = parsedOP + "#" + util.ShortURL(parsedOP, parsedLink)
 			}
 
 			if actor.Id != "" {
-				content = strings.Replace(content, match[i][0], "<a class=\"reply\" title=\""+quoteTitle+"\" href=\""+link+"\">&gt;&gt;"+shortURL(board.Outbox, parsedLink)+isOP+" →</a>", -1)
+				content = strings.Replace(content, match[i][0], "<a class=\"reply\" title=\""+quoteTitle+"\" href=\""+link+"\">&gt;&gt;"+util.ShortURL(board.Outbox, parsedLink)+isOP+" →</a>", -1)
 			}
 		}
 	}
 
-	return content
+	return content, nil
 }
 
 func ParseLinkTitle(actorName string, op string, content string) string {
@@ -653,7 +302,7 @@ func ParseLinkTitle(actorName string, op string, content string) string {
 		}
 
 		link = ConvertHashLink(domain, link)
-		content = strings.Replace(content, match[i][0], ">>"+shortURL(actorName, link)+isOP, 1)
+		content = strings.Replace(content, match[i][0], ">>"+util.ShortURL(actorName, link)+isOP, 1)
 	}
 
 	content = strings.ReplaceAll(content, "'", "")
@@ -692,76 +341,4 @@ func ConvertHashLink(domain string, link string) string {
 	}
 
 	return parsedLink
-}
-
-func ShortImg(url string) string {
-	nURL := url
-
-	re := regexp.MustCompile(`(\.\w+$)`)
-
-	fileName := re.ReplaceAllString(url, "")
-
-	if len(fileName) > 26 {
-		re := regexp.MustCompile(`(^.{26})`)
-
-		match := re.FindStringSubmatch(fileName)
-
-		if len(match) > 0 {
-			nURL = match[0]
-		}
-
-		re = regexp.MustCompile(`(\..+$)`)
-
-		match = re.FindStringSubmatch(url)
-
-		if len(match) > 0 {
-			nURL = nURL + "(...)" + match[0]
-		}
-	}
-
-	return nURL
-}
-
-func ConvertSize(size int64) string {
-	var rValue string
-
-	convert := float32(size) / 1024.0
-
-	if convert > 1024 {
-		convert = convert / 1024.0
-		rValue = fmt.Sprintf("%.2f MB", convert)
-	} else {
-		rValue = fmt.Sprintf("%.2f KB", convert)
-	}
-
-	return rValue
-}
-
-func ShortExcerpt(post ObjectBase) string {
-	var returnString string
-
-	if post.Name != "" {
-		returnString = post.Name + "| " + post.Content
-	} else {
-		returnString = post.Content
-	}
-
-	re := regexp.MustCompile(`(^(.|\r\n|\n){100})`)
-
-	match := re.FindStringSubmatch(returnString)
-
-	if len(match) > 0 {
-		returnString = match[0] + "..."
-	}
-
-	re = regexp.MustCompile(`(^.+\|)`)
-
-	match = re.FindStringSubmatch(returnString)
-
-	if len(match) > 0 {
-		returnString = strings.Replace(returnString, match[0], "<b>"+match[0]+"</b>", 1)
-		returnString = strings.Replace(returnString, "|", ":", 1)
-	}
-
-	return returnString
 }

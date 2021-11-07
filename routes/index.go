@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func Index(c *fiber.Ctx) error {
+func Index(ctx *fiber.Ctx) error {
 	actor, err := db.GetActorFromDB(config.Domain)
 	if err != nil {
 		return err
@@ -20,7 +20,7 @@ func Index(c *fiber.Ctx) error {
 	data.Board.Name = ""
 	data.Key = config.Key
 	data.Board.Domain = config.Domain
-	data.Board.ModCred, _ = getPassword(c)
+	data.Board.ModCred, _ = getPassword(ctx)
 	data.Board.Actor = actor
 	data.Board.Post.Actor = actor.Id
 	data.Board.Restricted = actor.Restricted
@@ -46,10 +46,9 @@ func Index(c *fiber.Ctx) error {
 	}
 
 	data.Themes = &config.Themes
+	data.ThemeCookie = getThemeCookie(ctx)
 
-	data.ThemeCookie = getThemeCookie(c)
-
-	return c.Render("index", fiber.Map{
+	return ctx.Render("index", fiber.Map{
 		"page": data,
 	}, "layouts/main")
 }

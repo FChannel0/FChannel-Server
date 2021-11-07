@@ -12,20 +12,22 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/FChannel0/FChannel-Server/activitypub"
 	_ "github.com/lib/pq"
+	"golang.org/x/perf/storage/db"
 )
 
 func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	var activity Activity
 
-	actor := GetActorFromPath(db, r.URL.Path, "/")
+	actor := GetActorFromPath(r.URL.Path, "/")
 	contentType := GetContentType(r.Header.Get("content-type"))
 
 	defer r.Body.Close()
 	if contentType == "multipart/form-data" || contentType == "application/x-www-form-urlencoded" {
 		r.ParseMultipartForm(5 << 20)
-		if BoardHasAuthType(db, actor.Name, "captcha") && CheckCaptcha(db, r.FormValue("captcha")) {
+		if BoardHasAuthType(actor.Name, "captcha") && CheckCaptcha(db, r.FormValue("captcha")) {
 			f, header, _ := r.FormFile("file")
 
 			if header != nil {
@@ -36,7 +38,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 					return
 				}
 
-				if IsMediaBanned(db, f) {
+				if IsMediaBanned(f) {
 					fmt.Println("media banned")
 					http.Redirect(w, r, Domain, http.StatusSeeOther)
 					return
@@ -56,15 +58,15 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 			nObj.Actor = Domain + "/" + actor.Name
 
-			nObj = WriteObjectToDB(db, nObj)
+			nObj = WriteObjectToDB(nObj)
 
 			if len(nObj.To) == 0 {
-				ArchivePosts(db, actor)
+				ArchivePosts(actor)
 			}
 
 			activity := CreateActivity("Create", nObj)
-			activity = AddFollowersToActivity(db, activity)
-			go MakeActivityRequest(db, activity)
+			activity = AddFollowersToActivity(activity)
+			go MakeActivityRequest(activity)
 
 			var id string
 			op := len(nObj.InReplyTo) - 1
@@ -85,7 +87,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		w.Write([]byte("captcha could not auth"))
 	} else {
 		activity = GetActivityFromJson(r, db)
-		if IsActivityLocal(db, activity) {
+		if IsActivityLocal(activity) {
 			if !VerifyHeaderSignature(r, *activity.Actor) {
 				w.WriteHeader(http.StatusBadRequest)
 				w.Write([]byte(""))
@@ -108,11 +110,11 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				var rActivity Activity
 				if validActor && validLocalActor {
 					rActivity = AcceptFollow(activity)
-					rActivity = SetActorFollowingDB(db, rActivity)
-					MakeActivityRequest(db, activity)
+					rActivity = SetActorFollowingDB(rActivity)
+					MakeActivityRequest(activity)
 				}
 
-				FollowingBoards = GetActorFollowingDB(db, Domain)
+				FollowingBoards = GetActorFollowingDB(Domain)
 				Boards = GetBoardCollection(db)
 				break
 
@@ -133,7 +135,7 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				summary := activity.Object.Summary
 				restricted := activity.Object.Sensitive
 
-				actor := CreateNewBoardDB(db, *CreateNewActor(name, prefname, summary, authReq, restricted))
+				actor := CreateNewBoardDB(*CreateNewActor(name, prefname, summary, authReq, restricted))
 
 				if actor.Id != "" {
 					var board []ObjectBase
@@ -174,17 +176,17 @@ func ParseOutboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	}
 }
 
-func ObjectFromJson(r *http.Request, obj ObjectBase) ObjectBase {
+func ObjectFromJson(r *http.Request, obj activitypub.ObjectBase) activitypub.ObjectBase {
 	body, _ := ioutil.ReadAll(r.Body)
 
-	var respActivity ActivityRaw
+	var respActivity activitypub.ActivityRaw
 
 	err := json.Unmarshal(body, &respActivity)
 
 	CheckError(err, "error with object from json")
 
 	if HasContextFromJson(respActivity.AtContextRaw.Context) {
-		var jObj ObjectBase
+		var jObj activitypub.ObjectBase
 		jObj = GetObjectFromJson(respActivity.ObjectRaw)
 		jObj.To = GetToFromJson(respActivity.ToRaw)
 		jObj.Cc = GetToFromJson(respActivity.CcRaw)
@@ -193,19 +195,19 @@ func ObjectFromJson(r *http.Request, obj ObjectBase) ObjectBase {
 	return obj
 }
 
-func GetObjectFromJson(obj []byte) ObjectBase {
+func GetObjectFromJson(obj []byte) activitypub.ObjectBase {
 	var generic interface{}
 
 	err := json.Unmarshal(obj, &generic)
 
 	CheckError(err, "error with getting obj from json")
 
-	var nObj ObjectBase
+	var nObj activitypub.ObjectBase
 	if generic != nil {
 		switch generic.(type) {
 		case []interface{}:
-			var lObj ObjectBase
-			var arrContext ObjectArray
+			var lObj activitypub.ObjectBase
+			var arrContext activitypub.ObjectArray
 			err = json.Unmarshal(obj, &arrContext.Object)
 			CheckError(err, "error with []interface{} oject from json")
 			if len(arrContext.Object) > 0 {
@@ -215,15 +217,15 @@ func GetObjectFromJson(obj []byte) ObjectBase {
 			break
 
 		case map[string]interface{}:
-			var arrContext Object
+			var arrContext activitypub.Object
 			err = json.Unmarshal(obj, &arrContext.Object)
 			CheckError(err, "error with object from json")
 			nObj = *arrContext.Object
 			break
 
 		case string:
-			var lObj ObjectBase
-			var arrContext ObjectString
+			var lObj activitypub.ObjectBase
+			var arrContext activitypub.ObjectString
 			err = json.Unmarshal(obj, &arrContext.Object)
 			CheckError(err, "error with string object from json")
 			lObj.Id = arrContext.Object
@@ -235,9 +237,9 @@ func GetObjectFromJson(obj []byte) ObjectBase {
 	return nObj
 }
 
-func GetActorFromJson(actor []byte) Actor {
+func GetActorFromJson(actor []byte) activitypub.Actor {
 	var generic interface{}
-	var nActor Actor
+	var nActor activitypub.Actor
 	err := json.Unmarshal(actor, &generic)
 
 	if err != nil {
@@ -303,7 +305,7 @@ func HasContextFromJson(context []byte) bool {
 
 	switch generic.(type) {
 	case []interface{}:
-		var arrContext AtContextArray
+		var arrContext activitypub.AtContextArray
 		err = json.Unmarshal(context, &arrContext.Context)
 		CheckError(err, "error with []interface{}")
 		if len(arrContext.Context) > 0 {
@@ -312,7 +314,7 @@ func HasContextFromJson(context []byte) bool {
 			}
 		}
 	case string:
-		var arrContext AtContextString
+		var arrContext activitypub.AtContextString
 		err = json.Unmarshal(context, &arrContext.Context)
 		CheckError(err, "error with string")
 		if arrContext.Context == "https://www.w3.org/ns/activitystreams" {
@@ -323,7 +325,7 @@ func HasContextFromJson(context []byte) bool {
 	return hasContext
 }
 
-func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
+func ObjectFromForm(r *http.Request, db *sql.DB, obj activitypub.ObjectBase) activitypub.ObjectBase {
 
 	file, header, _ := r.FormFile("file")
 
@@ -361,19 +363,19 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 
 	obj = ParseOptions(r, obj)
 
-	var originalPost ObjectBase
+	var originalPost activitypub.ObjectBase
 	originalPost.Id = EscapeString(r.FormValue("inReplyTo"))
 
 	obj.InReplyTo = append(obj.InReplyTo, originalPost)
 
-	var activity Activity
+	var activity activitypub.Activity
 
 	if !IsInStringArray(activity.To, originalPost.Id) {
 		activity.To = append(activity.To, originalPost.Id)
 	}
 
 	if originalPost.Id != "" {
-		if !IsActivityLocal(db, activity) {
+		if !IsActivityLocal(activity) {
 			actor := FingerActor(originalPost.Id)
 			if !IsInStringArray(obj.To, actor.Id) {
 				obj.To = append(obj.To, actor.Id)
@@ -381,7 +383,7 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 		}
 	}
 
-	replyingTo := ParseCommentForReplies(db, r.FormValue("comment"), originalPost.Id)
+	replyingTo := ParseCommentForReplies(r.FormValue("comment"), originalPost.Id)
 
 	for _, e := range replyingTo {
 
@@ -397,11 +399,11 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 		if !has {
 			obj.InReplyTo = append(obj.InReplyTo, e)
 
-			var activity Activity
+			var activity activitypub.Activity
 
 			activity.To = append(activity.To, e.Id)
 
-			if !IsActivityLocal(db, activity) {
+			if !IsActivityLocal(activity) {
 				actor := FingerActor(e.Id)
 				if !IsInStringArray(obj.To, actor.Id) {
 					obj.To = append(obj.To, actor.Id)
@@ -413,7 +415,7 @@ func ObjectFromForm(r *http.Request, db *sql.DB, obj ObjectBase) ObjectBase {
 	return obj
 }
 
-func ParseOptions(r *http.Request, obj ObjectBase) ObjectBase {
+func ParseOptions(r *http.Request, obj activitypub.ObjectBase) activitypub.ObjectBase {
 	options := EscapeString(r.FormValue("options"))
 	if options != "" {
 		option := strings.Split(options, ";")
@@ -431,7 +433,7 @@ func ParseOptions(r *http.Request, obj ObjectBase) ObjectBase {
 				obj.Option = append(obj.Option, "email:"+e)
 			} else if wallet.MatchString(e) {
 				obj.Option = append(obj.Option, "wallet")
-				var wallet CryptoCur
+				var wallet activitypub.CryptoCur
 				value := strings.Split(e, ":")
 				wallet.Type = value[0]
 				wallet.Address = value[1]
@@ -445,12 +447,12 @@ func ParseOptions(r *http.Request, obj ObjectBase) ObjectBase {
 	return obj
 }
 
-func GetActivityFromJson(r *http.Request, db *sql.DB) Activity {
+func GetActivityFromJson(r *http.Request, db *sql.DB) activitypub.Activity {
 	body, _ := ioutil.ReadAll(r.Body)
 
-	var respActivity ActivityRaw
+	var respActivity activitypub.ActivityRaw
 
-	var nActivity Activity
+	var nActivity activitypub.Activity
 
 	var nType string
 
@@ -459,7 +461,7 @@ func GetActivityFromJson(r *http.Request, db *sql.DB) Activity {
 	CheckError(err, "error with activity from json")
 
 	if HasContextFromJson(respActivity.AtContextRaw.Context) {
-		var jObj ObjectBase
+		var jObj activitypub.ObjectBase
 
 		if respActivity.Type == "Note" {
 			jObj = GetObjectFromJson(body)
@@ -494,7 +496,7 @@ func GetActivityFromJson(r *http.Request, db *sql.DB) Activity {
 	return nActivity
 }
 
-func CheckCaptcha(db *sql.DB, captcha string) bool {
+func CheckCaptcha(captcha string) bool {
 	parts := strings.Split(captcha, ":")
 
 	if strings.Trim(parts[0], " ") == "" || strings.Trim(parts[1], " ") == "" {
@@ -502,10 +504,10 @@ func CheckCaptcha(db *sql.DB, captcha string) bool {
 	}
 
 	path := "public/" + parts[0] + ".png"
-	code := GetCaptchaCodeDB(db, path)
+	code := GetCaptchaCodeDB(path)
 
 	if code != "" {
-		DeleteCaptchaCodeDB(db, path)
+		DeleteCaptchaCodeDB(path)
 		CreateNewCaptcha(db)
 	}
 
@@ -526,7 +528,7 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	if !VerifyHeaderSignature(r, *activity.Actor) {
 		response := RejectActivity(activity)
-		MakeActivityRequest(db, response)
+		MakeActivityRequest(response)
 		return
 	}
 
@@ -534,8 +536,8 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	case "Create":
 
 		for _, e := range activity.To {
-			if IsActorLocal(db, e) {
-				if !IsActorLocal(db, activity.Actor.Id) {
+			if IsActorLocal(e) {
+				if !IsActorLocal(activity.Actor.Id) {
 
 					col := GetCollectionFromID(activity.Object.Id)
 
@@ -543,9 +545,9 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 						break
 					}
 
-					WriteObjectToCache(db, *activity.Object)
-					ArchivePosts(db, GetActorFromDB(db, e))
-					//SendToFollowers(db, e, activity)
+					WriteObjectToCache(*activity.Object)
+					ArchivePosts(GetActorFromDB(db, e))
+					//SendToFollowers(e, activity)
 				}
 			}
 		}
@@ -554,15 +556,15 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	case "Delete":
 		for _, e := range activity.To {
-			actor := GetActorFromDB(db, e)
+			actor := GetActorFromDB(e)
 			if actor.Id != "" && actor.Id != Domain {
 				if activity.Object.Replies != nil {
 					for _, k := range activity.Object.Replies.OrderedItems {
-						TombstoneObject(db, k.Id)
+						TombstoneObject(k.Id)
 					}
 				}
-				TombstoneObject(db, activity.Object.Id)
-				UnArchiveLast(db, actor.Id)
+				TombstoneObject(activity.Object.Id)
+				UnArchiveLast(actor.Id)
 				break
 			}
 		}
@@ -570,15 +572,15 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	case "Follow":
 		for _, e := range activity.To {
-			if GetActorFromDB(db, e).Id != "" {
+			if GetActorFromDB(e).Id != "" {
 				response := AcceptFollow(activity)
-				response = SetActorFollowerDB(db, response)
-				MakeActivityRequest(db, response)
+				response = SetActorFollowerDB(response)
+				MakeActivityRequest(response)
 
 				alreadyFollow := false
 				alreadyFollowing := false
-				autoSub := GetActorAutoSubscribeDB(db, response.Actor.Id)
-				following := GetActorFollowingDB(db, response.Actor.Id)
+				autoSub := GetActorAutoSubscribeDB(response.Actor.Id)
+				following := GetActorFollowingDB(response.Actor.Id)
 
 				for _, e := range following {
 					if e.Id == response.Object.Id {
@@ -596,16 +598,16 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				}
 
 				if autoSub && !alreadyFollow && alreadyFollowing {
-					followActivity := MakeFollowActivity(db, response.Actor.Id, response.Object.Actor)
+					followActivity := MakeFollowActivity(response.Actor.Id, response.Object.Actor)
 
 					if FingerActor(response.Object.Actor).Id != "" {
-						MakeActivityRequestOutbox(db, followActivity)
+						MakeActivityRequestOutbox(followActivity)
 					}
 				}
 			} else {
 				fmt.Println("follow request for rejected")
 				response := RejectActivity(activity)
-				MakeActivityRequest(db, response)
+				MakeActivityRequest(response)
 				return
 			}
 		}
@@ -614,13 +616,13 @@ func ParseInboxRequest(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	case "Reject":
 		if activity.Object.Object.Type == "Follow" {
 			fmt.Println("follow rejected")
-			SetActorFollowingDB(db, activity)
+			SetActorFollowingDB(activity)
 		}
 		break
 	}
 }
 
-func MakeActivityFollowingReq(w http.ResponseWriter, r *http.Request, activity Activity) bool {
+func MakeActivityFollowingReq(w http.ResponseWriter, r *http.Request, activity activitypub.Activity) bool {
 	actor := GetActor(activity.Object.Id)
 
 	req, err := http.NewRequest("POST", actor.Inbox, nil)
@@ -635,7 +637,7 @@ func MakeActivityFollowingReq(w http.ResponseWriter, r *http.Request, activity A
 
 	body, _ := ioutil.ReadAll(resp.Body)
 
-	var respActivity Activity
+	var respActivity activitypub.Activity
 
 	err = json.Unmarshal(body, &respActivity)
 
@@ -646,7 +648,7 @@ func MakeActivityFollowingReq(w http.ResponseWriter, r *http.Request, activity A
 	return false
 }
 
-func IsMediaBanned(db *sql.DB, f multipart.File) bool {
+func IsMediaBanned(f multipart.File) bool {
 	f.Seek(0, 0)
 
 	fileBytes := make([]byte, 2048)
@@ -680,12 +682,12 @@ func IsMediaBanned(db *sql.DB, f multipart.File) bool {
 	return false
 }
 
-func SendToFollowers(db *sql.DB, actor string, activity Activity) {
+func SendToFollowers(actor string, activity activitypub.Activity) {
 
-	nActor := GetActorFromDB(db, actor)
+	nActor := GetActorFromDB(actor)
 	activity.Actor = &nActor
 
-	followers := GetActorFollowDB(db, actor)
+	followers := GetActorFollowDB(actor)
 	var to []string
 
 	for _, e := range followers {
@@ -699,6 +701,6 @@ func SendToFollowers(db *sql.DB, actor string, activity Activity) {
 	activity.To = to
 
 	if len(activity.Object.InReplyTo) > 0 {
-		MakeActivityRequest(db, activity)
+		MakeActivityRequest(activity)
 	}
 }

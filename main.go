@@ -56,7 +56,7 @@ func main() {
 
 	db.RunDatabaseSchema()
 
-	go MakeCaptchas(DB, 100)
+	go MakeCaptchas(100)
 
 	config.Key = util.CreateKey(32)
 
@@ -216,7 +216,7 @@ func main() {
 			actorDomain[0] = "/" + actorDomain[0]
 		}
 
-		if !IsActorLocal(DB, TP+""+actorDomain[1]+""+actorDomain[0]) {
+		if !IsActorLocal(TP + "" + actorDomain[1] + "" + actorDomain[0]) {
 			c.Status(fiber.StatusBadRequest)
 			return c.Send([]byte("actor not local"))
 		}
@@ -274,34 +274,6 @@ func neuter(next http.Handler) http.Handler {
 	})
 }
 
-func GetActorFromPath(db *sql.DB, location string, prefix string) Actor {
-	pattern := fmt.Sprintf("%s([^/\n]+)(/.+)?", prefix)
-	re := regexp.MustCompile(pattern)
-	match := re.FindStringSubmatch(location)
-
-	var actor string
-
-	if len(match) < 1 {
-		actor = "/"
-	} else {
-		actor = strings.Replace(match[1], "/", "", -1)
-	}
-
-	if actor == "/" || actor == "outbox" || actor == "inbox" || actor == "following" || actor == "followers" {
-		actor = "main"
-	}
-
-	var nActor Actor
-
-	nActor = GetActorByNameFromDB(db, actor)
-
-	if nActor.Id == "" {
-		nActor = GetActorByName(db, actor)
-	}
-
-	return nActor
-}
-
 func GetContentType(location string) string {
 	elements := strings.Split(location, ";")
 	if len(elements) > 0 {
@@ -311,8 +283,8 @@ func GetContentType(location string) string {
 	}
 }
 
-func CreateNewActor(board string, prefName string, summary string, authReq []string, restricted bool) *Actor {
-	actor := new(Actor)
+func CreateNewActor(board string, prefName string, summary string, authReq []string, restricted bool) *activitypub.Actor {
+	actor := new(activitypub.Actor)
 
 	var path string
 	if board == "" {
@@ -338,14 +310,14 @@ func CreateNewActor(board string, prefName string, summary string, authReq []str
 }
 
 func GetActorInfo(w http.ResponseWriter, db *sql.DB, id string) {
-	actor := GetActorFromDB(db, id)
+	actor := GetActorFromDB(id)
 	enc, _ := json.MarshalIndent(actor, "", "\t")
 	w.Header().Set("Content-Type", "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"")
 	w.Write(enc)
 }
 
 func GetActorPost(w http.ResponseWriter, db *sql.DB, path string) {
-	collection := GetCollectionFromPath(db, Domain+""+path)
+	collection := GetCollectionFromPath(Domain + "" + path)
 	if len(collection.OrderedItems) > 0 {
 		enc, _ := json.MarshalIndent(collection, "", "\t")
 		w.Header().Set("Content-Type", "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"")
@@ -353,8 +325,8 @@ func GetActorPost(w http.ResponseWriter, db *sql.DB, path string) {
 	}
 }
 
-func CreateObject(objType string) ObjectBase {
-	var nObj ObjectBase
+func CreateObject(objType string) activitypub.ObjectBase {
+	var nObj activitypub.ObjectBase
 
 	nObj.Type = objType
 	nObj.Published = time.Now().UTC()
@@ -363,7 +335,7 @@ func CreateObject(objType string) ObjectBase {
 	return nObj
 }
 
-func AddFollowersToActivity(db *sql.DB, activity Activity) Activity {
+func AddFollowersToActivity(activity activitypub.Activity) activitypub.Activity {
 
 	activity.To = append(activity.To, activity.Actor.Id)
 
@@ -374,7 +346,7 @@ func AddFollowersToActivity(db *sql.DB, activity Activity) Activity {
 		}
 	}
 
-	var nActivity Activity
+	var nActivity activitypub.Activity
 
 	for _, e := range activity.To {
 		var alreadyTo = false
@@ -394,8 +366,8 @@ func AddFollowersToActivity(db *sql.DB, activity Activity) Activity {
 	return activity
 }
 
-func CreateActivity(activityType string, obj ObjectBase) Activity {
-	var newActivity Activity
+func CreateActivity(activityType string, obj activitypub.ObjectBase) activitypub.Activity {
+	var newActivity activitypub.Activity
 	actor := FingerActor(obj.Actor)
 
 	newActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
@@ -419,12 +391,12 @@ func CreateActivity(activityType string, obj ObjectBase) Activity {
 	return newActivity
 }
 
-func ProcessActivity(db *sql.DB, activity Activity) {
+func ProcessActivity(activity activitypub.Activity) {
 	activityType := activity.Type
 
 	if activityType == "Create" {
 		for _, e := range activity.To {
-			if GetActorFromDB(db, e).Id != "" {
+			if GetActorFromDB(e).Id != "" {
 				fmt.Println("actor is in the database")
 			} else {
 				fmt.Println("actor is NOT in the database")
@@ -437,13 +409,13 @@ func ProcessActivity(db *sql.DB, activity Activity) {
 	}
 }
 
-func CreatePreviewObject(obj ObjectBase) *NestedObjectBase {
+func CreatePreviewObject(obj activitypub.ObjectBase) *activitypub.NestedObjectBase {
 
 	re := regexp.MustCompile(`/.+$`)
 
 	mimetype := re.ReplaceAllString(obj.MediaType, "")
 
-	var nPreview NestedObjectBase
+	var nPreview activitypub.NestedObjectBase
 
 	if mimetype != "image" {
 		return &nPreview
@@ -471,14 +443,14 @@ func CreatePreviewObject(obj ObjectBase) *NestedObjectBase {
 	err := cmd.Run()
 
 	if CheckError(err, "error with resize attachment preview") != nil {
-		var preview NestedObjectBase
+		var preview activitypub.NestedObjectBase
 		return &preview
 	}
 
 	return &nPreview
 }
 
-func CreateAttachmentObject(file multipart.File, header *multipart.FileHeader) ([]ObjectBase, *os.File) {
+func CreateAttachmentObject(file multipart.File, header *multipart.FileHeader) ([]activitypub.ObjectBase, *os.File) {
 	contentType, _ := GetFileContentType(file)
 	filename := header.Filename
 	size := header.Size
@@ -489,8 +461,8 @@ func CreateAttachmentObject(file multipart.File, header *multipart.FileHeader) (
 
 	tempFile, _ := ioutil.TempFile("./public", "*."+fileType)
 
-	var nAttachment []ObjectBase
-	var image ObjectBase
+	var nAttachment []activitypub.ObjectBase
+	var image activitypub.ObjectBase
 
 	image.Type = "Attachment"
 	image.Name = filename
@@ -504,7 +476,7 @@ func CreateAttachmentObject(file multipart.File, header *multipart.FileHeader) (
 	return nAttachment, tempFile
 }
 
-func ParseCommentForReplies(db *sql.DB, comment string, op string) []ObjectBase {
+func ParseCommentForReplies(comment string, op string) []activitypub.ObjectBase {
 
 	re := regexp.MustCompile(`(>>(https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/)(f[A-Za-z0-9_.\-~]+-)?([A-Za-z0-9_.\-~]+)?#?([A-Za-z0-9_.\-~]+)?)`)
 	match := re.FindAllStringSubmatch(comment, -1)
@@ -517,17 +489,17 @@ func ParseCommentForReplies(db *sql.DB, comment string, op string) []ObjectBase 
 		str = strings.Replace(str, "http://", "", 1)
 		str = strings.Replace(str, "https://", "", 1)
 		str = TP + "" + str
-		_, isReply := IsReplyToOP(db, op, str)
+		_, isReply := IsReplyToOP(op, str)
 		if !IsInStringArray(links, str) && isReply {
 			links = append(links, str)
 		}
 	}
 
-	var validLinks []ObjectBase
+	var validLinks []activitypub.ObjectBase
 	for i := 0; i < len(links); i++ {
 		_, isValid := CheckValidActivity(links[i])
 		if isValid {
-			var reply = new(ObjectBase)
+			var reply = new(activitypub.ObjectBase)
 			reply.Id = links[i]
 			reply.Published = time.Now().UTC()
 			validLinks = append(validLinks, *reply)
@@ -537,7 +509,7 @@ func ParseCommentForReplies(db *sql.DB, comment string, op string) []ObjectBase 
 	return validLinks
 }
 
-func IsValidActor(id string) (Actor, bool) {
+func IsValidActor(id string) (activitypub.Actor, bool) {
 
 	actor := FingerActor(id)
 
@@ -548,31 +520,31 @@ func IsValidActor(id string) (Actor, bool) {
 	return actor, false
 }
 
-func IsActivityLocal(db *sql.DB, activity Activity) bool {
+func IsActivityLocal(activity activitypub.Activity) bool {
 	for _, e := range activity.To {
-		if GetActorFromDB(db, e).Id != "" {
+		if GetActorFromDB(e).Id != "" {
 			return true
 		}
 	}
 
 	for _, e := range activity.Cc {
-		if GetActorFromDB(db, e).Id != "" {
+		if GetActorFromDB(e).Id != "" {
 			return true
 		}
 	}
 
-	if activity.Actor != nil && GetActorFromDB(db, activity.Actor.Id).Id != "" {
+	if activity.Actor != nil && GetActorFromDB(activity.Actor.Id).Id != "" {
 		return true
 	}
 
 	return false
 }
 
-func GetObjectFromActivity(activity Activity) ObjectBase {
+func GetObjectFromActivity(activity activitypub.Activity) activitypub.ObjectBase {
 	return *activity.Object
 }
 
-func MakeCaptchas(db *sql.DB, total int) {
+func MakeCaptchas(total int) {
 	difference := total - GetCaptchaTotal(db)
 
 	for i := 0; i < difference; i++ {
@@ -617,26 +589,26 @@ func GetActorReported(w http.ResponseWriter, r *http.Request, db *sql.DB, id str
 		return
 	}
 
-	if !HasAuth(db, verification[1], id) {
+	if !HasAuth(verification[1], id) {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(""))
 		return
 	}
 
-	var following Collection
+	var following activitypub.Collection
 
 	following.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 	following.Type = "Collection"
-	following.TotalItems = GetActorReportedTotal(db, id)
-	following.Items = GetActorReportedDB(db, id)
+	following.TotalItems = GetActorReportedTotal(id)
+	following.Items = GetActorReportedDB(id)
 
 	enc, _ := json.MarshalIndent(following, "", "\t")
 	w.Header().Set("Content-Type", activitystreams)
 	w.Write(enc)
 }
 
-func GetCollectionFromID(id string) Collection {
-	var nColl Collection
+func GetCollectionFromID(id string) activitypub.Collection {
+	var nColl activitypub.Collection
 
 	req, err := http.NewRequest("GET", id, nil)
 
@@ -706,57 +678,57 @@ func GetUniqueFilename(_type string) string {
 	return ""
 }
 
-func DeleteObjectRequest(db *sql.DB, id string) {
-	var nObj ObjectBase
-	var nActor Actor
+func DeleteObjectRequest(id string) {
+	var nObj activitypub.ObjectBase
+	var nActor activitypub.Actor
 	nObj.Id = id
 	nObj.Actor = nActor.Id
 
 	activity := CreateActivity("Delete", nObj)
 
-	obj := GetObjectFromPath(db, id)
+	obj := GetObjectFromPath(id)
 
 	actor := FingerActor(obj.Actor)
 	activity.Actor = &actor
 
-	followers := GetActorFollowDB(db, obj.Actor)
+	followers := GetActorFollowDB(obj.Actor)
 	for _, e := range followers {
 		activity.To = append(activity.To, e.Id)
 	}
 
-	following := GetActorFollowingDB(db, obj.Actor)
+	following := GetActorFollowingDB(obj.Actor)
 	for _, e := range following {
 		activity.To = append(activity.To, e.Id)
 	}
 
-	MakeActivityRequest(db, activity)
+	MakeActivityRequest(activity)
 }
 
-func DeleteObjectAndRepliesRequest(db *sql.DB, id string) {
-	var nObj ObjectBase
-	var nActor Actor
+func DeleteObjectAndRepliesRequest(id string) {
+	var nObj activitypub.ObjectBase
+	var nActor activitypub.Actor
 	nObj.Id = id
 	nObj.Actor = nActor.Id
 
 	activity := CreateActivity("Delete", nObj)
 
-	obj := GetObjectByIDFromDB(db, id)
+	obj := GetObjectByIDFromDB(id)
 
 	activity.Actor.Id = obj.OrderedItems[0].Actor
 
 	activity.Object = &obj.OrderedItems[0]
 
-	followers := GetActorFollowDB(db, obj.OrderedItems[0].Actor)
+	followers := GetActorFollowDB(obj.OrderedItems[0].Actor)
 	for _, e := range followers {
 		activity.To = append(activity.To, e.Id)
 	}
 
-	following := GetActorFollowingDB(db, obj.OrderedItems[0].Actor)
+	following := GetActorFollowingDB(obj.OrderedItems[0].Actor)
 	for _, e := range following {
 		activity.To = append(activity.To, e.Id)
 	}
 
-	MakeActivityRequest(db, activity)
+	MakeActivityRequest(activity)
 }
 
 func ResizeAttachmentToPreview(db *sql.DB) {
@@ -790,13 +762,13 @@ func ResizeAttachmentToPreview(db *sql.DB) {
 
 			nHref := GetUniqueFilename(file)
 
-			var nPreview NestedObjectBase
+			var nPreview activitypub.NestedObjectBase
 
 			re = regexp.MustCompile(`/\w+$`)
 			actor := re.ReplaceAllString(id, "")
 
 			nPreview.Type = "Preview"
-			nPreview.Id = fmt.Sprintf("%s/%s", actor, CreateUniqueID(db, actor))
+			nPreview.Id = fmt.Sprintf("%s/%s", actor, CreateUniqueID(actor))
 			nPreview.Name = name
 			nPreview.Href = Domain + "" + nHref
 			nPreview.MediaType = mediatype
@@ -817,15 +789,15 @@ func ResizeAttachmentToPreview(db *sql.DB) {
 
 				if err == nil {
 					fmt.Println(objFile + " -> " + nHref)
-					WritePreviewToDB(db, nPreview)
-					UpdateObjectWithPreview(db, id, nPreview.Id)
+					WritePreviewToDB(nPreview)
+					UpdateObjectWithPreview(id, nPreview.Id)
 				}
 			}
 		}
 	}
 }
 
-func UpdateObjectWithPreview(db *sql.DB, id string, preview string) {
+func UpdateObjectWithPreview(id string, preview string) {
 	query := `update activitystream set preview=$1 where attachment=$2`
 
 	_, err := db.Exec(query, preview, id)
@@ -857,19 +829,8 @@ func ParseCommentForReply(comment string) string {
 	return ""
 }
 
-func GetActorByName(db *sql.DB, name string) Actor {
-	var actor Actor
-	for _, e := range Boards {
-		if e.Actor.Name == name {
-			actor = e.Actor
-		}
-	}
-
-	return actor
-}
-
-func GetActorCollectionReq(r *http.Request, collection string) Collection {
-	var nCollection Collection
+func GetActorCollectionReq(r *http.Request, collection string) activitypub.Collection {
+	var nCollection activitypub.Collection
 
 	req, err := http.NewRequest("GET", collection, nil)
 
@@ -897,77 +858,6 @@ func GetActorCollectionReq(r *http.Request, collection string) Collection {
 	}
 
 	return nCollection
-}
-
-func shortURL(actorName string, url string) string {
-
-	re := regexp.MustCompile(`.+\/`)
-
-	actor := re.FindString(actorName)
-
-	urlParts := strings.Split(url, "|")
-
-	op := urlParts[0]
-
-	var reply string
-
-	if len(urlParts) > 1 {
-		reply = urlParts[1]
-	}
-
-	re = regexp.MustCompile(`\w+$`)
-	temp := re.ReplaceAllString(op, "")
-
-	if temp == actor {
-		id := localShort(op)
-
-		re := regexp.MustCompile(`.+\/`)
-		replyCheck := re.FindString(reply)
-
-		if reply != "" && replyCheck == actor {
-			id = id + "#" + localShort(reply)
-		} else if reply != "" {
-			id = id + "#" + remoteShort(reply)
-		}
-
-		return id
-	} else {
-		id := remoteShort(op)
-
-		re := regexp.MustCompile(`.+\/`)
-		replyCheck := re.FindString(reply)
-
-		if reply != "" && replyCheck == actor {
-			id = id + "#" + localShort(reply)
-		} else if reply != "" {
-			id = id + "#" + remoteShort(reply)
-		}
-
-		return id
-	}
-}
-
-func localShort(url string) string {
-	re := regexp.MustCompile(`\w+$`)
-	return re.FindString(StripTransferProtocol(url))
-}
-
-func remoteShort(url string) string {
-	re := regexp.MustCompile(`\w+$`)
-
-	id := re.FindString(StripTransferProtocol(url))
-
-	re = regexp.MustCompile(`.+/.+/`)
-
-	actorurl := re.FindString(StripTransferProtocol(url))
-
-	re = regexp.MustCompile(`/.+/`)
-
-	actorname := re.FindString(actorurl)
-
-	actorname = strings.Replace(actorname, "/", "", -1)
-
-	return "f" + actorname + "-" + id
 }
 
 func CreatedNeededDirectories() {
@@ -1007,7 +897,7 @@ func AddInstanceToIndex(actor string) {
 	}
 }
 
-func AddInstanceToIndexDB(db *sql.DB, actor string) {
+func AddInstanceToIndexDB(actor string) {
 
 	//sleep to be sure the webserver is fully initialized
 	//before making finger request
@@ -1093,109 +983,6 @@ func HasValidation(w http.ResponseWriter, r *http.Request, actor activitypub.Act
 	return true
 }
 
-func IsReplyToOP(db *sql.DB, op string, link string) (string, bool) {
-
-	if op == link {
-		return link, true
-	}
-
-	re := regexp.MustCompile(`f(\w+)\-`)
-	match := re.FindStringSubmatch(link)
-
-	if len(match) > 0 {
-		re := regexp.MustCompile(`(.+)\-`)
-		link = re.ReplaceAllString(link, "")
-		link = "%" + match[1] + "/" + link
-	}
-
-	query := `select id from replies where id like $1 and inreplyto=$2`
-
-	rows, err := db.Query(query, link, op)
-
-	CheckError(err, "error selecting in reply to op from db")
-
-	var id string
-	defer rows.Close()
-	rows.Next()
-	rows.Scan(&id)
-
-	if id != "" {
-
-		return id, true
-	}
-
-	return "", false
-}
-
-func GetReplyOP(db *sql.DB, link string) string {
-
-	query := `select id from replies where id in (select inreplyto from replies where id=$1) and inreplyto=''`
-
-	rows, err := db.Query(query, link)
-
-	CheckError(err, "could not get reply OP from db ")
-
-	var id string
-
-	defer rows.Close()
-	rows.Next()
-	rows.Scan(&id)
-
-	return id
-}
-
-func StartupArchive(db *sql.DB) {
-	for _, e := range FollowingBoards {
-		ArchivePosts(db, GetActorFromDB(db, e.Id))
-	}
-}
-
-func CheckInactive(db *sql.DB) {
-	for true {
-		CheckInactiveInstances(db)
-		time.Sleep(24 * time.Hour)
-	}
-}
-
-func CheckInactiveInstances(db *sql.DB) map[string]string {
-	instances := make(map[string]string)
-	query := `select following from following`
-	rows, err := db.Query(query)
-
-	CheckError(err, "cold not select instances from following")
-
-	defer rows.Close()
-	for rows.Next() {
-		var instance string
-		rows.Scan(&instance)
-		instances[instance] = instance
-	}
-
-	query = `select follower from follower`
-	rows, err = db.Query(query)
-
-	CheckError(err, "cold not select instances from follower")
-
-	defer rows.Close()
-	for rows.Next() {
-		var instance string
-		rows.Scan(&instance)
-		instances[instance] = instance
-	}
-
-	re := regexp.MustCompile(Domain + `(.+)?`)
-	for _, e := range instances {
-		actor := GetActor(e)
-		if actor.Id == "" && !re.MatchString(e) {
-			AddInstanceToInactiveDB(db, e)
-		} else {
-			DeleteInstanceFromInactiveDB(db, e)
-		}
-	}
-
-	return instances
-}
-
 func TemplateFunctions(engine *html.Engine) {
 	engine.AddFunc(
 		"mod", mod,
@@ -1209,38 +996,25 @@ func TemplateFunctions(engine *html.Engine) {
 		"unixtoreadable", unixToReadable,
 	)
 
-	engine.AddFunc("proxy", func(url string) string {
-		return MediaProxy(url)
-	})
+	engine.AddFunc("proxy", MediaProxy)
 
-	engine.AddFunc("short", func(actorName string, url string) string {
-		return shortURL(actorName, url)
-	})
+	// previously short
+	engine.AddFunc("shortURL", util.ShortURL)
 
-	engine.AddFunc("parseAttachment", func(obj ObjectBase, catalog bool) template.HTML {
-		return ParseAttachment(obj, catalog)
-	})
+	engine.AddFunc("parseAttachment", ParseAttachment)
 
-	engine.AddFunc("parseContent", func(board Actor, op string, content string, thread ObjectBase) template.HTML {
-		return ParseContent(DB, board, op, content, thread)
-	})
+	engine.AddFunc("parseContent", ParseContent)
 
-	engine.AddFunc("shortImg", func(url string) string {
-		return ShortImg(url)
-	})
+	engine.AddFunc("shortImg", util.ShortImg)
 
-	engine.AddFunc("convertSize", func(size int64) string {
-		return ConvertSize(size)
-	})
+	engine.AddFunc("convertSize", util.ConvertSize)
 
-	engine.AddFunc("isOnion", func(url string) bool {
-		return IsOnion(url)
-	})
+	engine.AddFunc("isOnion", util.IsOnion)
 
 	engine.AddFunc("parseReplyLink", func(actorId string, op string, id string, content string) template.HTML {
 		actor := FingerActor(actorId)
 		title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
-		link := "<a href=\"" + actor.Name + "/" + shortURL(actor.Outbox, op) + "#" + shortURL(actor.Outbox, id) + "\" title=\"" + title + "\" class=\"replyLink\">&gt;&gt;" + shortURL(actor.Outbox, id) + "</a>"
+		link := fmt.Sprintf("<a href=\"%s/%s#%s\" title=\"%s\" class=\"replyLink\">&gt;&gt;%s</a>", actor.Name, util.ShortURL(actor.Outbox, op), util.ShortURL(actor.Outbox, id), title, util.ShortURL(actor.Outbox, id))
 		return template.HTML(link)
 	})
 
@@ -1259,4 +1033,34 @@ func TemplateFunctions(engine *html.Engine) {
 	engine.AddFunc(
 		"sub", sub,
 	)
+
+	engine.AddFunc("shortExcerpt",
+		func(post activitypub.ObjectBase) string {
+			var returnString string
+
+			if post.Name != "" {
+				returnString = post.Name + "| " + post.Content
+			} else {
+				returnString = post.Content
+			}
+
+			re := regexp.MustCompile(`(^(.|\r\n|\n){100})`)
+
+			match := re.FindStringSubmatch(returnString)
+
+			if len(match) > 0 {
+				returnString = match[0] + "..."
+			}
+
+			re = regexp.MustCompile(`(^.+\|)`)
+
+			match = re.FindStringSubmatch(returnString)
+
+			if len(match) > 0 {
+				returnString = strings.Replace(returnString, match[0], "<b>"+match[0]+"</b>", 1)
+				returnString = strings.Replace(returnString, "|", ":", 1)
+			}
+
+			return returnString
+		})
 }

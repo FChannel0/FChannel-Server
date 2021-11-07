@@ -1,52 +1,35 @@
 package routes
 
 import (
-	"strconv"
-
+	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/gofiber/fiber/v2"
 )
 
-func Outbox(ctx *fiber.Ctx) error {
-	// STUB
-
-	return ctx.SendString("main outbox")
-}
-
-func OutboxGet(ctx *fiber.Ctx) error {
-	collection, valid, err := wantToServePage(ctx.Params("actor"), 0)
-	if err != nil {
-		return err
-	} else if !valid {
-		// TODO: 404 template
-		return ctx.SendString("404")
-	}
-
+func ArchiveGet(ctx *fiber.Ctx) error {
+	// TODO
+	collection := ctx.Locals("collection").(activitypub.Collection)
 	actor := collection.Actor
 
-	postNum := ctx.Query("page")
-	page, err := strconv.Atoi(postNum)
-	if err != nil {
-		return err
-	}
-
 	var returnData PageData
-
 	returnData.Board.Name = actor.Name
 	returnData.Board.PrefName = actor.PreferredUsername
-	returnData.Board.Summary = actor.Summary
 	returnData.Board.InReplyTo = ""
 	returnData.Board.To = actor.Outbox
 	returnData.Board.Actor = *actor
+	returnData.Board.Summary = actor.Summary
 	returnData.Board.ModCred, _ = getPassword(ctx)
 	returnData.Board.Domain = config.Domain
 	returnData.Board.Restricted = actor.Restricted
-	returnData.CurrentPage = page
-	returnData.ReturnTo = "feed"
+	returnData.Key = config.Key
+	returnData.ReturnTo = "archive"
 
 	returnData.Board.Post.Actor = actor.Id
+
+	var err error
+	returnData.Instance, err = db.GetActorFromDB(config.Domain)
 
 	capt, err := db.GetRandomCaptcha()
 	if err != nil {
@@ -57,30 +40,14 @@ func OutboxGet(ctx *fiber.Ctx) error {
 
 	returnData.Title = "/" + actor.Name + "/ - " + actor.PreferredUsername
 
-	returnData.Key = config.Key
-
 	returnData.Boards = db.Boards
+
 	returnData.Posts = collection.OrderedItems
-
-	var offset = 15
-	var pages []int
-	pageLimit := (float64(collection.TotalItems) / float64(offset))
-
-	if pageLimit > 11 {
-		pageLimit = 11
-	}
-
-	for i := 0.0; i < pageLimit; i++ {
-		pages = append(pages, int(i))
-	}
-
-	returnData.Pages = pages
-	returnData.TotalPage = len(returnData.Pages) - 1
 
 	returnData.Themes = &config.Themes
 	returnData.ThemeCookie = getThemeCookie(ctx)
 
-	return ctx.Render("nposts", fiber.Map{
+	return ctx.Render("archive", fiber.Map{
 		"page": returnData,
 	}, "layouts/main")
 }
