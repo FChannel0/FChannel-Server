@@ -1,7 +1,10 @@
 package util
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 )
@@ -195,4 +198,43 @@ func ConvertSize(size int64) string {
 	}
 
 	return rValue
+}
+
+// IsInStringArray looks for a string in a string array and returns true if it is found.
+func IsInStringArray(haystack []string, needle string) bool {
+	for _, e := range haystack {
+		if e == needle {
+			return true
+		}
+	}
+	return false
+}
+
+// GetUniqueFilename will look for an available random filename in the /public/ directory.
+func GetUniqueFilename(ext string) string {
+	id := RandomID(8)
+	file := "/public/" + id + "." + ext
+
+	for true {
+		if _, err := os.Stat("." + file); err == nil {
+			id = RandomID(8)
+			file = "/public/" + id + "." + ext
+		} else {
+			return "/public/" + id + "." + ext
+		}
+	}
+
+	return ""
+}
+
+func HashMedia(media string) string {
+	h := sha256.New()
+	h.Write([]byte(media))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func HashBytes(media []byte) string {
+	h := sha256.New()
+	h.Write(media)
+	return hex.EncodeToString(h.Sum(nil))
 }

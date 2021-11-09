@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
+	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
 	"github.com/gofiber/fiber/v2"
 )
@@ -112,4 +113,15 @@ func wantToServeArchive(actorName string) (activitypub.Collection, bool, error) 
 	}
 
 	return collection, serve, nil
+}
+
+func hasValidation(ctx *fiber.Ctx, actor activitypub.Actor) bool {
+	id, _ := getPassword(ctx)
+
+	if id == "" || (id != actor.Id && id != config.Domain) {
+		//http.Redirect(w, r, "/", http.StatusSeeOther)
+		return false
+	}
+
+	return true
 }

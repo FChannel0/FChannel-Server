@@ -18,7 +18,9 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// TODO: merge these
 var db *sql.DB
+var DB *sql.DB
 
 type NewsItem struct {
 	Title   string
@@ -48,6 +50,7 @@ func ConnectDB() error {
 
 	fmt.Println("Successfully connected DB")
 	db = _db
+	DB = _db
 
 	return nil
 }
@@ -289,10 +292,12 @@ func WriteObjectToDB(obj activitypub.ObjectBase) (activitypub.ObjectBase, error)
 			obj.Preview.Published = time.Now().UTC()
 			obj.Preview.Updated = time.Now().UTC()
 			obj.Preview.AttributedTo = obj.Id
-			WritePreviewToDB(*obj.Preview)
+			if err := WritePreviewToDB(*obj.Preview); err != nil {
+				return obj, err
+			}
 		}
 
-		for i, _ := range obj.Attachment {
+		for i := range obj.Attachment {
 			id, err := CreateUniqueID(obj.Actor)
 			if err != nil {
 				return obj, err
@@ -563,15 +568,11 @@ func WriteAttachmentToDB(obj activitypub.ObjectBase) {
 	}
 }
 
-func WritePreviewToDB(obj activitypub.NestedObjectBase) {
+func WritePreviewToDB(obj activitypub.NestedObjectBase) error {
 	query := `insert into activitystream (id, type, name, href, published, updated, attributedTo, mediatype, size) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
-	_, e := db.Exec(query, obj.Id, obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)
-
-	if e != nil {
-		fmt.Println("error inserting new attachment")
-		panic(e)
-	}
+	_, err := db.Exec(query, obj.Id, obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)
+	return err
 }
 
 func GetActivityFromDB(id string) (activitypub.Collection, error) {
@@ -2476,4 +2477,64 @@ func CheckInactiveInstances() (map[string]string, error) {
 	}
 
 	return instances, nil
+}
+
+func GetAdminAuth() (string, string, error) {
+	query := fmt.Sprintf("select identifier, code from boardaccess where board='%s' and type='admin'", config.Domain)
+
+	rows, err := db.Query(query)
+	if err != nil {
+		return "", "", err
+	}
+
+	var code string
+	var identifier string
+
+	rows.Next()
+	err = rows.Scan(&identifier, &code)
+
+	return code, identifier, err
+}
+
+func UpdateObjectWithPreview(id string, preview string) error {
+	query := `update activitystream set preview=$1 where attachment=$2`
+
+	_, err := db.Exec(query, preview, id)
+	return err
+}
+
+func GetObjectsWithoutPreviewsCallback(callback func(id string, href string, mediatype string, name string, size int, published time.Time) error) error {
+	query := `select id, href, mediatype, name, size, published from activitystream where id in (select attachment from activitystream where attachment!='' and preview='')`
+
+	rows, err := db.Query(query)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id string
+		var href string
+		var mediatype string
+		var name string
+		var size int
+		var published time.Time
+
+		if err := rows.Scan(&id, &href, &mediatype, &name, &size, &published); err != nil {
+			return err
+		}
+
+		if err := callback(id, href, mediatype, name, size, published); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func AddFollower(id string, follower string) error {
+	query := `insert into follower (id, follower) values ($1, $2)`
+
+	_, err := db.Exec(query, id, follower)
+	return err
 }

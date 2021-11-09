@@ -26,11 +26,14 @@ func MediaProxy(url string) string {
 		return url
 	}
 
-	MediaHashs[HashMedia(url)] = url
-	return "/api/media?hash=" + HashMedia(url)
+	MediaHashs[util.HashMedia(url)] = url
+	return "/api/media?hash=" + util.HashMedia(url)
 }
 
 func ParseAttachment(obj activitypub.ObjectBase, catalog bool) template.HTML {
+	// TODO: convert all of these to Sprintf statements, or use strings.Builder or something, anything but this really
+	// string concatenation is highly inefficient _especially_ when being used like this
+
 	if len(obj.Attachment) < 1 {
 		return ""
 	}
@@ -105,7 +108,7 @@ func ParseAttachment(obj activitypub.ObjectBase, catalog bool) template.HTML {
 }
 
 func ParseContent(board activitypub.Actor, op string, content string, thread activitypub.ObjectBase) (template.HTML, error) {
-
+	// TODO: should escape more than just < and >, should also escape &, ", and '
 	nContent := strings.ReplaceAll(content, `<`, "&lt;")
 
 	nContent, err := ParseLinkComments(board, op, nContent, thread)
@@ -221,6 +224,7 @@ func ParseLinkTitle(actorName string, op string, content string) string {
 		content = strings.Replace(content, match[i][0], ">>"+util.ShortURL(actorName, link)+isOP, 1)
 	}
 
+	// TODO: this drops more than we need to
 	content = strings.ReplaceAll(content, "'", "")
 	content = strings.ReplaceAll(content, "\"", "")
 	content = strings.ReplaceAll(content, ">", `/\&lt;`)
