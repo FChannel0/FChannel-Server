@@ -77,7 +77,7 @@ func main() {
 	//name, prefname, summary, auth requirements, restricted
 	if config.InstanceName != "" {
 		if _, err = db.CreateNewBoardDB(*CreateNewActor("", config.InstanceName, config.InstanceSummary, authReq, false)); err != nil {
-			panic(err)
+			//panic(err)
 		}
 
 		if config.PublicIndexing == "true" {

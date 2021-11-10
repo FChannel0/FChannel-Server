@@ -24,7 +24,8 @@ This currently helps enforce the Go style guide, but may be expanded upon in the
 future.
 
 Before you make a pull request, ensure everything you changed works as expected,
-and to fix errors reported by `go vet`.
+and to fix errors reported by `go vet` and make your code better with
+`staticcheck`.
 
 ## Server Installation and Configuration
 

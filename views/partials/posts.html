@@ -7,7 +7,7 @@
 <hr>
 {{ end }}
 <div style="overflow: auto;">
-  <div id="{{ short $board.Actor.Outbox .Id }}" style="overflow: visible; margin-bottom: 12px;">
+  <div id="{{ shortURL $board.Actor.Outbox .Id }}" style="overflow: visible; margin-bottom: 12px;">
     {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}
     [<a href="/delete?id={{ .Id }}&board={{ $board.Actor.Name }}">Delete Post</a>]
     {{ end }}
@@ -47,17 +47,17 @@
     <span class="subject"><b>{{ .Name }}</b></span>
     <span class="name"><b>{{ if .AttributedTo }} {{.AttributedTo }} {{ else }} Anonymous {{ end }}</b></span>
     <span class="tripcode"> {{ .TripCode }} </span>
-    <span class="timestamp" data-utc="{{.Published | timeToUnix}}">{{ .Published | timeToReadableLong }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/{{ short $board.Actor.Outbox $opId }}#{{ short $board.Actor.Outbox .Id }}">No.</a> <a id="{{ .Id }}-link" title="{{ .Id }}" {{ if eq .Type "Note" }} href="javascript:quote('{{ $board.Actor.Id }}', '{{ $opId }}', '{{ .Id }}')" {{ end }}>{{ short $board.Actor.Outbox .Id }}</a> {{ if ne .Type "Tombstone" }}[<a href="javascript:report('{{ $board.Actor.Id }}', '{{ .Id }}')">Report</a>]{{ end }}</span>
+    <span class="timestamp" data-utc="{{.Published | timeToUnix}}">{{ .Published | timeToReadableLong }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/{{ shortURL $board.Actor.Outbox $opId }}#{{ shortURL $board.Actor.Outbox .Id }}">No.</a> <a id="{{ .Id }}-link" title="{{ .Id }}" {{ if eq .Type "Note" }} href="javascript:quote('{{ $board.Actor.Id }}', '{{ $opId }}', '{{ .Id }}')" {{ end }}>{{ shortURL $board.Actor.Outbox .Id }}</a> {{ if ne .Type "Tombstone" }}[<a href="javascript:report('{{ $board.Actor.Id }}', '{{ .Id }}')">Report</a>]{{ end }}</span>
     <p id="{{ .Id }}-content" style="white-space: pre-wrap; margin: 10px 30px 10px 30px;">{{ parseContent $board.Actor $opId .Content $thread }}</p>
     {{ if .Replies }}
     {{ $replies := .Replies }}
     {{ if gt $replies.TotalItems 5 }}
     {{ if gt $len 1 }}
-    <span>{{ $replies.TotalItems }} replies{{ if gt $replies.TotalImgs 0}} and {{ $replies.TotalImgs }} images{{ end }}, Click <a id="view" post="{{.Id}}" href="/{{ $board.Name }}/{{ short $board.Actor.Outbox .Id }}">here</a> to view all.</span>
+    <span>{{ $replies.TotalItems }} replies{{ if gt $replies.TotalImgs 0}} and {{ $replies.TotalImgs }} images{{ end }}, Click <a id="view" post="{{.Id}}" href="/{{ $board.Name }}/{{ shortURL $board.Actor.Outbox .Id }}">here</a> to view all.</span>
     {{ end }}
     {{ end }}
     {{ range $replies.OrderedItems }}
-    <div id="{{ short $board.Actor.Outbox .Id }}">
+    <div id="{{ shortURL $board.Actor.Outbox .Id }}">
       <div  style="display: inline-block; overflow: auto;">
         <div style="float: left; display: block; margin-right: 5px;">&gt;&gt;</div>
         <div class="post" style="overflow: auto; padding: 5px; margin-bottom: 2px;">
@@ -102,7 +102,7 @@
           <span class="subject"><b>{{ .Name }}</b></span>
           <span class="name"><b>{{ if .AttributedTo }} {{.AttributedTo }} {{ else }} Anonymous {{ end }}</b></span>
           <span class="tripcode"> {{ .TripCode }} </span>
-          <span class="timestamp" data-utc="{{ .Published | timeToUnix }}">{{ .Published | timeToReadableLong }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/{{ short $board.Actor.Outbox $opId }}#{{ short $board.Actor.Outbox .Id }}">No. </a><a id="{{ .Id }}-link" title="{{ .Id }}" {{ if eq .Type "Note" }} href="javascript:quote('{{ $board.Actor.Id }}', '{{ $opId }}', '{{ .Id }}')" {{ end }}>{{ short $board.Actor.Outbox .Id }}</a> {{ if ne .Type "Tombstone" }}[<a href="javascript:report('{{ $board.Actor.Id }}', '{{ .Id }}')">Report</a>]{{ end }}</span>
+          <span class="timestamp" data-utc="{{ .Published | timeToUnix }}">{{ .Published | timeToReadableLong }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/{{ shortURL $board.Actor.Outbox $opId }}#{{ shortURL $board.Actor.Outbox .Id }}">No. </a><a id="{{ .Id }}-link" title="{{ .Id }}" {{ if eq .Type "Note" }} href="javascript:quote('{{ $board.Actor.Id }}', '{{ $opId }}', '{{ .Id }}')" {{ end }}>{{ shortURL $board.Actor.Outbox .Id }}</a> {{ if ne .Type "Tombstone" }}[<a href="javascript:report('{{ $board.Actor.Id }}', '{{ .Id }}')">Report</a>]{{ end }}</span>
           {{ $parentId := .Id }}
           {{ if .Replies.OrderedItems }}
           {{ range .Replies.OrderedItems }}
