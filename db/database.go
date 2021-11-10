@@ -531,9 +531,9 @@ func WriteWalletToDB(obj activitypub.ObjectBase) error {
 }
 
 func WriteActivitytoDB(obj activitypub.ObjectBase) error {
-	obj.Name = EscapeString(obj.Name)
-	obj.Content = EscapeString(obj.Content)
-	obj.AttributedTo = EscapeString(obj.AttributedTo)
+	obj.Name = util.EscapeString(obj.Name)
+	obj.Content = util.EscapeString(obj.Content)
+	obj.AttributedTo = util.EscapeString(obj.AttributedTo)
 
 	query := `insert into activitystream (id, type, name, content, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
@@ -543,9 +543,9 @@ func WriteActivitytoDB(obj activitypub.ObjectBase) error {
 
 func WriteActivitytoDBWithAttachment(obj activitypub.ObjectBase, attachment activitypub.ObjectBase, preview activitypub.NestedObjectBase) {
 
-	obj.Name = EscapeString(obj.Name)
-	obj.Content = EscapeString(obj.Content)
-	obj.AttributedTo = EscapeString(obj.AttributedTo)
+	obj.Name = util.EscapeString(obj.Name)
+	obj.Content = util.EscapeString(obj.Content)
+	obj.AttributedTo = util.EscapeString(obj.AttributedTo)
 
 	query := `insert into activitystream (id, type, name, content, attachment, preview, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 
@@ -1877,13 +1877,6 @@ func DeleteCaptchaCodeDB(verify string) error {
 	return os.Remove("./" + verify)
 }
 
-func EscapeString(text string) string {
-	// TODO: not enough
-
-	text = strings.Replace(text, "<", "&lt;", -1)
-	return text
-}
-
 func GetActorReportedTotal(id string) (int, error) {
 	query := `select count(id) from reported where board=$1`
 
@@ -2537,4 +2530,21 @@ func AddFollower(id string, follower string) error {
 
 	_, err := db.Exec(query, id, follower)
 	return err
+}
+
+func IsHashBanned(hash string) (bool, error) {
+	var h string
+
+	query := `select hash from bannedmedia where hash=$1`
+
+	rows, err := db.Query(query, hash)
+	if err != nil {
+		return true, err
+	}
+	defer rows.Close()
+
+	rows.Next()
+	err = rows.Scan(&h)
+
+	return h == hash, err
 }

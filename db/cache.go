@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
+	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
 	_ "github.com/lib/pq"
 )
@@ -81,9 +82,9 @@ func WriteActorObjectToCache(obj activitypub.ObjectBase) (activitypub.ObjectBase
 }
 
 func WriteActivitytoCache(obj activitypub.ObjectBase) error {
-	obj.Name = EscapeString(obj.Name)
-	obj.Content = EscapeString(obj.Content)
-	obj.AttributedTo = EscapeString(obj.AttributedTo)
+	obj.Name = util.EscapeString(obj.Name)
+	obj.Content = util.EscapeString(obj.Content)
+	obj.AttributedTo = util.EscapeString(obj.AttributedTo)
 
 	query := `select id from cacheactivitystream where id=$1`
 
@@ -113,9 +114,9 @@ func WriteActivitytoCache(obj activitypub.ObjectBase) error {
 }
 
 func WriteActivitytoCacheWithAttachment(obj activitypub.ObjectBase, attachment activitypub.ObjectBase, preview activitypub.NestedObjectBase) error {
-	obj.Name = EscapeString(obj.Name)
-	obj.Content = EscapeString(obj.Content)
-	obj.AttributedTo = EscapeString(obj.AttributedTo)
+	obj.Name = util.EscapeString(obj.Name)
+	obj.Content = util.EscapeString(obj.Content)
+	obj.AttributedTo = util.EscapeString(obj.AttributedTo)
 
 	query := `select id from cacheactivitystream where id=$1`
 

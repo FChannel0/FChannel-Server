@@ -238,3 +238,10 @@ func HashBytes(media []byte) string {
 	h.Write(media)
 	return hex.EncodeToString(h.Sum(nil))
 }
+
+func EscapeString(text string) string {
+	// TODO: not enough
+
+	text = strings.Replace(text, "<", "&lt;", -1)
+	return text
+}
