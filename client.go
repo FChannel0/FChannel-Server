@@ -169,35 +169,20 @@ func ParseLinkComments(board activitypub.Actor, op string, content string, threa
 			}
 		}
 
-		//replace link with quote format
-		replyID, isReply, err := db.IsReplyToOP(op, parsedLink)
-		if err != nil {
-			return "", err
-		}
-
-		if isReply {
+		if replyID, isReply, err := db.IsReplyToOP(op, parsedLink); err == nil || !isReply {
 			id := util.ShortURL(board.Outbox, replyID)
 
 			content = strings.Replace(content, match[i][0], "<a class=\"reply\" title=\""+quoteTitle+"\" href=\"/"+board.Name+"/"+util.ShortURL(board.Outbox, op)+"#"+id+"\">&gt;&gt;"+id+""+isOP+"</a>", -1)
-
 		} else {
 			//this is a cross post
 
 			parsedOP, err := db.GetReplyOP(parsedLink)
-			if err != nil {
-				return "", err
-			}
-
-			actor, err := webfinger.FingerActor(parsedLink)
-			if err != nil {
-				return "", err
-			}
-
-			if parsedOP != "" {
+			if err == nil {
 				link = parsedOP + "#" + util.ShortURL(parsedOP, parsedLink)
 			}
 
-			if actor.Id != "" {
+			actor, err := webfinger.FingerActor(parsedLink)
+			if err == nil && actor.Id != "" {
 				content = strings.Replace(content, match[i][0], "<a class=\"reply\" title=\""+quoteTitle+"\" href=\""+link+"\">&gt;&gt;"+util.ShortURL(board.Outbox, parsedLink)+isOP+" →</a>", -1)
 			}
 		}

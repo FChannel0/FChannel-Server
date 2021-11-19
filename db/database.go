@@ -2371,11 +2371,7 @@ func IsReplyToOP(op string, link string) (string, bool, error) {
 		return id, false, err
 	}
 
-	if id != "" {
-		return id, true, nil
-	}
-
-	return "", false, nil
+	return id, id != "", nil
 }
 
 func GetReplyOP(link string) (string, error) {

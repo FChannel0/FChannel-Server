@@ -116,9 +116,6 @@ func main() {
 		Views:   template,
 	})
 
-	app.Static("/public", "./public")
-	app.Static("/static", "./views")
-
 	/*
 	 Main actor
 	*/
@@ -135,7 +132,7 @@ func main() {
 	 Board actor
 	*/
 
-	app.Get("/:actor", routes.ActorIndex) //OutboxGet)
+	app.Get("/:actor", routes.OutboxGet)
 
 	app.Get("/:actor/:post", routes.ActorPostGet)
 	app.Get("/post", routes.ActorPost)
@@ -234,11 +231,18 @@ func main() {
 	})
 
 	app.Get("/api/media", func(c *fiber.Ctx) error {
-		return c.SendString("api media")
+		if c.Query("hash") != "" {
+			return RouteImages(c, c.Query("hash"))
+		}
+
+		return c.SendStatus(404)
 	})
 
 	// 404 handler
 	app.Use(routes.NotFound)
+
+	app.Static("/public", "./public")
+	app.Static("/static", "./views")
 
 	fmt.Println("Mod key: " + config.Key)
 	PrintAdminAuth()
@@ -979,7 +983,7 @@ func AddInstanceToIndexDB(actor string) error {
 	return nil
 }
 
-func RouteImages(w http.ResponseWriter, media string) error {
+func RouteImages(ctx *fiber.Ctx, media string) error {
 	req, err := http.NewRequest("GET", MediaHashs[media], nil)
 	if err != nil {
 		return err
@@ -1001,19 +1005,17 @@ func RouteImages(w http.ResponseWriter, media string) error {
 			return err
 		}
 
-		_, err = w.Write(fileBytes)
-		return err
+		return ctx.Send(fileBytes)
 	}
 
 	body, _ := ioutil.ReadAll(resp.Body)
 	for name, values := range resp.Header {
 		for _, value := range values {
-			w.Header().Set(name, value)
+			ctx.Append(name, value)
 		}
 	}
 
-	_, err = w.Write(body)
-	return err
+	return ctx.Send(body)
 }
 
 func TemplateFunctions(engine *html.Engine) {
