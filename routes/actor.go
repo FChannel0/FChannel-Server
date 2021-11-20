@@ -2,18 +2,6 @@ package routes
 
 import "github.com/gofiber/fiber/v2"
 
-func ActorIndex(c *fiber.Ctx) error {
-	// STUB
-	// TODO: OutboxGet, already implemented
-	return c.SendString("actor index")
-}
-
-func ActorPostGet(c *fiber.Ctx) error {
-	// STUB
-	// TODO: PostGet
-	return c.SendString("actor post get")
-}
-
 func ActorInbox(c *fiber.Ctx) error {
 	// STUB
 

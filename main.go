@@ -132,8 +132,9 @@ func main() {
 	*/
 
 	app.Get("/:actor", routes.OutboxGet)
+	app.Get("/:actor/catalog", routes.CatalogGet)
 
-	app.Get("/:actor/:post", routes.ActorPostGet)
+	app.Get("/:actor/:post", routes.PostGet)
 	app.Get("/post", routes.ActorPost)
 
 	app.Get("/:actor/inbox", routes.ActorInbox)

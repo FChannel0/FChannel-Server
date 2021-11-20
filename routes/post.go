@@ -3,7 +3,6 @@ package routes
 import (
 	"regexp"
 
-	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
 	"github.com/FChannel0/FChannel-Server/util"
@@ -105,8 +104,13 @@ func PostGet(ctx *fiber.Ctx) error {
 }
 
 func CatalogGet(ctx *fiber.Ctx) error {
-	// TODO:
-	collection := ctx.Locals("collection").(activitypub.Collection)
+	actorName := ctx.Params("actor")
+	actor, err := db.GetActorByNameFromDB(actorName)
+	if err != nil {
+		return err
+	}
+
+	collection, err := db.GetObjectFromDBCatalog(actor.Id)
 
 	// TODO: implement this in template functions
 	//	"showArchive": func() bool {
@@ -122,14 +126,12 @@ func CatalogGet(ctx *fiber.Ctx) error {
 	//	return false
 	//},
 
-	actor := collection.Actor
-
 	var returnData PageData
 	returnData.Board.Name = actor.Name
 	returnData.Board.PrefName = actor.PreferredUsername
 	returnData.Board.InReplyTo = ""
 	returnData.Board.To = actor.Outbox
-	returnData.Board.Actor = *actor
+	returnData.Board.Actor = actor
 	returnData.Board.Summary = actor.Summary
 	returnData.Board.ModCred, _ = getPassword(ctx)
 	returnData.Board.Domain = config.Domain
@@ -139,7 +141,6 @@ func CatalogGet(ctx *fiber.Ctx) error {
 
 	returnData.Board.Post.Actor = actor.Id
 
-	var err error
 	returnData.Instance, err = db.GetActorFromDB(config.Domain)
 	if err != nil {
 		return err
