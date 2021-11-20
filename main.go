@@ -12,6 +12,7 @@ import (
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/template/html"
 
 	// "github.com/gofrs/uuid"
@@ -98,13 +99,6 @@ func main() {
 		}
 	}
 
-	// Allow access to public media folder
-	fileServer := http.FileServer(http.Dir("./public"))
-	http.Handle("/public/", http.StripPrefix("/public", neuter(fileServer)))
-
-	javascriptFiles := http.FileServer(http.Dir("./static"))
-	http.Handle("/static/", http.StripPrefix("/static", neuter(javascriptFiles)))
-
 	/* Routing and templates */
 
 	template := html.New("./views", ".html")
@@ -115,6 +109,11 @@ func main() {
 		AppName: "FChannel",
 		Views:   template,
 	})
+
+	app.Use(logger.New())
+
+	app.Static("/static", "./views")
+	app.Static("/public", "./public")
 
 	/*
 	 Main actor
@@ -240,9 +239,6 @@ func main() {
 
 	// 404 handler
 	app.Use(routes.NotFound)
-
-	app.Static("/public", "./public")
-	app.Static("/static", "./views")
 
 	fmt.Println("Mod key: " + config.Key)
 	PrintAdminAuth()

@@ -11,7 +11,7 @@ func ActorIndex(c *fiber.Ctx) error {
 func ActorPostGet(c *fiber.Ctx) error {
 	// STUB
 	// TODO: PostGet
-	return c.SendString("actor post")
+	return c.SendString("actor post get")
 }
 
 func ActorInbox(c *fiber.Ctx) error {
