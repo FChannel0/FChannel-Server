@@ -3,6 +3,7 @@
 *~
 #*
 public/
-config
+config$
+config/config-init
 clientkey
 pem/

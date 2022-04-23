@@ -41,7 +41,7 @@ and to fix errors reported by `go vet` and make your code better with
 
 - Ensure you have Golang installed and set a correct `GOPATH`
 - `git clone` the software
-- Copy `config-init` to `config` and change the values appropriately to reflect the instance.
+- Copy `config-init` to `config/config-init` and change the values appropriately to reflect the instance.
 - Create the database, username, and password for psql that is used in the `config` file.
 - Build the server with `make`
 - Start the server with `./fchan`.
