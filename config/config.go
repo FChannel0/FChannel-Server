@@ -10,7 +10,7 @@ import (
 
 var Port = ":" + GetConfigValue("instanceport", "3000")
 var TP = GetConfigValue("instancetp", "")
-var Domain = GetConfigValue("instance", "")
+var Domain = TP + "" + GetConfigValue("instance", "")
 var InstanceName = GetConfigValue("instancename", "")
 var InstanceSummary = GetConfigValue("instancesummary", "")
 var SiteEmail = GetConfigValue("emailaddress", "") //contact@fchan.xyz

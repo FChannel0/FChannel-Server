@@ -105,6 +105,8 @@ func main() {
 
 	TemplateFunctions(template)
 
+	template.Reload(true)
+
 	app := fiber.New(fiber.Config{
 		AppName: "FChannel",
 		Views:   template,
@@ -126,25 +128,6 @@ func main() {
 
 	app.Get("/following", routes.Following)
 	app.Get("/followers", routes.Followers)
-
-	/*
-	 Board actor
-	*/
-
-	app.Get("/:actor", routes.OutboxGet)
-	app.Get("/:actor/catalog", routes.CatalogGet)
-
-	app.Get("/:actor/:post", routes.PostGet)
-	app.Get("/post", routes.ActorPost)
-
-	app.Get("/:actor/inbox", routes.ActorInbox)
-	app.Get("/:actor/outbox", routes.ActorOutbox)
-
-	app.Get("/:actor/following", routes.ActorFollowing)
-	app.Get("/:actor/followers", routes.ActorFollowers)
-
-	app.Get("/:actor/reported", routes.ActorReported)
-	app.Get("/:actor/archive", routes.ActorArchive)
 
 	/*
 	 Admin routes
@@ -238,7 +221,26 @@ func main() {
 		return c.SendStatus(404)
 	})
 
-	// 404 handler
+	/*
+	 Board actor
+	*/
+
+	app.Get("/:actor", routes.OutboxGet)
+	app.Get("/:actor/catalog", routes.CatalogGet)
+
+	app.Get("/:actor/:post", routes.PostGet)
+	app.Get("/post", routes.ActorPost)
+
+	app.Get("/:actor/inbox", routes.ActorInbox)
+	app.Get("/:actor/outbox", routes.ActorOutbox)
+
+	app.Get("/:actor/following", routes.ActorFollowing)
+	app.Get("/:actor/followers", routes.ActorFollowers)
+
+	app.Get("/:actor/reported", routes.ActorReported)
+	app.Get("/:actor/archive", routes.ActorArchive)
+
+	//404 handler
 	app.Use(routes.NotFound)
 
 	fmt.Println("Mod key: " + config.Key)
@@ -291,18 +293,6 @@ func CreateNewActor(board string, prefName string, summary string, authReq []str
 	actor.AuthRequirement = authReq
 
 	return actor
-}
-
-func GetActorInfo(w http.ResponseWriter, id string) error {
-	actor, err := db.GetActorFromDB(id)
-	if err != nil {
-		return err
-	}
-
-	enc, _ := json.MarshalIndent(actor, "", "\t")
-	w.Header().Set("Content-Type", "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"")
-	_, err = w.Write(enc)
-	return err
 }
 
 func GetActorPost(w http.ResponseWriter, path string) error {

@@ -43,6 +43,7 @@ func GetActor(id string) (activitypub.Actor, error) {
 	if err != nil {
 		return respActor, err
 	}
+
 	req.Header.Set("Accept", config.ActivityStreams)
 
 	resp, err := util.RouteProxy(req)

@@ -1,4 +1,4 @@
-package main
+package util
 
 import (
 	"regexp"
@@ -8,7 +8,7 @@ import (
 // False positive for application/ld+ld, application/activity+ld, application/json+json
 var activityRegexp = regexp.MustCompile("application\\/(ld|json|activity)((\\+(ld|json))|$)")
 
-func acceptActivity(header string) bool {
+func AcceptActivity(header string) bool {
 	accept := false
 	if strings.Contains(header, ";") {
 		split := strings.Split(header, ";")

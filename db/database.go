@@ -858,6 +858,7 @@ func GetObjectFromDBCatalog(id string) (activitypub.Collection, error) {
 	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc limit 165`
 
 	rows, err := db.Query(query, id)
+
 	if err != nil {
 		return nColl, err
 	}
@@ -880,6 +881,7 @@ func GetObjectFromDBCatalog(id string) (activitypub.Collection, error) {
 		post.Replies = &replies
 
 		post.Replies.TotalItems, post.Replies.TotalImgs, err = GetObjectRepliesCount(post)
+
 		if err != nil {
 			return nColl, err
 		}
@@ -1229,8 +1231,9 @@ func GetObjectRepliesCount(parent activitypub.ObjectBase) (int, int, error) {
 
 	defer rows.Close()
 
-	rows.Next()
-	err = rows.Scan(&countId, &countImg)
+	for rows.Next() {
+		err = rows.Scan(&countId, &countImg)
+	}
 
 	return countId, countImg, err
 }

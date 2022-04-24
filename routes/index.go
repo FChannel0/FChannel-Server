@@ -3,6 +3,7 @@ package routes
 import (
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
+	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
 )
@@ -11,6 +12,12 @@ func Index(ctx *fiber.Ctx) error {
 	actor, err := db.GetActorFromDB(config.Domain)
 	if err != nil {
 		return err
+	}
+
+	// this is a activitpub json request return json instead of html page
+	if util.AcceptActivity(ctx.Get("Accept")) {
+		db.GetActorInfo(ctx, actor.Id)
+		return nil
 	}
 
 	var data PageData

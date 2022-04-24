@@ -1,13 +1,13 @@
 package routes
 
 import (
-	"regexp"
-
+	"fmt"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
+	"regexp"
 )
 
 func PostGet(ctx *fiber.Ctx) error {
@@ -112,6 +112,8 @@ func CatalogGet(ctx *fiber.Ctx) error {
 
 	collection, err := db.GetObjectFromDBCatalog(actor.Id)
 
+	fmt.Println(err)
+
 	// TODO: implement this in template functions
 	//	"showArchive": func() bool {
 	//	col, err := db.GetActorCollectionDBTypeLimit(collection.Actor.Id, "Archive", 1)
@@ -162,7 +164,7 @@ func CatalogGet(ctx *fiber.Ctx) error {
 	returnData.Themes = &config.Themes
 	returnData.ThemeCookie = getThemeCookie(ctx)
 
-	return ctx.Render("ncatalog", fiber.Map{
+	return ctx.Render("catalog", fiber.Map{
 		"page": returnData,
 	}, "layouts/main")
 }

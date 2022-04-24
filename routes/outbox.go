@@ -16,6 +16,14 @@ func Outbox(ctx *fiber.Ctx) error {
 }
 
 func OutboxGet(ctx *fiber.Ctx) error {
+
+	actor := db.GetActorByName(ctx.Params("actor"))
+
+	if util.AcceptActivity(ctx.Get("Accept")) {
+		db.GetActorInfo(ctx, actor.Id)
+		return nil
+	}
+
 	collection, valid, err := wantToServePage(ctx.Params("actor"), 0)
 	if err != nil {
 		return err
@@ -24,12 +32,13 @@ func OutboxGet(ctx *fiber.Ctx) error {
 		return ctx.SendString("404")
 	}
 
-	actor := collection.Actor
-
+	var page int
 	postNum := ctx.Query("page")
-	page, err := strconv.Atoi(postNum)
-	if err != nil {
-		return err
+	if postNum != "" {
+		page, err = strconv.Atoi(postNum)
+		if err != nil {
+			return err
+		}
 	}
 
 	var returnData PageData
@@ -39,7 +48,7 @@ func OutboxGet(ctx *fiber.Ctx) error {
 	returnData.Board.Summary = actor.Summary
 	returnData.Board.InReplyTo = ""
 	returnData.Board.To = actor.Outbox
-	returnData.Board.Actor = *actor
+	returnData.Board.Actor = actor
 	returnData.Board.ModCred, _ = getPassword(ctx)
 	returnData.Board.Domain = config.Domain
 	returnData.Board.Restricted = actor.Restricted
