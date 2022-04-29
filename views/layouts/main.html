@@ -1,12 +1,32 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <title>{{ .page.Title }}</title>
     <meta charset="UTF-8">
+    <meta name='robots' content='noindex, nofollow'/>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="keywords" content="Federated Imageboard based on Activtypub">
+    <meta name="description" content="{{ .page.Meta.Description }}">
+    <meta property="og:url" content="{{ .page.Meta.Url }}">
+    <meta property="og:site_name" content="{{ .page.Instance.PreferredUsername }}" />
+
+    <meta property="og:title" content="{{ .page.Meta.Title }}">
+    <meta property="og:description" content="{{ .page.Meta.Description }}">
+
     <meta property="og:locale" content="en_US" />
     <meta property="og:type" content="website" />
+
+    <meta name="twitter:title" content="{{ .page.Meta.Title }}">
+    <meta name="twitter:description" content="{{ .page.Meta.Description }}">
+    <meta name="twitter:card" content="summary_large_image">
+
+    {{ if not (eq .page.Meta.Preview "") }}
+    <meta property="og:image" content="{{ .page.Meta.Preview }}" />
+    <meta name="twitter:image" content="{{ .page.Meta.Preview }}" />
+    {{ end }}
+
     <link rel="icon" type="image/png"  href="/static/favicon.png">
+
     {{ if gt (len .page.ThemeCookie) 0 }}
     <link rel="stylesheet" type="text/css" href="/static/css/themes/{{.page.ThemeCookie}}.css" title="selected theme">
     {{ else }}
@@ -15,8 +35,6 @@
     {{ range .page.Themes }}
     <link rel="alternate stylesheet" type="text/css" href="/static/css/themes/{{.}}.css" title="{{.}}" disabled>
     {{ end }}
-
-    {{ template  "header" .page }}
   </head>
   <body {{ if not .page.Board.Restricted }}class="nsfw"{{ end }} onload="applyTheme()">
     <ul id="boardlinks">
@@ -41,9 +59,5 @@
     {{ end }}
 
     {{ embed }}
-
-    {{ template "partials/footer" .page }}
-
-    <script src="/static/js/themes.js"></script>
   </body>
 </html>

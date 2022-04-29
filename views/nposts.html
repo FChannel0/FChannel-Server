@@ -1,45 +1,21 @@
-{{ define "header" }}
-<title>{{ .Title }}</title>
-<meta name="description" content="{{ .Board.Summary }}">
-<meta property="og:url" content="{{ .Board.Actor.Id }}">
-<meta property="og:site_name" content="{{ .Instance.PreferredUsername }}" />
-
-<meta property="og:title" content="{{ .Title }}">
-<meta property="og:description" content="{{ .Board.Summary }}">
-
-<meta name="twitter:title" content="{{ .Title }}">
-<meta name="twitter:description" content="{{ .Board.Summary }}">
-<meta name="twitter:card" content="summary_large_image">
-{{ end }}
-
 {{ template "partials/top" .page }}
 
 {{ $board := .page.Board }}
 <hr>
+
 <ul id="navlinks">
-  <li>[<a href="/{{ $board.Name }}/catalog">Catalog</a>]</li>
-  <!-- TODO: showArchive function needs to be fixed
-  \{\{ if showArchive }}
-  <li>[<a href="/{{ $board.Name }}/archive">Archive</a>]</li>
-  \{\{ end }}
-  -->
-  <li>[<a href="#bottom">Bottom</a>]</li>
-  <li>[<a href="javascript:location.reload()">Refresh</a>]</li>
+  <li>[<a href="/{{ .page.Board.Name }}/catalog">Catalog</a>]</li>
+  {{ template "partials/post_nav" .page }}
 </ul>
 
 {{ template "partials/posts" .page }}
 
 <hr>
 
+
 <ul id="navlinks">
-  <li>[<a href="/{{ $board.Name }}/catalog">Catalog</a>]</li>
-  <!-- TODO: showArchive function needs to be fixed
-  \{\{ if showArchive }}
-  <li>[<a href="/{{ $board.Name }}/archive">Archive</a>]</li>
-  \{\{ end }}
-  -->
-  <li>[<a href="#top" id="bottom">Top</a>]</li>
-  <li>[<a href="javascript:location.reload()">Refresh</a>]</li>
+  <li>[<a href="/{{ .page.Board.Name }}/catalog">Catalog</a>]</li>
+  {{ template "partials/post_nav" .page }}
 </ul>
 
 <hr>
@@ -64,7 +40,6 @@
 {{ end }}
 
 {{ template "partials/bottom" .page }}
-
-{{ define "scripts" }}
-{{ template "partials/postscripts" . }}
-{{ end }}
+{{ template "partials/footer" .page }}
+{{ template "partials/general_scripts" .page }}
+{{ template "partials/post_scripts" .page }}

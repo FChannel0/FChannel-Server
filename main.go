@@ -102,10 +102,9 @@ func main() {
 	/* Routing and templates */
 
 	template := html.New("./views", ".html")
+	template.Debug(true)
 
 	TemplateFunctions(template)
-
-	template.Reload(true)
 
 	app := fiber.New(fiber.Config{
 		AppName: "FChannel",

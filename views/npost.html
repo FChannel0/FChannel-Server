@@ -1,33 +1,13 @@
-{{ define "header" }}
-<title>/{{ .Board.Name }}/ - {{ .PostId  }}</title>
-<meta name="description" content="{{ (index .Posts 0).Content }}">
-<meta property="og:url" content="{{ (index .Posts 0).Id }}">
-<meta property="og:site_name" content="{{ .Instance.PreferredUsername }}" />
-
-<meta property="og:title" content="{{ (index .Posts 0).Name }}">
-<meta property="og:description" content="{{ (index .Posts 0).Content }}">
-
-<meta name="twitter:title" content="{{ (index .Posts 0).Name }}">
-<meta name="twitter:description" content="{{ (index .Posts 0).Content }}">
-<meta name="twitter:card" content="summary_large_image">
-
-{{ if (index .Posts 0).Preview }}
-<meta property="og:image" content="{{ (index .Posts 0).Preview.Href }}" />
-<meta name="twitter:image" content="{{ (index .Posts 0).Preview.Href }}" />
-{{ end }}
-{{ end }}
-
 {{ template "partials/top" .page }}
 
-{{ $board := .Board }}
-
 <hr>
+
 <ul id="navlinks">
-  <li>[<a href="/{{ $board.Name }}">Return</a>]</li>
-  <li>[<a href="/{{ $board.Name }}/catalog">Catalog</a>]</li>
-  <li>[<a href="#bottom">Bottom</a>]</li>
-  <li>[<a href="javascript:location.reload()">Refresh</a>]</li>
+  <li>[<a href="/{{ .page.Board.Name }}">Return</a>]</li>
+  <li>[<a href="/{{ .page.Board.Name }}/catalog">Catalog</a>]</li>
+  {{ template "partials/post_nav" .page }}
 </ul>
+
 <hr>
 
 {{ template "partials/posts" .page }}
@@ -35,32 +15,34 @@
 <hr>
 
 <table id="threadfooter"><tr>
-  <td>
-    <ul id="navlinks">
-      <li>[<a href="/{{ $board.Name }}">Return</a>]</li>
-      <li>[<a href="/{{ $board.Name }}/catalog">Catalog</a>]</li>
-      <li>[<a id="bottom" href="#top">Top</a>]</li>
-      <li>[<a href="javascript:location.reload()">Refresh</a>]</li>
-      <li><input id="autoreload-checkbox" type="checkbox" onclick="autoTimer()"> Auto refresh <span id="autoreload-countdown" style="visibility: hidden;">0</span></li>
-    </ul>
-  </td>
+  <tr>
+    <td>
+      <ul id="navlinks">
+        <li>[<a href="/{{ .page.Board.Name }}">Return</a>]</li>
+        <li>[<a href="/{{ .page.Board.Name }}/catalog">Catalog</a>]</li>
+        {{ template "partials/post_nav" .page }}
+        <li><input id="autoreload-checkbox" type="checkbox" onclick="autoTimer()"> Auto refresh <span id="autoreload-countdown" style="visibility: hidden;">0</span></li>
+      </ul>
+    </td>
 
-  {{ if eq (index .page.Posts 0).Type "Note" }}
-  <td style="text-align: center;">
-    <span>[<a id="reply-content" href="javascript:quote('{{ $board.Actor.Id }}', '{{ (index .page.Posts 0).Id }}', 'reply')">Post a Reply</a>]</span>
-  </td>
-  {{ end }}
+    {{ if eq (index .page.Posts 0).Type "Note" }}
+    <td style="text-align: center;">
+      <span>[<a id="reply-content" href="javascript:quote('{{ .page.Board.Actor.Id }}', '{{ (index .page.Posts 0).Id }}', 'reply')">Post a Reply</a>]</span>
+    </td>
+    {{ end }}
 
-  <td>
-    {{ $replies := (index .page.Posts 0).Replies }}
-    <span id="threadStats" data-total="{{ $replies.TotalItems }}" data-imgs="{{ $replies.TotalImgs }}">{{ $replies.TotalItems }} / {{ $replies.TotalImgs }}</span>
-  </td>
-</tr></table>
+    <td>
+      {{ $replies := (index .page.Posts 0).Replies }}
+      <span id="threadStats" data-total="{{ $replies.TotalItems }}" data-imgs="{{ $replies.TotalImgs }}">{{ $replies.TotalItems }} / {{ $replies.TotalImgs }}</span>
+    </td>
+  </tr>
+</table>
 
 <hr>
 
 {{ template "partials/bottom" .page }}
+{{ template "partials/footer" .page }}
+{{ template "partials/general_scripts" .page }}
+{{ template "partials/post_scripts" .page }}
 
-{{ define "scripts" }}
-{{ template "partials/postscripts" . }}
-{{ end }}
+<script src="/static/js/timer.js"></script>

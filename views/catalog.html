@@ -1,30 +1,11 @@
-{{ define "header" }}
-<title>/{{ .page.Board.Name }}/ - catalog</title>
-<meta name="description" content="{{ .page.Board.Summary }}">
-<meta property="og:url" content="{{ .page.Board.Actor.Id }}">
-<meta property="og:site_name" content="{{ .page.Instance.PreferredUsername }}" />
-
-<meta property="og:title" content="{{ .page.Title }}">
-<meta property="og:description" content="{{ .page.Board.Summary }}">
-
-<meta name="twitter:title" content="{{ .page.Title }}">
-<meta name="twitter:description" content="{{ .page.Board.Summary }}">
-<meta name="twitter:card" content="summary_large_image">
-
-<script src="/static/js/posts.js"></script>
-{{ end }}
+{{ template "partials/top" .page }}
 
 {{ $board := .page.Board }}
 <hr>
 
 <ul id="navlinks">
-  <li>[<a href="/{{ $board.Name }}/">Return</a>]</li>
-  <!-- TODO: Implement showArchive -->
-  <!-- \{\{ if showArchive }} -->
-  <!-- <li>[<a href="/{{ $board.Name }}/archive">Archive</a>]</li> -->
-  <!-- \{\{ end }} -->
-  <li>[<a href="#bottom">Bottom</a>]</li>
-  <li>[<a href="javascript:location.reload()">Refresh</a>]</li>
+  <li>[<a href="/{{ .page.Board.Name }}">Return</a>]</li>
+  {{ template "partials/post_nav" .page }}
 </ul>
 
 <hr>
@@ -94,16 +75,16 @@
   </div>
   {{ end }}
 </div>
+
 <hr>
 
 <ul id="navlinks">
-  <li>[<a href="/{{ $board.Name }}/">Return</a>]</li>
-  <!-- TODO: Implement showArchive -->
-  <!-- \{\{ if showArchive }} -->
-  <!-- <li>[<a href="/{{ $board.Name }}/archive">Archive</a>]</li> -->
-  <!-- \{\{ end }} -->
-  <li>[<a href="#top">Top</a>]</li>
-  <li>[<a href="javascript:location.reload()">Refresh</a>]</li>
+  <li>[<a href="/{{ .page.Board.Name }}">Return</a>]</li>
+  {{ template "partials/post_nav" .page }}
 </ul>
 
 <hr>
+
+{{ template "partials/footer" .page }}
+{{ template "partials/general_scripts" .page }}
+{{ template "partials/post_scripts" .page }}

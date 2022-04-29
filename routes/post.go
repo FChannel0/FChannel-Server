@@ -1,13 +1,13 @@
 package routes
 
 import (
-	"fmt"
+	"regexp"
+
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
-	"regexp"
 )
 
 func PostGet(ctx *fiber.Ctx) error {
@@ -20,34 +20,7 @@ func PostGet(ctx *fiber.Ctx) error {
 
 	inReplyTo := actor.Id + "/" + postId
 
-	var returnData PageData
-	returnData.Board.Name = actor.Name
-	returnData.Board.PrefName = actor.PreferredUsername
-	returnData.Board.To = actor.Outbox
-	returnData.Board.Actor = actor
-	returnData.Board.Summary = actor.Summary
-	returnData.Board.ModCred, _ = getPassword(ctx)
-	returnData.Board.Domain = config.Domain
-	returnData.Board.Restricted = actor.Restricted
-	returnData.ReturnTo = "feed"
-
-	capt, err := db.GetRandomCaptcha()
-	if err != nil {
-		return err
-	}
-	returnData.Board.Captcha = config.Domain + "/" + capt
-	returnData.Board.CaptchaCode = util.GetCaptchaCode(returnData.Board.Captcha)
-
-	returnData.Instance, err = db.GetActorFromDB(config.Domain)
-	if err != nil {
-		return err
-	}
-
-	returnData.Title = "/" + returnData.Board.Name + "/ - " + returnData.Board.PrefName
-
-	returnData.Key = config.Key
-
-	returnData.Boards = db.Boards
+	var data PageData
 
 	re := regexp.MustCompile("f(\\w|[!@#$%^&*<>])+-(\\w|[!@#$%^&*<>])+")
 
@@ -65,15 +38,15 @@ func PostGet(ctx *fiber.Ctx) error {
 		}
 
 		if len(followCollection.OrderedItems) > 0 {
-			returnData.Board.InReplyTo = followCollection.OrderedItems[0].Id
-			returnData.Posts = append(returnData.Posts, followCollection.OrderedItems[0])
+			data.Board.InReplyTo = followCollection.OrderedItems[0].Id
+			data.Posts = append(data.Posts, followCollection.OrderedItems[0])
 
-			actor, err := webfinger.FingerActor(returnData.Board.InReplyTo)
+			actor, err := webfinger.FingerActor(data.Board.InReplyTo)
 			if err != nil {
 				return err
 			}
 
-			returnData.Board.Post.Actor = actor.Id
+			data.Board.Post.Actor = actor.Id
 		}
 	} else {
 		collection, err := db.GetObjectByIDFromDB(inReplyTo)
@@ -82,24 +55,58 @@ func PostGet(ctx *fiber.Ctx) error {
 		}
 
 		if collection.Actor != nil {
-			returnData.Board.Post.Actor = collection.Actor.Id
-			returnData.Board.InReplyTo = inReplyTo
+			data.Board.Post.Actor = collection.Actor.Id
+			data.Board.InReplyTo = inReplyTo
 
 			if len(collection.OrderedItems) > 0 {
-				returnData.Posts = append(returnData.Posts, collection.OrderedItems[0])
+				data.Posts = append(data.Posts, collection.OrderedItems[0])
 			}
 		}
 	}
 
-	if len(returnData.Posts) > 0 {
-		returnData.PostId = util.ShortURL(returnData.Board.To, returnData.Posts[0].Id)
+	if len(data.Posts) > 0 {
+		data.PostId = util.ShortURL(data.Board.To, data.Posts[0].Id)
 	}
 
-	returnData.Themes = &config.Themes
-	returnData.ThemeCookie = getThemeCookie(ctx)
+	data.Board.Name = actor.Name
+	data.Board.PrefName = actor.PreferredUsername
+	data.Board.To = actor.Outbox
+	data.Board.Actor = actor
+	data.Board.Summary = actor.Summary
+	data.Board.ModCred, _ = getPassword(ctx)
+	data.Board.Domain = config.Domain
+	data.Board.Restricted = actor.Restricted
+	data.ReturnTo = "feed"
+
+	capt, err := db.GetRandomCaptcha()
+	if err != nil {
+		return err
+	}
+	data.Board.Captcha = config.Domain + "/" + capt
+	data.Board.CaptchaCode = util.GetCaptchaCode(data.Board.Captcha)
+
+	data.Instance, err = db.GetActorFromDB(config.Domain)
+	if err != nil {
+		return err
+	}
+
+	data.Key = config.Key
+	data.Boards = db.Boards
+
+	data.Title = "/" + data.Board.Name + "/ - " + data.PostId
+
+	if len(data.Posts) > 0 {
+		data.Meta.Description = data.Posts[0].Content
+		data.Meta.Url = data.Posts[0].Id
+		data.Meta.Title = data.Posts[0].Name
+		data.Meta.Preview = data.Posts[0].Preview.Href
+	}
+
+	data.Themes = &config.Themes
+	data.ThemeCookie = getThemeCookie(ctx)
 
 	return ctx.Render("npost", fiber.Map{
-		"page": returnData,
+		"page": data,
 	}, "layouts/main")
 }
 
@@ -111,8 +118,6 @@ func CatalogGet(ctx *fiber.Ctx) error {
 	}
 
 	collection, err := db.GetObjectFromDBCatalog(actor.Id)
-
-	fmt.Println(err)
 
 	// TODO: implement this in template functions
 	//	"showArchive": func() bool {
@@ -128,22 +133,22 @@ func CatalogGet(ctx *fiber.Ctx) error {
 	//	return false
 	//},
 
-	var returnData PageData
-	returnData.Board.Name = actor.Name
-	returnData.Board.PrefName = actor.PreferredUsername
-	returnData.Board.InReplyTo = ""
-	returnData.Board.To = actor.Outbox
-	returnData.Board.Actor = actor
-	returnData.Board.Summary = actor.Summary
-	returnData.Board.ModCred, _ = getPassword(ctx)
-	returnData.Board.Domain = config.Domain
-	returnData.Board.Restricted = actor.Restricted
-	returnData.Key = config.Key
-	returnData.ReturnTo = "catalog"
+	var data PageData
+	data.Board.Name = actor.Name
+	data.Board.PrefName = actor.PreferredUsername
+	data.Board.InReplyTo = ""
+	data.Board.To = actor.Outbox
+	data.Board.Actor = actor
+	data.Board.Summary = actor.Summary
+	data.Board.ModCred, _ = getPassword(ctx)
+	data.Board.Domain = config.Domain
+	data.Board.Restricted = actor.Restricted
+	data.Key = config.Key
+	data.ReturnTo = "catalog"
 
-	returnData.Board.Post.Actor = actor.Id
+	data.Board.Post.Actor = actor.Id
 
-	returnData.Instance, err = db.GetActorFromDB(config.Domain)
+	data.Instance, err = db.GetActorFromDB(config.Domain)
 	if err != nil {
 		return err
 	}
@@ -152,19 +157,23 @@ func CatalogGet(ctx *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	returnData.Board.Captcha = config.Domain + "/" + capt
-	returnData.Board.CaptchaCode = util.GetCaptchaCode(returnData.Board.Captcha)
 
-	returnData.Title = "/" + actor.Name + "/ - " + actor.PreferredUsername
+	data.Board.Captcha = config.Domain + "/" + capt
+	data.Board.CaptchaCode = util.GetCaptchaCode(data.Board.Captcha)
 
-	returnData.Boards = db.Boards
+	data.Title = "/" + data.Board.Name + "/ - catalog"
 
-	returnData.Posts = collection.OrderedItems
+	data.Boards = db.Boards
+	data.Posts = collection.OrderedItems
 
-	returnData.Themes = &config.Themes
-	returnData.ThemeCookie = getThemeCookie(ctx)
+	data.Meta.Description = data.Board.Summary
+	data.Meta.Url = data.Board.Actor.Id
+	data.Meta.Title = data.Title
+
+	data.Themes = &config.Themes
+	data.ThemeCookie = getThemeCookie(ctx)
 
 	return ctx.Render("catalog", fiber.Map{
-		"page": returnData,
+		"page": data,
 	}, "layouts/main")
 }

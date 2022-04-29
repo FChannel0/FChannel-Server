@@ -21,6 +21,7 @@ type PageData struct {
 	ReturnTo          string
 	NewsItems         []db.NewsItem
 	BoardRemainer     []int
+	Meta              Meta
 
 	Themes      *[]string
 	ThemeCookie string
@@ -42,4 +43,11 @@ type AdminPage struct {
 
 	Themes      *[]string
 	ThemeCookie string
+}
+
+type Meta struct {
+	Title       string
+	Description string
+	Url         string
+	Preview     string
 }
