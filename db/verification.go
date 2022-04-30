@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/util"
 	_ "github.com/lib/pq"
@@ -37,7 +38,7 @@ type Signature struct {
 func DeleteBoardMod(verify Verify) error {
 	query := `select code from boardaccess where identifier=$1 and board=$1`
 
-	rows, err := db.Query(query, verify.Identifier, verify.Board)
+	rows, err := config.DB.Query(query, verify.Identifier, verify.Board)
 	if err != nil {
 		return err
 	}
@@ -51,13 +52,13 @@ func DeleteBoardMod(verify Verify) error {
 	if code != "" {
 		query := `delete from crossverification where code=$1`
 
-		if _, err := db.Exec(query, code); err != nil {
+		if _, err := config.DB.Exec(query, code); err != nil {
 			return err
 		}
 
 		query = `delete from boardaccess where identifier=$1 and board=$2`
 
-		if _, err := db.Exec(query, verify.Identifier, verify.Board); err != nil {
+		if _, err := config.DB.Exec(query, verify.Identifier, verify.Board); err != nil {
 			return err
 		}
 	}
@@ -70,7 +71,7 @@ func GetBoardMod(identifier string) (Verify, error) {
 
 	query := `select code, board, type, identifier from boardaccess where identifier=$1`
 
-	rows, err := db.Query(query, identifier)
+	rows, err := config.DB.Query(query, identifier)
 
 	if err != nil {
 		return nVerify, err
@@ -89,7 +90,7 @@ func CreateBoardMod(verify Verify) error {
 
 	query := `select code from verification where identifier=$1 and type=$2`
 
-	rows, err := db.Query(query, verify.Board, verify.Type)
+	rows, err := config.DB.Query(query, verify.Board, verify.Type)
 	if err != nil {
 		return err
 	}
@@ -105,7 +106,7 @@ func CreateBoardMod(verify Verify) error {
 
 		query := `select identifier from boardaccess where identifier=$1 and board=$2`
 
-		rows, err := db.Query(query, verify.Identifier, verify.Board)
+		rows, err := config.DB.Query(query, verify.Identifier, verify.Board)
 		if err != nil {
 			return err
 		}
@@ -120,13 +121,13 @@ func CreateBoardMod(verify Verify) error {
 
 			query := `insert into crossverification (verificationcode, code) values ($1, $2)`
 
-			if _, err := db.Exec(query, code, pass); err != nil {
+			if _, err := config.DB.Exec(query, code, pass); err != nil {
 				return err
 			}
 
 			query = `insert into boardaccess (identifier, code, board, type) values ($1, $2, $3, $4)`
 
-			if _, err = db.Exec(query, verify.Identifier, pass, verify.Board, verify.Type); err != nil {
+			if _, err = config.DB.Exec(query, verify.Identifier, pass, verify.Board, verify.Type); err != nil {
 				return err
 			}
 
@@ -140,7 +141,7 @@ func CreateBoardMod(verify Verify) error {
 func CreateVerification(verify Verify) error {
 	query := `insert into verification (type, identifier, code, created) values ($1, $2, $3, $4)`
 
-	_, err := db.Exec(query, verify.Type, verify.Identifier, verify.Code, time.Now().UTC().Format(time.RFC3339))
+	_, err := config.DB.Exec(query, verify.Type, verify.Identifier, verify.Code, time.Now().UTC().Format(time.RFC3339))
 	return err
 }
 
@@ -151,7 +152,7 @@ func GetVerificationByEmail(email string) (Verify, error) {
 
 	query := `select type, identifier, code, board from boardaccess where identifier=$1`
 
-	rows, err := db.Query(query, email)
+	rows, err := config.DB.Query(query, email)
 	if err != nil {
 		return verify, err
 	}
@@ -174,7 +175,7 @@ func GetVerificationByCode(code string) (Verify, error) {
 
 	query := `select type, identifier, code, board from boardaccess where code=$1`
 
-	rows, err := db.Query(query, code)
+	rows, err := config.DB.Query(query, code)
 	if err != nil {
 		return verify, err
 	}
@@ -195,7 +196,7 @@ func GetVerificationCode(verify Verify) (Verify, error) {
 
 	query := `select type, identifier, code, board from boardaccess where identifier=$1 and board=$2`
 
-	rows, err := db.Query(query, verify.Identifier, verify.Board)
+	rows, err := config.DB.Query(query, verify.Identifier, verify.Board)
 	if err != nil {
 		return verify, err
 	}
@@ -217,11 +218,11 @@ func VerifyCooldownCurrent(auth string) (VerifyCooldown, error) {
 
 	query := `select identifier, code, time from verificationcooldown where code=$1`
 
-	rows, err := db.Query(query, auth)
+	rows, err := config.DB.Query(query, auth)
 	if err != nil {
 		query := `select identifier, code, time from verificationcooldown where identifier=$1`
 
-		rows, err := db.Query(query, auth)
+		rows, err := config.DB.Query(query, auth)
 
 		if err != nil {
 			return current, err
@@ -250,14 +251,14 @@ func VerifyCooldownCurrent(auth string) (VerifyCooldown, error) {
 func VerifyCooldownAdd(verify Verify) error {
 	query := `insert into verficationcooldown (identifier, code) values ($1, $2)`
 
-	_, err := db.Exec(query, verify.Identifier, verify.Code)
+	_, err := config.DB.Exec(query, verify.Identifier, verify.Code)
 	return err
 }
 
 func VerficationCooldown() error {
 	query := `select identifier, code, time from verificationcooldown`
 
-	rows, err := db.Query(query)
+	rows, err := config.DB.Query(query)
 	if err != nil {
 		return err
 	}
@@ -275,7 +276,7 @@ func VerficationCooldown() error {
 
 		query = `update set time=$1 where identifier=$2`
 
-		if _, err := db.Exec(query, nTime, verify.Identifier); err != nil {
+		if _, err := config.DB.Exec(query, nTime, verify.Identifier); err != nil {
 			return err
 		}
 
@@ -288,7 +289,7 @@ func VerficationCooldown() error {
 func VerficationCooldownRemove() error {
 	query := `delete from verificationcooldown where time < 1`
 
-	_, err := db.Exec(query)
+	_, err := config.DB.Exec(query)
 	return err
 }
 
@@ -431,7 +432,7 @@ func CreateBoardAccess(verify Verify) error {
 	if !hasAccess {
 		query := `insert into boardaccess (identifier, board) values($1, $2)`
 
-		_, err := db.Exec(query, verify.Identifier, verify.Board)
+		_, err := config.DB.Exec(query, verify.Identifier, verify.Board)
 		return err
 	}
 
@@ -441,7 +442,7 @@ func CreateBoardAccess(verify Verify) error {
 func HasBoardAccess(verify Verify) (bool, error) {
 	query := `select count(*) from boardaccess where identifier=$1 and board=$2`
 
-	rows, err := db.Query(query, verify.Identifier, verify.Board)
+	rows, err := config.DB.Query(query, verify.Identifier, verify.Board)
 	if err != nil {
 		return false, err
 	}
@@ -461,7 +462,7 @@ func HasBoardAccess(verify Verify) (bool, error) {
 }
 
 func BoardHasAuthType(board string, auth string) (bool, error) {
-	authTypes, err := GetActorAuth(board)
+	authTypes, err := activitypub.GetActorAuth(board)
 	if err != nil {
 		return false, err
 	}

@@ -17,134 +17,6 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func GetActorFollowing(w http.ResponseWriter, id string) error {
-	var following activitypub.Collection
-	var err error
-
-	following.AtContext.Context = "https://www.w3.org/ns/activitystreams"
-	following.Type = "Collection"
-	following.TotalItems, _, err = GetActorFollowTotal(id)
-	if err != nil {
-		return err
-	}
-
-	following.Items, err = GetActorFollowingDB(id)
-	if err != nil {
-		return err
-	}
-
-	enc, _ := json.MarshalIndent(following, "", "\t")
-	w.Header().Set("Content-Type", config.ActivityStreams)
-	_, err = w.Write(enc)
-
-	return err
-}
-
-func GetActorFollowers(w http.ResponseWriter, id string) error {
-	var following activitypub.Collection
-	var err error
-
-	following.AtContext.Context = "https://www.w3.org/ns/activitystreams"
-	following.Type = "Collection"
-	_, following.TotalItems, err = GetActorFollowTotal(id)
-	if err != nil {
-		return err
-	}
-
-	following.Items, err = GetActorFollowDB(id)
-	if err != nil {
-		return err
-	}
-
-	enc, _ := json.MarshalIndent(following, "", "\t")
-	w.Header().Set("Content-Type", config.ActivityStreams)
-	_, err = w.Write(enc)
-	return err
-}
-
-func GetActorFollowingDB(id string) ([]activitypub.ObjectBase, error) {
-	var followingCollection []activitypub.ObjectBase
-	query := `select following from following where id=$1`
-
-	rows, err := db.Query(query, id)
-	if err != nil {
-		return followingCollection, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var obj activitypub.ObjectBase
-
-		if err := rows.Scan(&obj.Id); err != nil {
-			return followingCollection, err
-		}
-
-		followingCollection = append(followingCollection, obj)
-	}
-
-	return followingCollection, nil
-}
-
-func GetActorFollowDB(id string) ([]activitypub.ObjectBase, error) {
-	var followerCollection []activitypub.ObjectBase
-
-	query := `select follower from follower where id=$1`
-
-	rows, err := db.Query(query, id)
-	if err != nil {
-		return followerCollection, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var obj activitypub.ObjectBase
-
-		if err := rows.Scan(&obj.Id); err != nil {
-			return followerCollection, err
-		}
-
-		followerCollection = append(followerCollection, obj)
-	}
-
-	return followerCollection, nil
-}
-
-func GetActorFollowTotal(id string) (int, int, error) {
-	var following int
-	var followers int
-
-	query := `select count(following) from following where id=$1`
-
-	rows, err := db.Query(query, id)
-	if err != nil {
-		return 0, 0, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		if err := rows.Scan(&following); err != nil {
-			return following, 0, err
-		}
-	}
-
-	query = `select count(follower) from follower where id=$1`
-
-	rows, err = db.Query(query, id)
-	if err != nil {
-		return 0, 0, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		if err := rows.Scan(&followers); err != nil {
-			return following, followers, err
-		}
-
-	}
-
-	return following, followers, nil
-}
-
 func AcceptFollow(activity activitypub.Activity) activitypub.Activity {
 	var accept activitypub.Activity
 	accept.AtContext.Context = activity.AtContext.Context
@@ -164,95 +36,11 @@ func AcceptFollow(activity activitypub.Activity) activitypub.Activity {
 	return accept
 }
 
-func RejectActivity(activity activitypub.Activity) activitypub.Activity {
-	var accept activitypub.Activity
-	accept.AtContext.Context = activity.AtContext.Context
-	accept.Type = "Reject"
-	var nObj activitypub.ObjectBase
-	accept.Object = &nObj
-	var nActor activitypub.Actor
-	accept.Actor = &nActor
-	accept.Actor.Id = activity.Object.Actor
-	accept.Object.Actor = activity.Actor.Id
-	var nNested activitypub.NestedObjectBase
-	accept.Object.Object = &nNested
-	accept.Object.Object.Actor = activity.Object.Actor
-	accept.Object.Object.Type = "Follow"
-	accept.To = append(accept.To, activity.Actor.Id)
-
-	return accept
-}
-
-func IsAlreadyFollowing(actor string, follow string) (bool, error) {
-	followers, err := GetActorFollowingDB(actor)
-	if err != nil {
-		return false, err
-	}
-
-	for _, e := range followers {
-		if e.Id == follow {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-func IsAlreadyFollower(actor string, follow string) (bool, error) {
-	followers, err := GetActorFollowDB(actor)
-	if err != nil {
-		return false, err
-	}
-
-	for _, e := range followers {
-		if e.Id == follow {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-func SetActorFollowerDB(activity activitypub.Activity) (activitypub.Activity, error) {
-	var query string
-	alreadyFollow, err := IsAlreadyFollower(activity.Actor.Id, activity.Object.Actor)
-	if err != nil {
-		return activity, err
-	}
-
-	activity.Type = "Reject"
-	if activity.Actor.Id == activity.Object.Actor {
-		return activity, nil
-	}
-
-	if alreadyFollow {
-		query = `delete from follower where id=$1 and follower=$2`
-		activity.Summary = activity.Object.Actor + " Unfollow " + activity.Actor.Id
-
-		if _, err := db.Exec(query, activity.Actor.Id, activity.Object.Actor); err != nil {
-			return activity, err
-		}
-
-		activity.Type = "Accept"
-		return activity, err
-	}
-
-	query = `insert into follower (id, follower) values ($1, $2)`
-	activity.Summary = activity.Object.Actor + " Follow " + activity.Actor.Id
-
-	if _, err := db.Exec(query, activity.Actor.Id, activity.Object.Actor); err != nil {
-		return activity, err
-	}
-
-	activity.Type = "Accept"
-	return activity, nil
-}
-
 func SetActorFollowingDB(activity activitypub.Activity) (activitypub.Activity, error) {
 	var query string
 	alreadyFollowing := false
 	alreadyFollower := false
-	following, err := GetActorFollowingDB(activity.Object.Actor)
+	following, err := activitypub.GetActorFollowingDB(activity.Object.Actor)
 	if err != nil {
 		return activity, err
 	}
@@ -288,13 +76,13 @@ func SetActorFollowingDB(activity activitypub.Activity) (activitypub.Activity, e
 	if alreadyFollowing && alreadyFollower {
 		query = `delete from following where id=$1 and following=$2`
 		activity.Summary = activity.Object.Actor + " Unfollowing " + activity.Actor.Id
-		if res, err := IsActorLocal(activity.Actor.Id); err == nil && !res {
-			go DeleteActorCache(activity.Actor.Id)
+		if res, err := activitypub.IsActorLocal(activity.Actor.Id); err == nil && !res {
+			go activitypub.DeleteActorCache(activity.Actor.Id)
 		} else {
 			return activity, err
 		}
 
-		if _, err := db.Exec(query, activity.Object.Actor, activity.Actor.Id); err != nil {
+		if _, err := config.DB.Exec(query, activity.Object.Actor, activity.Actor.Id); err != nil {
 			return activity, err
 		}
 
@@ -306,10 +94,10 @@ func SetActorFollowingDB(activity activitypub.Activity) (activitypub.Activity, e
 
 		query = `insert into following (id, following) values ($1, $2)`
 		activity.Summary = activity.Object.Actor + " Following " + activity.Actor.Id
-		if res, err := IsActorLocal(activity.Actor.Id); err == nil && !res {
+		if res, err := activitypub.IsActorLocal(activity.Actor.Id); err == nil && !res {
 			go WriteActorToCache(activity.Actor.Id)
 		}
-		if _, err := db.Exec(query, activity.Object.Actor, activity.Actor.Id); err != nil {
+		if _, err := config.DB.Exec(query, activity.Object.Actor, activity.Actor.Id); err != nil {
 			return activity, err
 		}
 
@@ -321,12 +109,12 @@ func SetActorFollowingDB(activity activitypub.Activity) (activitypub.Activity, e
 }
 
 func AutoFollow(actor string) error {
-	following, err := GetActorFollowingDB(actor)
+	following, err := activitypub.GetActorFollowingDB(actor)
 	if err != nil {
 		return err
 	}
 
-	follower, err := GetActorFollowDB(actor)
+	follower, err := activitypub.GetActorFollowDB(actor)
 	if err != nil {
 		return err
 	}
@@ -370,7 +158,7 @@ func MakeFollowActivity(actor string, follow string) (activitypub.Activity, erro
 	var obj activitypub.ObjectBase
 	var nactor activitypub.Actor
 	if actor == config.Domain {
-		nactor, err = GetActorFromDB(actor)
+		nactor, err = activitypub.GetActorFromDB(actor)
 	} else {
 		nactor, err = webfinger.FingerActor(actor)
 	}
@@ -407,7 +195,7 @@ func MakeActivityRequestOutbox(activity activitypub.Activity) error {
 	if activity.Actor.Id == config.Domain {
 		instance = re.ReplaceAllString(config.Domain, "")
 	} else {
-		_, instance = util.GetActorInstance(activity.Actor.Id)
+		_, instance = activitypub.GetActorInstance(activity.Actor.Id)
 	}
 
 	date := time.Now().UTC().Format(time.RFC1123)
@@ -416,7 +204,7 @@ func MakeActivityRequestOutbox(activity activitypub.Activity) error {
 	path = re.ReplaceAllString(path, "")
 
 	sig := fmt.Sprintf("(request-target): %s %s\nhost: %s\ndate: %s", "post", path, instance, date)
-	encSig, err := ActivitySign(*activity.Actor, sig)
+	encSig, err := activitypub.ActivitySign(*activity.Actor, sig)
 	if err != nil {
 		return err
 	}
@@ -443,7 +231,7 @@ func MakeActivityRequest(activity activitypub.Activity) error {
 			}
 
 			if actor.Id != "" {
-				_, instance := util.GetActorInstance(actor.Id)
+				_, instance := activitypub.GetActorInstance(actor.Id)
 
 				if actor.Inbox != "" {
 					req, err := http.NewRequest("POST", actor.Inbox, bytes.NewBuffer(j))
@@ -458,7 +246,7 @@ func MakeActivityRequest(activity activitypub.Activity) error {
 					path = re.ReplaceAllString(path, "")
 
 					sig := fmt.Sprintf("(request-target): %s %s\nhost: %s\ndate: %s", "post", path, instance, date)
-					encSig, err := ActivitySign(*activity.Actor, sig)
+					encSig, err := activitypub.ActivitySign(*activity.Actor, sig)
 					if err != nil {
 						return err
 					}

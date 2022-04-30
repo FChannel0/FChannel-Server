@@ -156,7 +156,7 @@ func ParseLinkComments(board activitypub.Actor, op string, content string, threa
 			}
 
 			if quoteTitle == "" {
-				obj, err := db.GetObjectFromDBFromID(parsedLink)
+				obj, err := activitypub.GetObjectFromDBFromID(parsedLink)
 				if err != nil {
 					return "", err
 				}

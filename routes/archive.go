@@ -5,6 +5,7 @@ import (
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
 	"github.com/FChannel0/FChannel-Server/util"
+	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -29,7 +30,7 @@ func ArchiveGet(ctx *fiber.Ctx) error {
 	returnData.Board.Post.Actor = actor.Id
 
 	var err error
-	returnData.Instance, err = db.GetActorFromDB(config.Domain)
+	returnData.Instance, err = activitypub.GetActorFromDB(config.Domain)
 
 	capt, err := db.GetRandomCaptcha()
 	if err != nil {
@@ -40,7 +41,7 @@ func ArchiveGet(ctx *fiber.Ctx) error {
 
 	returnData.Title = "/" + actor.Name + "/ - " + actor.PreferredUsername
 
-	returnData.Boards = db.Boards
+	returnData.Boards = webfinger.Boards
 
 	returnData.Posts = collection.OrderedItems
 

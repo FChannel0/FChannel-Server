@@ -2,6 +2,7 @@ package config
 
 import (
 	"bufio"
+	"database/sql"
 	"log"
 	"os"
 	"strconv"
@@ -30,6 +31,7 @@ var ActivityStreams = "application/ld+json; profile=\"https://www.w3.org/ns/acti
 var SupportedFiles = []string{"image/gif", "image/jpeg", "image/png", "image/webp", "image/apng", "video/mp4", "video/ogg", "video/webm", "audio/mpeg", "audio/ogg", "audio/wav", "audio/wave", "audio/x-wav"}
 var Key string
 var Themes []string
+var DB *sql.DB
 
 func GetConfigValue(value string, ifnone string) string {
 	file, err := os.Open("config/config-init")

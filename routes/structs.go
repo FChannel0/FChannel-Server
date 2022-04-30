@@ -3,16 +3,18 @@ package routes
 import (
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/db"
+	"github.com/FChannel0/FChannel-Server/post"
+	"github.com/FChannel0/FChannel-Server/webfinger"
 )
 
 type PageData struct {
 	Title             string
 	PreferredUsername string
-	Board             db.Board
+	Board             webfinger.Board
 	Pages             []int
 	CurrentPage       int
 	TotalPage         int
-	Boards            []db.Board
+	Boards            []webfinger.Board
 	Posts             []activitypub.ObjectBase
 	Key               string
 	PostId            string
@@ -29,16 +31,16 @@ type PageData struct {
 
 type AdminPage struct {
 	Title         string
-	Board         db.Board
+	Board         webfinger.Board
 	Key           string
 	Actor         string
-	Boards        []db.Board
+	Boards        []webfinger.Board
 	Following     []string
 	Followers     []string
 	Reported      []db.Report
 	Domain        string
 	IsLocal       bool
-	PostBlacklist []db.PostBlacklist
+	PostBlacklist []post.PostBlacklist
 	AutoSubscribe bool
 
 	Themes      *[]string

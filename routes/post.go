@@ -3,6 +3,7 @@ package routes
 import (
 	"regexp"
 
+	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
 	"github.com/FChannel0/FChannel-Server/util"
@@ -11,7 +12,7 @@ import (
 )
 
 func PostGet(ctx *fiber.Ctx) error {
-	actor, err := db.GetActorByNameFromDB(ctx.Params("actor"))
+	actor, err := activitypub.GetActorByNameFromDB(ctx.Params("actor"))
 	if err != nil {
 		return err
 	}
@@ -25,14 +26,14 @@ func PostGet(ctx *fiber.Ctx) error {
 	re := regexp.MustCompile("f(\\w|[!@#$%^&*<>])+-(\\w|[!@#$%^&*<>])+")
 
 	if re.MatchString(postId) { // if non local actor post
-		name := util.GetActorFollowNameFromPath(postId)
+		name := activitypub.GetActorFollowNameFromPath(postId)
 
 		followActors, err := webfinger.GetActorsFollowFromName(actor, name)
 		if err != nil {
 			return err
 		}
 
-		followCollection, err := db.GetActorsFollowPostFromId(followActors, postId)
+		followCollection, err := activitypub.GetActorsFollowPostFromId(followActors, postId)
 		if err != nil {
 			return err
 		}
@@ -49,7 +50,7 @@ func PostGet(ctx *fiber.Ctx) error {
 			data.Board.Post.Actor = actor.Id
 		}
 	} else {
-		collection, err := db.GetObjectByIDFromDB(inReplyTo)
+		collection, err := activitypub.GetObjectByIDFromDB(inReplyTo)
 		if err != nil {
 			return err
 		}
@@ -85,13 +86,13 @@ func PostGet(ctx *fiber.Ctx) error {
 	data.Board.Captcha = config.Domain + "/" + capt
 	data.Board.CaptchaCode = util.GetCaptchaCode(data.Board.Captcha)
 
-	data.Instance, err = db.GetActorFromDB(config.Domain)
+	data.Instance, err = activitypub.GetActorFromDB(config.Domain)
 	if err != nil {
 		return err
 	}
 
 	data.Key = config.Key
-	data.Boards = db.Boards
+	data.Boards = webfinger.Boards
 
 	data.Title = "/" + data.Board.Name + "/ - " + data.PostId
 
@@ -112,12 +113,12 @@ func PostGet(ctx *fiber.Ctx) error {
 
 func CatalogGet(ctx *fiber.Ctx) error {
 	actorName := ctx.Params("actor")
-	actor, err := db.GetActorByNameFromDB(actorName)
+	actor, err := activitypub.GetActorByNameFromDB(actorName)
 	if err != nil {
 		return err
 	}
 
-	collection, err := db.GetObjectFromDBCatalog(actor.Id)
+	collection, err := activitypub.GetObjectFromDBCatalog(actor.Id)
 
 	// TODO: implement this in template functions
 	//	"showArchive": func() bool {
@@ -148,7 +149,7 @@ func CatalogGet(ctx *fiber.Ctx) error {
 
 	data.Board.Post.Actor = actor.Id
 
-	data.Instance, err = db.GetActorFromDB(config.Domain)
+	data.Instance, err = activitypub.GetActorFromDB(config.Domain)
 	if err != nil {
 		return err
 	}
@@ -163,7 +164,7 @@ func CatalogGet(ctx *fiber.Ctx) error {
 
 	data.Title = "/" + data.Board.Name + "/ - catalog"
 
-	data.Boards = db.Boards
+	data.Boards = webfinger.Boards
 	data.Posts = collection.OrderedItems
 
 	data.Meta.Description = data.Board.Summary

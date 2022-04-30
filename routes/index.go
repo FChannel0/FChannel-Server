@@ -1,22 +1,22 @@
 package routes
 
 import (
+	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
-	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
 )
 
 func Index(ctx *fiber.Ctx) error {
-	actor, err := db.GetActorFromDB(config.Domain)
+	actor, err := activitypub.GetActorFromDB(config.Domain)
 	if err != nil {
 		return err
 	}
 
 	// this is a activitpub json request return json instead of html page
-	if util.AcceptActivity(ctx.Get("Accept")) {
-		db.GetActorInfo(ctx, actor.Id)
+	if activitypub.AcceptActivity(ctx.Get("Accept")) {
+		activitypub.GetActorInfo(ctx, actor.Id)
 		return nil
 	}
 
@@ -38,7 +38,7 @@ func Index(ctx *fiber.Ctx) error {
 
 	data.Title = "Welcome to " + actor.PreferredUsername
 	data.PreferredUsername = actor.PreferredUsername
-	data.Boards = db.Boards
+	data.Boards = webfinger.Boards
 	data.Board.Name = ""
 	data.Key = config.Key
 	data.Board.Domain = config.Domain

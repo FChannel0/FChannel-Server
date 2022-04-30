@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
@@ -23,7 +22,6 @@ import (
 	"io/ioutil"
 	// "log"
 	"math/rand"
-	"mime/multipart"
 	"net/http"
 	"os"
 	"os/exec"
@@ -60,7 +58,8 @@ func main() {
 
 	config.Key = util.CreateKey(32)
 
-	db.FollowingBoards, err = db.GetActorFollowingDB(config.Domain)
+	webfinger.FollowingBoards, err = activitypub.GetActorFollowingDB(config.Domain)
+
 	if err != nil {
 		panic(err)
 	}
@@ -69,7 +68,8 @@ func main() {
 
 	go db.CheckInactive()
 
-	db.Boards, err = db.GetBoardCollection()
+	webfinger.Boards, err = webfinger.GetBoardCollection()
+
 	if err != nil {
 		panic(err)
 	}
@@ -77,7 +77,7 @@ func main() {
 	// root actor is used to follow remote feeds that are not local
 	//name, prefname, summary, auth requirements, restricted
 	if config.InstanceName != "" {
-		if _, err = db.CreateNewBoardDB(*CreateNewActor("", config.InstanceName, config.InstanceSummary, authReq, false)); err != nil {
+		if _, err = db.CreateNewBoardDB(*activitypub.CreateNewActor("", config.InstanceName, config.InstanceSummary, authReq, false)); err != nil {
 			//panic(err)
 		}
 
@@ -189,7 +189,7 @@ func main() {
 			actorDomain[0] = "/" + actorDomain[0]
 		}
 
-		if res, err := db.IsActorLocal(config.TP + "" + actorDomain[1] + "" + actorDomain[0]); err == nil && !res {
+		if res, err := activitypub.IsActorLocal(config.TP + "" + actorDomain[1] + "" + actorDomain[0]); err == nil && !res {
 			c.Status(fiber.StatusBadRequest)
 			return c.Send([]byte("actor not local"))
 		} else if err != nil {
@@ -268,34 +268,8 @@ func GetContentType(location string) string {
 	}
 }
 
-func CreateNewActor(board string, prefName string, summary string, authReq []string, restricted bool) *activitypub.Actor {
-	actor := new(activitypub.Actor)
-
-	var path string
-	if board == "" {
-		path = config.Domain
-		actor.Name = "main"
-	} else {
-		path = config.Domain + "/" + board
-		actor.Name = board
-	}
-
-	actor.Type = "Group"
-	actor.Id = fmt.Sprintf("%s", path)
-	actor.Following = fmt.Sprintf("%s/following", actor.Id)
-	actor.Followers = fmt.Sprintf("%s/followers", actor.Id)
-	actor.Inbox = fmt.Sprintf("%s/inbox", actor.Id)
-	actor.Outbox = fmt.Sprintf("%s/outbox", actor.Id)
-	actor.PreferredUsername = prefName
-	actor.Restricted = restricted
-	actor.Summary = summary
-	actor.AuthRequirement = authReq
-
-	return actor
-}
-
 func GetActorPost(w http.ResponseWriter, path string) error {
-	collection, err := db.GetCollectionFromPath(config.Domain + "" + path)
+	collection, err := activitypub.GetCollectionFromPath(config.Domain + "" + path)
 	if err != nil {
 		return err
 	}
@@ -312,16 +286,6 @@ func GetActorPost(w http.ResponseWriter, path string) error {
 	}
 
 	return nil
-}
-
-func CreateObject(objType string) activitypub.ObjectBase {
-	var nObj activitypub.ObjectBase
-
-	nObj.Type = objType
-	nObj.Published = time.Now().UTC()
-	nObj.Updated = time.Now().UTC()
-
-	return nObj
 }
 
 func AddFollowersToActivity(activity activitypub.Activity) (activitypub.Activity, error) {
@@ -387,101 +351,6 @@ func CreateActivity(activityType string, obj activitypub.ObjectBase) (activitypu
 	return newActivity, nil
 }
 
-func ProcessActivity(activity activitypub.Activity) error {
-	activityType := activity.Type
-
-	if activityType == "Create" {
-		for _, e := range activity.To {
-			if res, err := db.GetActorFromDB(e); err == nil && res.Id != "" {
-				fmt.Println("actor is in the database")
-			} else if err != nil {
-				return err
-			} else {
-				fmt.Println("actor is NOT in the database")
-			}
-		}
-	} else if activityType == "Follow" {
-		// TODO: okay?
-		return errors.New("not implemented")
-	} else if activityType == "Delete" {
-		return errors.New("not implemented")
-	}
-
-	return nil
-}
-
-func CreatePreviewObject(obj activitypub.ObjectBase) *activitypub.NestedObjectBase {
-	re := regexp.MustCompile(`/.+$`)
-
-	mimetype := re.ReplaceAllString(obj.MediaType, "")
-
-	var nPreview activitypub.NestedObjectBase
-
-	if mimetype != "image" {
-		return &nPreview
-	}
-
-	re = regexp.MustCompile(`.+/`)
-
-	file := re.ReplaceAllString(obj.MediaType, "")
-
-	href := util.GetUniqueFilename(file)
-
-	nPreview.Type = "Preview"
-	nPreview.Name = obj.Name
-	nPreview.Href = config.Domain + "" + href
-	nPreview.MediaType = obj.MediaType
-	nPreview.Size = obj.Size
-	nPreview.Published = obj.Published
-
-	re = regexp.MustCompile(`/public/.+`)
-
-	objFile := re.FindString(obj.Href)
-
-	cmd := exec.Command("convert", "."+objFile, "-resize", "250x250>", "-strip", "."+href)
-
-	if err := cmd.Run(); err != nil {
-		// TODO: previously we would call CheckError here
-		var preview activitypub.NestedObjectBase
-		return &preview
-	}
-
-	return &nPreview
-}
-
-func CreateAttachmentObject(file multipart.File, header *multipart.FileHeader) ([]activitypub.ObjectBase, *os.File, error) {
-	contentType, err := GetFileContentType(file)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	filename := header.Filename
-	size := header.Size
-
-	re := regexp.MustCompile(`.+/`)
-
-	fileType := re.ReplaceAllString(contentType, "")
-
-	tempFile, err := ioutil.TempFile("./public", "*."+fileType)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	var nAttachment []activitypub.ObjectBase
-	var image activitypub.ObjectBase
-
-	image.Type = "Attachment"
-	image.Name = filename
-	image.Href = config.Domain + "/" + tempFile.Name()
-	image.MediaType = contentType
-	image.Size = size
-	image.Published = time.Now().UTC()
-
-	nAttachment = append(nAttachment, image)
-
-	return nAttachment, tempFile, nil
-}
-
 func ParseCommentForReplies(comment string, op string) ([]activitypub.ObjectBase, error) {
 
 	re := regexp.MustCompile(`(>>(https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/)(f[A-Za-z0-9_.\-~]+-)?([A-Za-z0-9_.\-~]+)?#?([A-Za-z0-9_.\-~]+)?)`)
@@ -528,36 +397,6 @@ func IsValidActor(id string) (activitypub.Actor, bool, error) {
 	return actor, actor.Id != "", err
 }
 
-func IsActivityLocal(activity activitypub.Activity) (bool, error) {
-	for _, e := range activity.To {
-		if res, err := db.GetActorFromDB(e); err == nil && res.Id != "" {
-			return true, nil
-		} else if err != nil {
-			return false, err
-		}
-	}
-
-	for _, e := range activity.Cc {
-		if res, err := db.GetActorFromDB(e); err == nil && res.Id != "" {
-			return true, nil
-		} else if err != nil {
-			return false, err
-		}
-	}
-
-	if res, err := db.GetActorFromDB(activity.Actor.Id); err == nil && activity.Actor != nil && res.Id != "" {
-		return true, nil
-	} else if err != nil {
-		return false, err
-	}
-
-	return false, nil
-}
-
-func GetObjectFromActivity(activity activitypub.Activity) activitypub.ObjectBase {
-	return *activity.Object
-}
-
 func MakeCaptchas(total int) error {
 	dbtotal, err := db.GetCaptchaTotal()
 	if err != nil {
@@ -573,21 +412,6 @@ func MakeCaptchas(total int) error {
 	}
 
 	return nil
-}
-
-func GetFileContentType(out multipart.File) (string, error) {
-	buffer := make([]byte, 512)
-
-	_, err := out.Read(buffer)
-	if err != nil {
-		return "", err
-	}
-
-	out.Seek(0, 0)
-
-	contentType := http.DetectContentType(buffer)
-
-	return contentType, nil
 }
 
 func SupportedMIMEType(mime string) bool {
@@ -623,12 +447,12 @@ func GetActorReported(w http.ResponseWriter, r *http.Request, id string) error {
 
 	following.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 	following.Type = "Collection"
-	following.TotalItems, err = db.GetActorReportedTotal(id)
+	following.TotalItems, err = activitypub.GetActorReportedTotal(id)
 	if err != nil {
 		return err
 	}
 
-	following.Items, err = db.GetActorReportedDB(id)
+	following.Items, err = activitypub.GetActorReportedDB(id)
 	if err != nil {
 		return err
 	}
@@ -642,36 +466,6 @@ func GetActorReported(w http.ResponseWriter, r *http.Request, id string) error {
 
 	_, err = w.Write(enc)
 	return err
-}
-
-func GetCollectionFromID(id string) (activitypub.Collection, error) {
-	var nColl activitypub.Collection
-
-	req, err := http.NewRequest("GET", id, nil)
-	if err != nil {
-		return nColl, err
-	}
-
-	req.Header.Set("Accept", config.ActivityStreams)
-
-	resp, err := util.RouteProxy(req)
-	if err != nil {
-		return nColl, err
-	}
-
-	if resp.StatusCode == 200 {
-		defer resp.Body.Close()
-
-		body, _ := ioutil.ReadAll(resp.Body)
-
-		if len(body) > 0 {
-			if err := json.Unmarshal(body, &nColl); err != nil {
-				return nColl, err
-			}
-		}
-	}
-
-	return nColl, nil
 }
 
 func PrintAdminAuth() error {
@@ -695,7 +489,7 @@ func DeleteObjectRequest(id string) error {
 		return err
 	}
 
-	obj, err := db.GetObjectFromPath(id)
+	obj, err := activitypub.GetObjectFromPath(id)
 	if err != nil {
 		return err
 	}
@@ -706,7 +500,7 @@ func DeleteObjectRequest(id string) error {
 	}
 	activity.Actor = &actor
 
-	followers, err := db.GetActorFollowDB(obj.Actor)
+	followers, err := activitypub.GetActorFollowDB(obj.Actor)
 	if err != nil {
 		return err
 	}
@@ -715,7 +509,7 @@ func DeleteObjectRequest(id string) error {
 		activity.To = append(activity.To, e.Id)
 	}
 
-	following, err := db.GetActorFollowingDB(obj.Actor)
+	following, err := activitypub.GetActorFollowingDB(obj.Actor)
 	if err != nil {
 		return err
 	}
@@ -737,7 +531,7 @@ func DeleteObjectAndRepliesRequest(id string) error {
 		return err
 	}
 
-	obj, err := db.GetObjectByIDFromDB(id)
+	obj, err := activitypub.GetObjectByIDFromDB(id)
 	if err != nil {
 		return err
 	}
@@ -746,7 +540,7 @@ func DeleteObjectAndRepliesRequest(id string) error {
 
 	activity.Object = &obj.OrderedItems[0]
 
-	followers, err := db.GetActorFollowDB(obj.OrderedItems[0].Actor)
+	followers, err := activitypub.GetActorFollowDB(obj.OrderedItems[0].Actor)
 	if err != nil {
 		return err
 	}
@@ -754,7 +548,7 @@ func DeleteObjectAndRepliesRequest(id string) error {
 		activity.To = append(activity.To, e.Id)
 	}
 
-	following, err := db.GetActorFollowingDB(obj.OrderedItems[0].Actor)
+	following, err := activitypub.GetActorFollowingDB(obj.OrderedItems[0].Actor)
 	if err != nil {
 		return err
 	}
@@ -767,7 +561,7 @@ func DeleteObjectAndRepliesRequest(id string) error {
 }
 
 func ResizeAttachmentToPreview() error {
-	return db.GetObjectsWithoutPreviewsCallback(func(id, href, mediatype, name string, size int, published time.Time) error {
+	return activitypub.GetObjectsWithoutPreviewsCallback(func(id, href, mediatype, name string, size int, published time.Time) error {
 		re := regexp.MustCompile(`^\w+`)
 
 		_type := re.FindString(mediatype)
@@ -786,7 +580,7 @@ func ResizeAttachmentToPreview() error {
 			actor := re.ReplaceAllString(id, "")
 
 			nPreview.Type = "Preview"
-			uid, err := db.CreateUniqueID(actor)
+			uid, err := util.CreateUniqueID(actor)
 			if err != nil {
 				return err
 			}
@@ -808,10 +602,10 @@ func ResizeAttachmentToPreview() error {
 
 				if err := cmd.Run(); err == nil {
 					fmt.Println(objFile + " -> " + nHref)
-					if err := db.WritePreviewToDB(nPreview); err != nil {
+					if err := activitypub.WritePreviewToDB(nPreview); err != nil {
 						return err
 					}
-					if err := db.UpdateObjectWithPreview(id, nPreview.Id); err != nil {
+					if err := activitypub.UpdateObjectWithPreview(id, nPreview.Id); err != nil {
 						return err
 					}
 				} else {
@@ -849,39 +643,6 @@ func ParseCommentForReply(comment string) (string, error) {
 	return "", nil
 }
 
-func GetActorCollectionReq(r *http.Request, collection string) (activitypub.Collection, error) {
-	var nCollection activitypub.Collection
-
-	req, err := http.NewRequest("GET", collection, nil)
-	if err != nil {
-		return nCollection, err
-	}
-
-	// TODO: rewrite this for fiber
-	pass := "FIXME"
-	//_, pass := GetPasswordFromSession(r)
-
-	req.Header.Set("Accept", config.ActivityStreams)
-
-	req.Header.Set("Authorization", "Basic "+pass)
-
-	resp, err := util.RouteProxy(req)
-	if err != nil {
-		return nCollection, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == 200 {
-		body, _ := ioutil.ReadAll(resp.Body)
-
-		if err := json.Unmarshal(body, &nCollection); err != nil {
-			return nCollection, err
-		}
-	}
-
-	return nCollection, nil
-}
-
 func CreatedNeededDirectories() {
 	if _, err := os.Stat("./public"); os.IsNotExist(err) {
 		os.Mkdir("./public", 0755)
@@ -905,7 +666,7 @@ func AddInstanceToIndex(actor string) error {
 
 	// also while i'm here
 	// TODO: maybe allow different indexes?
-	followers, err := GetCollectionFromID("https://fchan.xyz/followers")
+	followers, err := activitypub.GetCollectionFromID("https://fchan.xyz/followers")
 	if err != nil {
 		return err
 	}
@@ -950,7 +711,7 @@ func AddInstanceToIndexDB(actor string) error {
 	}
 
 	// TODO: maybe allow different indexes?
-	followers, err := GetCollectionFromID("https://fchan.xyz/followers")
+	followers, err := activitypub.GetCollectionFromID("https://fchan.xyz/followers")
 	if err != nil {
 		return err
 	}
@@ -963,7 +724,7 @@ func AddInstanceToIndexDB(actor string) error {
 	}
 
 	if !alreadyIndex {
-		return db.AddFollower("https://fchan.xyz", nActor.Id)
+		return activitypub.AddFollower("https://fchan.xyz", nActor.Id)
 	}
 
 	return nil

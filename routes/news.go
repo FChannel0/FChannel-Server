@@ -1,8 +1,10 @@
 package routes
 
 import (
+	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
+	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -10,14 +12,14 @@ func NewsGet(ctx *fiber.Ctx) error {
 	// TODO
 	timestamp := 0
 
-	actor, err := db.GetActorFromDB(config.Domain)
+	actor, err := activitypub.GetActorFromDB(config.Domain)
 	if err != nil {
 		return err
 	}
 
 	var data PageData
 	data.PreferredUsername = actor.PreferredUsername
-	data.Boards = db.Boards
+	data.Boards = webfinger.Boards
 	data.Board.Name = ""
 	data.Key = config.Key
 	data.Board.Domain = config.Domain
@@ -41,7 +43,7 @@ func NewsGet(ctx *fiber.Ctx) error {
 }
 
 func AllNewsGet(ctx *fiber.Ctx) error {
-	actor, err := db.GetActorFromDB(config.Domain)
+	actor, err := activitypub.GetActorFromDB(config.Domain)
 	if err != nil {
 		return err
 	}
@@ -49,7 +51,7 @@ func AllNewsGet(ctx *fiber.Ctx) error {
 	var data PageData
 	data.PreferredUsername = actor.PreferredUsername
 	data.Title = actor.PreferredUsername + " News"
-	data.Boards = db.Boards
+	data.Boards = webfinger.Boards
 	data.Board.Name = ""
 	data.Key = config.Key
 	data.Board.Domain = config.Domain

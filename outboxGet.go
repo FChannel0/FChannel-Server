@@ -7,19 +7,19 @@ import (
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
-	"github.com/FChannel0/FChannel-Server/db"
+	"github.com/FChannel0/FChannel-Server/webfinger"
 	_ "github.com/lib/pq"
 )
 
 func GetActorOutbox(w http.ResponseWriter, r *http.Request) error {
-	actor, err := db.GetActorFromPath(r.URL.Path, "/")
+	actor, err := webfinger.GetActorFromPath(r.URL.Path, "/")
 	if err != nil {
 		return err
 	}
 
 	var collection activitypub.Collection
 
-	c, err := db.GetActorObjectCollectionFromDB(actor.Id)
+	c, err := activitypub.GetActorObjectCollectionFromDB(actor.Id)
 	if err != nil {
 		return err
 	}
@@ -28,12 +28,12 @@ func GetActorOutbox(w http.ResponseWriter, r *http.Request) error {
 	collection.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 	collection.Actor = &actor
 
-	collection.TotalItems, err = db.GetObjectPostsTotalDB(actor)
+	collection.TotalItems, err = activitypub.GetObjectPostsTotalDB(actor)
 	if err != nil {
 		return err
 	}
 
-	collection.TotalImgs, err = db.GetObjectImgsTotalDB(actor)
+	collection.TotalImgs, err = activitypub.GetObjectImgsTotalDB(actor)
 	if err != nil {
 		return err
 	}

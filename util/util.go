@@ -7,6 +7,8 @@ import (
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/FChannel0/FChannel-Server/config"
 )
 
 func IsOnion(url string) bool {
@@ -16,56 +18,6 @@ func IsOnion(url string) bool {
 	}
 
 	return false
-}
-
-func GetActorInstance(path string) (string, string) {
-	re := regexp.MustCompile(`([@]?([\w\d.-_]+)[@](.+))`)
-	atFormat := re.MatchString(path)
-
-	if atFormat {
-		match := re.FindStringSubmatch(path)
-		if len(match) > 2 {
-			return match[2], match[3]
-		}
-	}
-
-	re = regexp.MustCompile(`(https?://)?(www)?([\w\d-_.:]+)(/|\s+|\r|\r\n)?$`)
-	mainActor := re.MatchString(path)
-	if mainActor {
-		match := re.FindStringSubmatch(path)
-		if len(match) > 2 {
-			return "main", match[3]
-		}
-	}
-
-	re = regexp.MustCompile(`(https?://)?(www)?([\w\d-_.:]+)\/([\w\d-_.]+)(\/([\w\d-_.]+))?`)
-	httpFormat := re.MatchString(path)
-
-	if httpFormat {
-		match := re.FindStringSubmatch(path)
-		if len(match) > 3 {
-			if match[4] == "users" {
-				return match[6], match[3]
-			}
-
-			return match[4], match[3]
-		}
-	}
-
-	return "", ""
-}
-
-func GetActorFollowNameFromPath(path string) string {
-	var actor string
-
-	re := regexp.MustCompile("f\\w+-")
-
-	actor = re.FindString(path)
-
-	actor = strings.Replace(actor, "f", "", 1)
-	actor = strings.Replace(actor, "-", "", 1)
-
-	return actor
 }
 
 func StripTransferProtocol(value string) string {
@@ -244,4 +196,32 @@ func EscapeString(text string) string {
 
 	text = strings.Replace(text, "<", "&lt;", -1)
 	return text
+}
+
+func CreateUniqueID(actor string) (string, error) {
+	var newID string
+	isUnique := false
+	for !isUnique {
+		newID = RandomID(8)
+
+		query := "select id from activitystream where id=$1"
+		args := fmt.Sprintf("%s/%s/%s", config.Domain, actor, newID)
+		rows, err := config.DB.Query(query, args)
+		if err != nil {
+			return "", err
+		}
+
+		defer rows.Close()
+
+		// reusing a variable here
+		// if we encounter a match, it'll get set to false causing the outer for loop to loop and to go through this all over again
+		// however if nothing is there, it'll remain true and exit the loop
+		isUnique = true
+		for rows.Next() {
+			isUnique = false
+			break
+		}
+	}
+
+	return newID, nil
 }

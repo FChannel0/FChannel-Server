@@ -53,13 +53,13 @@ func wantToServePage(actorName string, page int) (activitypub.Collection, bool, 
 		return collection, serve, ErrorPageLimit
 	}
 
-	actor, err := db.GetActorByNameFromDB(actorName)
+	actor, err := activitypub.GetActorByNameFromDB(actorName)
 	if err != nil {
 		return collection, false, err
 	}
 
 	if actor.Id != "" {
-		collection, err = db.GetObjectFromDBPage(actor.Id, page)
+		collection, err = activitypub.GetObjectFromDBPage(actor.Id, page)
 		if err != nil {
 			return collection, false, err
 		}
@@ -75,13 +75,13 @@ func wantToServeCatalog(actorName string) (activitypub.Collection, bool, error) 
 	var collection activitypub.Collection
 	serve := false
 
-	actor, err := db.GetActorByNameFromDB(actorName)
+	actor, err := activitypub.GetActorByNameFromDB(actorName)
 	if err != nil {
 		return collection, false, err
 	}
 
 	if actor.Id != "" {
-		collection, err = db.GetObjectFromDBCatalog(actor.Id)
+		collection, err = activitypub.GetObjectFromDBCatalog(actor.Id)
 		if err != nil {
 			return collection, false, err
 		}
@@ -97,13 +97,13 @@ func wantToServeArchive(actorName string) (activitypub.Collection, bool, error) 
 	var collection activitypub.Collection
 	serve := false
 
-	actor, err := db.GetActorByNameFromDB(actorName)
+	actor, err := activitypub.GetActorByNameFromDB(actorName)
 	if err != nil {
 		return collection, false, err
 	}
 
 	if actor.Id != "" {
-		collection, err = db.GetActorCollectionDBType(actor.Id, "Archive")
+		collection, err = activitypub.GetActorCollectionDBType(actor.Id, "Archive")
 		if err != nil {
 			return collection, false, err
 		}

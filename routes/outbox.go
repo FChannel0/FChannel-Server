@@ -3,9 +3,11 @@ package routes
 import (
 	"strconv"
 
+	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
 	"github.com/FChannel0/FChannel-Server/util"
+	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -17,10 +19,10 @@ func Outbox(ctx *fiber.Ctx) error {
 
 func OutboxGet(ctx *fiber.Ctx) error {
 
-	actor := db.GetActorByName(ctx.Params("actor"))
+	actor := webfinger.GetActorByName(ctx.Params("actor"))
 
-	if util.AcceptActivity(ctx.Get("Accept")) {
-		db.GetActorInfo(ctx, actor.Id)
+	if activitypub.AcceptActivity(ctx.Get("Accept")) {
+		activitypub.GetActorInfo(ctx, actor.Id)
 		return nil
 	}
 
@@ -79,7 +81,7 @@ func OutboxGet(ctx *fiber.Ctx) error {
 
 	data.Key = config.Key
 
-	data.Boards = db.Boards
+	data.Boards = webfinger.Boards
 	data.Posts = collection.OrderedItems
 
 	data.Pages = pages
