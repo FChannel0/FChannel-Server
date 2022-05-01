@@ -8,6 +8,7 @@ import (
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
+	"github.com/FChannel0/FChannel-Server/post"
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
 	_ "github.com/lib/pq"
@@ -138,7 +139,7 @@ func ParseLinkComments(board activitypub.Actor, op string, content string, threa
 			isOP = " (OP)"
 		}
 
-		parsedLink := ConvertHashLink(domain, link)
+		parsedLink := post.ConvertHashLink(domain, link)
 
 		//formate the hover title text
 		var quoteTitle string
@@ -146,11 +147,11 @@ func ParseLinkComments(board activitypub.Actor, op string, content string, threa
 		// if the quoted content is local get it
 		// else get it from the database
 		if thread.Id == link {
-			quoteTitle = ParseLinkTitle(board.Outbox, op, thread.Content)
+			quoteTitle = post.ParseLinkTitle(board.Outbox, op, thread.Content)
 		} else {
 			for _, e := range thread.Replies.OrderedItems {
 				if e.Id == parsedLink {
-					quoteTitle = ParseLinkTitle(board.Outbox, op, e.Content)
+					quoteTitle = post.ParseLinkTitle(board.Outbox, op, e.Content)
 					break
 				}
 			}
@@ -162,9 +163,9 @@ func ParseLinkComments(board activitypub.Actor, op string, content string, threa
 				}
 
 				if len(obj.OrderedItems) > 0 {
-					quoteTitle = ParseLinkTitle(board.Outbox, op, obj.OrderedItems[0].Content)
+					quoteTitle = post.ParseLinkTitle(board.Outbox, op, obj.OrderedItems[0].Content)
 				} else {
-					quoteTitle = ParseLinkTitle(board.Outbox, op, parsedLink)
+					quoteTitle = post.ParseLinkTitle(board.Outbox, op, parsedLink)
 				}
 			}
 		}
@@ -191,32 +192,6 @@ func ParseLinkComments(board activitypub.Actor, op string, content string, threa
 	return content, nil
 }
 
-func ParseLinkTitle(actorName string, op string, content string) string {
-	re := regexp.MustCompile(`(>>(https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/)\w+(#.+)?)`)
-	match := re.FindAllStringSubmatch(content, -1)
-
-	for i, _ := range match {
-		link := strings.Replace(match[i][0], ">>", "", 1)
-		isOP := ""
-
-		domain := match[i][2]
-
-		if link == op {
-			isOP = " (OP)"
-		}
-
-		link = ConvertHashLink(domain, link)
-		content = strings.Replace(content, match[i][0], ">>"+util.ShortURL(actorName, link)+isOP, 1)
-	}
-
-	// TODO: this drops more than we need to
-	content = strings.ReplaceAll(content, "'", "")
-	content = strings.ReplaceAll(content, "\"", "")
-	content = strings.ReplaceAll(content, ">", `/\&lt;`)
-
-	return content
-}
-
 func ParseCommentQuotes(content string) string {
 	// replace quotes
 	re := regexp.MustCompile(`((\r\n|\r|\n|^)>(.+)?[^\r\n])`)
@@ -232,18 +207,4 @@ func ParseCommentQuotes(content string) string {
 	re = regexp.MustCompile(`(\r\n|\n|\r)>`)
 
 	return re.ReplaceAllString(content, "\r\n<span class=\"quote\">&gt;</span>")
-}
-
-func ConvertHashLink(domain string, link string) string {
-	re := regexp.MustCompile(`(#.+)`)
-	parsedLink := re.FindString(link)
-
-	if parsedLink != "" {
-		parsedLink = domain + "" + strings.Replace(parsedLink, "#", "", 1)
-		parsedLink = strings.Replace(parsedLink, "\r", "", -1)
-	} else {
-		parsedLink = link
-	}
-
-	return parsedLink
 }

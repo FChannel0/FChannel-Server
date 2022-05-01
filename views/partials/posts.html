@@ -106,9 +106,7 @@
           {{ $parentId := .Id }}
           {{ if .Replies.OrderedItems }}
           {{ range .Replies.OrderedItems }}
-
-          <!--TODO: fix parse reply link function with other routes mainly getactor-->
-          <span id="{{$parentId}}-replyto-{{.Id}}"><!-- fix \{\{ parseReplyLink $board.Actor.Id $opId .Id .Content }} --></span>
+          <span id="{{$parentId}}-replyto-{{.Id}}">{{ parseReplyLink $board.Actor.Id $opId .Id .Content }}</span>
           {{ end }}
           {{ end }}
           <p id="{{ .Id }}-content" style="white-space: pre-wrap; margin: 10px 30px 10px 30px;">{{ parseContent $board.Actor $opId .Content $thread }}</p>

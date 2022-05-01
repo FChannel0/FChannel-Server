@@ -3,7 +3,7 @@ function startNewPost(){
     el.style="display:none;";
     el.setAttribute("state", "1");
     document.getElementById("newpost").style = "";
-    document.getElementById("stopTablePost").style = "display:unset;";
+    document.getElementById("stopTablePost").style = "cursor: pointer; display:unset;";
     sessionStorage.setItem("newpostState", true);
 }
 

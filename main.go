@@ -7,6 +7,7 @@ import (
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
+	"github.com/FChannel0/FChannel-Server/post"
 	"github.com/FChannel0/FChannel-Server/routes"
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
@@ -112,6 +113,7 @@ func main() {
 	app.Use(logger.New())
 
 	app.Static("/static", "./views")
+	app.Static("/static", "./static")
 	app.Static("/public", "./public")
 
 	/*
@@ -636,14 +638,9 @@ func TemplateFunctions(engine *html.Engine) {
 	engine.AddFunc("isOnion", util.IsOnion)
 
 	engine.AddFunc("parseReplyLink", func(actorId string, op string, id string, content string) template.HTML {
-		actor, err := webfinger.FingerActor(actorId)
-		if err != nil {
-			// TODO: figure out what to do here
-			panic(err)
-		}
-
-		title := strings.ReplaceAll(ParseLinkTitle(actor.Id, op, content), `/\&lt;`, ">")
-		link := fmt.Sprintf("<a href=\"%s/%s#%s\" title=\"%s\" class=\"replyLink\">&gt;&gt;%s</a>", actor.Name, util.ShortURL(actor.Outbox, op), util.ShortURL(actor.Outbox, id), title, util.ShortURL(actor.Outbox, id))
+		actor, _ := webfinger.FingerActor(actorId)
+		title := strings.ReplaceAll(post.ParseLinkTitle(actor.Id+"/", op, content), `/\&lt;`, ">")
+		link := "<a href=\"/" + actor.Name + "/" + util.ShortURL(actor.Outbox, op) + "#" + util.ShortURL(actor.Outbox, id) + "\" title=\"" + title + "\" class=\"replyLink\">&gt;&gt;" + util.ShortURL(actor.Outbox, id) + "</a>"
 		return template.HTML(link)
 	})
 

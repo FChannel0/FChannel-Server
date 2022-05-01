@@ -17,6 +17,20 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+func ConvertHashLink(domain string, link string) string {
+	re := regexp.MustCompile(`(#.+)`)
+	parsedLink := re.FindString(link)
+
+	if parsedLink != "" {
+		parsedLink = domain + "" + strings.Replace(parsedLink, "#", "", 1)
+		parsedLink = strings.Replace(parsedLink, "\r", "", -1)
+	} else {
+		parsedLink = link
+	}
+
+	return parsedLink
+}
+
 func ParseCommentForReplies(comment string, op string) ([]activitypub.ObjectBase, error) {
 	re := regexp.MustCompile(`(>>(https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/)(f[A-Za-z0-9_.\-~]+-)?([A-Za-z0-9_.\-~]+)?#?([A-Za-z0-9_.\-~]+)?)`)
 	match := re.FindAllStringSubmatch(comment, -1)
@@ -80,6 +94,31 @@ func ParseCommentForReply(comment string) (string, error) {
 	}
 
 	return "", nil
+}
+
+func ParseLinkTitle(actorName string, op string, content string) string {
+	re := regexp.MustCompile(`(>>(https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/)\w+(#.+)?)`)
+	match := re.FindAllStringSubmatch(content, -1)
+
+	for i, _ := range match {
+		link := strings.Replace(match[i][0], ">>", "", 1)
+		isOP := ""
+
+		domain := match[i][2]
+
+		if link == op {
+			isOP = " (OP)"
+		}
+
+		link = ConvertHashLink(domain, link)
+		content = strings.Replace(content, match[i][0], ">>"+util.ShortURL(actorName, link)+isOP, 1)
+	}
+
+	content = strings.ReplaceAll(content, "'", "&#39;")
+	content = strings.ReplaceAll(content, "\"", "&quot;")
+	content = strings.ReplaceAll(content, ">", `/\&lt;`)
+
+	return content
 }
 
 func ParseOptions(ctx *fiber.Ctx, obj activitypub.ObjectBase) activitypub.ObjectBase {

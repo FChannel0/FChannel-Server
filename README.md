@@ -14,7 +14,7 @@ Current things that will be implemented first are:
 - Other improvements will be made over time, first it needs to be as easy as possible for new instances to come online and connect with others reliably.
 
 Try and run your own instances and federate with one of the instances above.
-Any contributions or suggestions are appreciated. Best way to give immediate feedback is the XMPP: `general@rooms.fchannel.org` or Matrix: `#fchan:matrix.org`
+Any contributions or suggestions are appreciated. Best way to give immediate feedback is the XMPP: `xmpp:general@rooms.fchannel.org` or Matrix: `#fchan:matrix.org`
 
 ## Development
 To get started on hacking the code of FChannel, it is recommended you setup your

@@ -484,7 +484,7 @@ func GetActorInstance(path string) (string, string) {
 		}
 	}
 
-	re = regexp.MustCompile(`(https?://)?(www)?([\w\d-_.:]+)(/|\s+|\r|\r\n)?$`)
+	re = regexp.MustCompile(`(https?://)(www)?([\w\d-_.:]+)(/|\s+|\r|\r\n)?$`)
 	mainActor := re.MatchString(path)
 	if mainActor {
 		match := re.FindStringSubmatch(path)
