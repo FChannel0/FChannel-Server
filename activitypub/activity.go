@@ -243,26 +243,23 @@ func HasContextFromJson(context []byte) (bool, error) {
 }
 
 func IsActivityLocal(activity Activity) (bool, error) {
+
 	for _, e := range activity.To {
-		if res, err := GetActorFromDB(e); err == nil && res.Id != "" {
+		if res, _ := GetActorFromDB(e); res.Id != "" {
 			return true, nil
-		} else if err != nil {
-			return false, err
 		}
 	}
 
 	for _, e := range activity.Cc {
-		if res, err := GetActorFromDB(e); err == nil && res.Id != "" {
+		if res, _ := GetActorFromDB(e); res.Id != "" {
 			return true, nil
-		} else if err != nil {
-			return false, err
 		}
 	}
 
-	if res, err := GetActorFromDB(activity.Actor.Id); err == nil && activity.Actor != nil && res.Id != "" {
-		return true, nil
-	} else if err != nil {
-		return false, err
+	if activity.Actor != nil {
+		if res, _ := GetActorFromDB(activity.Actor.Id); res.Id != "" {
+			return true, nil
+		}
 	}
 
 	return false, nil

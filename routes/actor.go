@@ -42,18 +42,19 @@ func ActorOutbox(ctx *fiber.Ctx) error {
 		valid, err := post.CheckCaptcha(ctx.FormValue("captcha"))
 		if err == nil && hasCaptcha && valid {
 			header, _ := ctx.FormFile("file")
-
 			if header != nil {
 				f, _ := header.Open()
 				defer f.Close()
 				if header.Size > (7 << 20) {
-					return ctx.Render("403", fiber.Map{
-						"message": "7MB max file size",
-					})
-				} else if res, err := post.IsMediaBanned(f); err == nil && res {
+					ctx.Response().Header.SetStatusCode(403)
+					_, err := ctx.Write([]byte("7MB max file size"))
+					return err
+				} else if isBanned, err := post.IsMediaBanned(f); err == nil && isBanned {
 					//Todo add logging
 					fmt.Println("media banned")
-					return ctx.Redirect("/", 301)
+					ctx.Response().Header.SetStatusCode(403)
+					_, err := ctx.Write([]byte("media banned"))
+					return err
 				} else if err != nil {
 					return err
 				}
@@ -61,9 +62,9 @@ func ActorOutbox(ctx *fiber.Ctx) error {
 				contentType, _ := util.GetFileContentType(f)
 
 				if !post.SupportedMIMEType(contentType) {
-					return ctx.Render("403", fiber.Map{
-						"message": "file type not supported",
-					})
+					ctx.Response().Header.SetStatusCode(403)
+					_, err := ctx.Write([]byte("file type not supported"))
+					return err
 				}
 			}
 
@@ -381,10 +382,9 @@ func ActorPost(ctx *fiber.Ctx) error {
 	}
 
 	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
 
 	if resp.StatusCode == 200 {
-
-		body, _ := ioutil.ReadAll(resp.Body)
 
 		var obj activitypub.ObjectBase
 
@@ -404,7 +404,7 @@ func ActorPost(ctx *fiber.Ctx) error {
 
 	if resp.StatusCode == 403 {
 		return ctx.Render("403", fiber.Map{
-			"message": "Incorrect Captcha",
+			"message": string(body),
 		})
 	}
 

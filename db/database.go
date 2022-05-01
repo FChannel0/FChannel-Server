@@ -591,14 +591,7 @@ func IsHashBanned(hash string) (bool, error) {
 
 	query := `select hash from bannedmedia where hash=$1`
 
-	rows, err := config.DB.Query(query, hash)
-	if err != nil {
-		return true, err
-	}
-	defer rows.Close()
+	_ = config.DB.QueryRow(query, hash).Scan(&h)
 
-	rows.Next()
-	err = rows.Scan(&h)
-
-	return h == hash, err
+	return h == hash, nil
 }

@@ -155,7 +155,7 @@ func IsMediaBanned(f multipart.File) (bool, error) {
 
 	hash := util.HashBytes(fileBytes)
 
-	//	f.Seek(0, 0)
+	f.Seek(0, 0)
 	return db.IsHashBanned(hash)
 }
 
