@@ -463,6 +463,7 @@ func IsReplyToOP(op string, link string) (string, bool, error) {
 	if err != nil {
 		return op, false, err
 	}
+
 	defer rows.Close()
 
 	var id string
@@ -491,7 +492,7 @@ func GetReplyOP(link string) (string, error) {
 }
 
 func StartupArchive() error {
-	for _, e := range FollowingBoards {
+	for _, e := range webfinger.FollowingBoards {
 		actor, err := activitypub.GetActorFromDB(e.Id)
 		if err != nil {
 			return err

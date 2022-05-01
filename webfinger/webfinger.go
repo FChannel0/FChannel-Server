@@ -77,27 +77,23 @@ func FingerActor(path string) (activitypub.Actor, error) {
 
 	if ActorCache[actor+"@"+instance].Id != "" {
 		nActor = ActorCache[actor+"@"+instance]
-		return nActor, nil
-	}
+	} else {
+		r, _ := FingerRequest(actor, instance)
 
-	r, err := FingerRequest(actor, instance)
-	if err != nil {
-		return nActor, err
-	}
+		if r != nil && r.StatusCode == 200 {
+			defer r.Body.Close()
 
-	if r != nil && r.StatusCode == 200 {
-		defer r.Body.Close()
+			body, _ := ioutil.ReadAll(r.Body)
 
-		body, _ := ioutil.ReadAll(r.Body)
+			json.Unmarshal(body, &nActor)
+			// if err := json.Unmarshal(body, &nActor); err != nil {
+			//	return nActor, err
+			// }
 
-		if err := json.Unmarshal(body, &nActor); err != nil {
-			return nActor, err
+			ActorCache[actor+"@"+instance] = nActor
 		}
-
-		ActorCache[actor+"@"+instance] = nActor
 	}
 
-	// TODO: this just falls through and returns a blank Actor object. do something?
 	return nActor, nil
 }
 
@@ -105,14 +101,14 @@ func FingerRequest(actor string, instance string) (*http.Response, error) {
 	acct := "acct:" + actor + "@" + instance
 
 	// TODO: respect https
-	req, err := http.NewRequest("GET", "http://"+instance+"/.well-known/webfinger?resource="+acct, nil)
-	if err != nil {
-		return nil, err
-	}
+	req, _ := http.NewRequest("GET", "http://"+instance+"/.well-known/webfinger?resource="+acct, nil)
+	// if err != nil {
+	//	return nil, err
+	// }
 
 	resp, err := util.RouteProxy(req)
 	if err != nil {
-		return resp, err
+		return resp, nil
 	}
 
 	var finger Webfinger
@@ -122,23 +118,24 @@ func FingerRequest(actor string, instance string) (*http.Response, error) {
 
 		body, _ := ioutil.ReadAll(resp.Body)
 
-		if err := json.Unmarshal(body, &finger); err != nil {
-			return resp, err
-		}
+		json.Unmarshal(body, &finger)
+		// if err := json.Unmarshal(body, &finger); err != nil {
+		//	return resp, err
+		// }
 	}
 
 	if len(finger.Links) > 0 {
 		for _, e := range finger.Links {
 			if e.Type == "application/activity+json" {
-				req, err := http.NewRequest("GET", e.Href, nil)
-				if err != nil {
-					return resp, err
-				}
+				req, _ := http.NewRequest("GET", e.Href, nil)
+				// if err != nil {
+				//	return resp, err
+				// }
 
 				req.Header.Set("Accept", config.ActivityStreams)
 
-				resp, err := util.RouteProxy(req)
-				return resp, err
+				resp, _ := util.RouteProxy(req)
+				return resp, nil
 			}
 		}
 	}
@@ -178,4 +175,67 @@ func CheckValidActivity(id string) (activitypub.Collection, bool, error) {
 	}
 
 	return respCollection, false, nil
+}
+
+func CreateActivity(activityType string, obj activitypub.ObjectBase) (activitypub.Activity, error) {
+	var newActivity activitypub.Activity
+
+	actor, err := FingerActor(obj.Actor)
+	if err != nil {
+		return newActivity, err
+	}
+
+	newActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+	newActivity.Type = activityType
+	newActivity.Published = obj.Published
+	newActivity.Actor = &actor
+	newActivity.Object = &obj
+
+	for _, e := range obj.To {
+		if obj.Actor != e {
+			newActivity.To = append(newActivity.To, e)
+		}
+	}
+
+	for _, e := range obj.Cc {
+		if obj.Actor != e {
+			newActivity.Cc = append(newActivity.Cc, e)
+		}
+	}
+
+	return newActivity, nil
+}
+
+func AddFollowersToActivity(activity activitypub.Activity) (activitypub.Activity, error) {
+	activity.To = append(activity.To, activity.Actor.Id)
+
+	for _, e := range activity.To {
+		aFollowers, err := GetActorCollection(e + "/followers")
+		if err != nil {
+			return activity, err
+		}
+
+		for _, k := range aFollowers.Items {
+			activity.To = append(activity.To, k.Id)
+		}
+	}
+
+	var nActivity activitypub.Activity
+
+	for _, e := range activity.To {
+		var alreadyTo = false
+		for _, k := range nActivity.To {
+			if e == k || e == activity.Actor.Id {
+				alreadyTo = true
+			}
+		}
+
+		if !alreadyTo {
+			nActivity.To = append(nActivity.To, e)
+		}
+	}
+
+	activity.To = nActivity.To
+
+	return activity, nil
 }

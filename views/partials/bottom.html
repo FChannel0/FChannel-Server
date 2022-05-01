@@ -3,7 +3,7 @@
     <span id="reply-header-text">...</span>
     <div id="reply-close" style="display: inline-block; float: right;"><a href="javascript:closeReply()">[X]</a></div>
   </div>
-  <form onsubmit="sessionStorage.setItem('element-closed-reply', true)"  id="reply-post" action="/post" method="post" enctype="multipart/form-data">
+  <form onsubmit="sessionStorage.setItem('element-closed-reply', true)"  id="reply-post" action="/{{ .Board.Name }}" method="post" enctype="multipart/form-data">
     <input id="reply-name" name="name" type="text" placeholder="Name" maxlength="100">
     <input id="reply-options" name="options" type="text" placeholder="Options" maxlength="100">
     <textarea id="reply-comment" name="comment" maxlength="2000" oninput="sessionStorage.setItem('element-reply-comment', document.getElementById('reply-comment').value)"></textarea>

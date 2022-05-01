@@ -17,6 +17,12 @@ func PostGet(ctx *fiber.Ctx) error {
 		return err
 	}
 
+	// this is a activitpub json request return json instead of html page
+	if activitypub.AcceptActivity(ctx.Get("Accept")) {
+		activitypub.GetActorPost(ctx, ctx.Path())
+		return nil
+	}
+
 	postId := ctx.Params("post")
 
 	inReplyTo := actor.Id + "/" + postId

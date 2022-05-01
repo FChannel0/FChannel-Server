@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/FChannel0/FChannel-Server/config"
-	"github.com/FChannel0/FChannel-Server/post"
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/gofiber/fiber/v2"
 )
@@ -413,17 +412,10 @@ func GetActorFromDB(id string) (Actor, error) {
 
 	query := `select type, id, name, preferedusername, inbox, outbox, following, followers, restricted, summary, publickeypem from actor where id=$1`
 
-	rows, err := config.DB.Query(query, id)
+	var publicKeyPem string
+	err := config.DB.QueryRow(query, id).Scan(&nActor.Type, &nActor.Id, &nActor.Name, &nActor.PreferredUsername, &nActor.Inbox, &nActor.Outbox, &nActor.Following, &nActor.Followers, &nActor.Restricted, &nActor.Summary, &publicKeyPem)
 	if err != nil {
 		return nActor, err
-	}
-
-	var publicKeyPem string
-	defer rows.Close()
-	for rows.Next() {
-		if err := rows.Scan(&nActor.Type, &nActor.Id, &nActor.Name, &nActor.PreferredUsername, &nActor.Inbox, &nActor.Outbox, &nActor.Following, &nActor.Followers, &nActor.Restricted, &nActor.Summary, &publicKeyPem); err != nil {
-			return nActor, err
-		}
 	}
 
 	nActor.PublicKey, err = GetActorPemFromDB(publicKeyPem)
@@ -629,6 +621,26 @@ func GetActorsFollowPostFromId(actors []string, id string) (Collection, error) {
 	return collection, nil
 }
 
+func GetActorPost(ctx *fiber.Ctx, path string) error {
+	collection, err := GetCollectionFromPath(config.Domain + "" + path)
+	if err != nil {
+		return err
+	}
+
+	if len(collection.OrderedItems) > 0 {
+		enc, err := json.MarshalIndent(collection, "", "\t")
+		if err != nil {
+			return err
+		}
+
+		ctx.Response().Header.Set("Content-Type", "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"")
+		_, err = ctx.Write(enc)
+		return err
+	}
+
+	return nil
+}
+
 func GetAllActorArchiveDB(id string, offset int) (Collection, error) {
 	var nColl Collection
 	var result []ObjectBase
@@ -814,7 +826,7 @@ func WriteActorObjectReplyToDB(obj ObjectBase) error {
 }
 
 func WriteActorObjectToCache(obj ObjectBase) (ObjectBase, error) {
-	if res, err := post.IsPostBlacklist(obj.Content); err == nil && res {
+	if res, err := util.IsPostBlacklist(obj.Content); err == nil && res {
 		fmt.Println("\n\nBlacklist post blocked\n\n")
 		return obj, nil
 	} else if err != nil {

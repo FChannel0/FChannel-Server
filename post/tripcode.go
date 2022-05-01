@@ -1,12 +1,12 @@
-package main
+package post
 
 import (
 	"bytes"
-	"net/http"
 	"regexp"
 	"strings"
 
 	"github.com/FChannel0/FChannel-Server/config"
+	"github.com/gofiber/fiber/v2"
 	_ "github.com/lib/pq"
 	"github.com/simia-tech/crypt"
 	"golang.org/x/text/encoding/japanese"
@@ -69,11 +69,11 @@ func TripCodeConvert(str string) string {
 	return re.Replace(s.String())
 }
 
-func CreateNameTripCode(r *http.Request) (string, string, error) {
+func CreateNameTripCode(ctx *fiber.Ctx) (string, string, error) {
 	// TODO: to allow this to compile, this will fail for the case of the admin
 	// this can be easily fixed when the rest of the code gets converted to fiber
 
-	input := r.FormValue("name")
+	input := ctx.FormValue("name")
 
 	tripSecure := regexp.MustCompile("##(.+)?")
 

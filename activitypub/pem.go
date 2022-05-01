@@ -139,16 +139,13 @@ func GetActorPemFromDB(pemID string) (PublicKeyPem, error) {
 
 	query := `select id, owner, file from publickeypem where id=$1`
 
-	rows, err := config.DB.Query(query, pemID)
-	if err != nil {
+	if err := config.DB.QueryRow(query, pemID).Scan(&pem.Id, &pem.Owner, &pem.PublicKeyPem); err != nil {
 		return pem, err
 	}
 
-	defer rows.Close()
-
-	rows.Next()
-	rows.Scan(&pem.Id, &pem.Owner, &pem.PublicKeyPem)
-	f, err := os.ReadFile(pem.PublicKeyPem)
+	dir, _ := os.Getwd()
+	dir = dir + "" + strings.Replace(pem.PublicKeyPem, ".", "", 1)
+	f, err := os.ReadFile(dir)
 	if err != nil {
 		return pem, err
 	}

@@ -28,6 +28,7 @@ var DBPassword = GetConfigValue("dbpass", "password")
 var DBName = GetConfigValue("dbname", "server")
 var Redis = GetConfigValue("redis", "redis://localhost")
 var ActivityStreams = "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\""
+var AuthReq = []string{"captcha", "email", "passphrase"}
 var SupportedFiles = []string{"image/gif", "image/jpeg", "image/png", "image/webp", "image/apng", "video/mp4", "video/ogg", "video/webm", "audio/mpeg", "audio/ogg", "audio/wav", "audio/wave", "audio/x-wav"}
 var Key string
 var Themes []string

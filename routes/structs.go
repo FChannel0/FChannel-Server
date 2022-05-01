@@ -3,7 +3,7 @@ package routes
 import (
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/db"
-	"github.com/FChannel0/FChannel-Server/post"
+	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
 )
 
@@ -40,7 +40,7 @@ type AdminPage struct {
 	Reported      []db.Report
 	Domain        string
 	IsLocal       bool
-	PostBlacklist []post.PostBlacklist
+	PostBlacklist []util.PostBlacklist
 	AutoSubscribe bool
 
 	Themes      *[]string

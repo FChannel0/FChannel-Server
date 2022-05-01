@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/FChannel0/FChannel-Server/config"
-	"github.com/FChannel0/FChannel-Server/post"
 	"github.com/FChannel0/FChannel-Server/util"
 )
 
@@ -42,7 +41,7 @@ func CheckIfObjectOP(id string) (bool, error) {
 }
 
 func CreateAttachmentObject(file multipart.File, header *multipart.FileHeader) ([]ObjectBase, *os.File, error) {
-	contentType, err := post.GetFileContentType(file)
+	contentType, err := util.GetFileContentType(file)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1563,7 +1562,6 @@ func AddFollower(id string, follower string) error {
 
 func WriteObjectReplyToDB(obj ObjectBase) error {
 	for i, e := range obj.InReplyTo {
-
 		if res, err := CheckIfObjectOP(obj.Id); err == nil && !res && i == 0 {
 			nType, err := GetObjectTypeDB(e.Id)
 			if err != nil {
@@ -1581,19 +1579,8 @@ func WriteObjectReplyToDB(obj ObjectBase) error {
 
 		query := `select id from replies where id=$1 and inreplyto=$2`
 
-		rows, err := config.DB.Query(query, obj.Id, e.Id)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
 		var id string
-		rows.Next()
-		if err := rows.Scan(&id); err != nil {
-			return err
-		}
-
-		if id == "" {
+		if err := config.DB.QueryRow(query, obj.Id, e.Id).Scan(&id); err != nil {
 			query := `insert into replies (id, inreplyto) values ($1, $2)`
 
 			_, err := config.DB.Exec(query, obj.Id, e.Id)
@@ -1620,17 +1607,8 @@ func WriteObjectReplyToDB(obj ObjectBase) error {
 	if len(obj.InReplyTo) < 1 {
 		query := `select id from replies where id=$1 and inreplyto=$2`
 
-		rows, err := config.DB.Query(query, obj.Id, "")
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
 		var id string
-		rows.Next()
-		rows.Scan(&id)
-
-		if id == "" {
+		if err := config.DB.QueryRow(query, obj.Id, "").Scan(&id); err != nil {
 			query := `insert into replies (id, inreplyto) values ($1, $2)`
 
 			if _, err := config.DB.Exec(query, obj.Id, ""); err != nil {
@@ -1688,7 +1666,7 @@ func WriteObjectReplyToLocalDB(id string, replyto string) error {
 }
 
 func WriteObjectToCache(obj ObjectBase) (ObjectBase, error) {
-	if res, err := post.IsPostBlacklist(obj.Content); err == nil && res {
+	if res, err := util.IsPostBlacklist(obj.Content); err == nil && res {
 		fmt.Println("\n\nBlacklist post blocked\n\n")
 		return obj, nil
 	} else {
@@ -1742,7 +1720,6 @@ func WriteObjectToDB(obj ObjectBase) (ObjectBase, error) {
 				return obj, err
 			}
 		}
-
 		for i := range obj.Attachment {
 			id, err := util.CreateUniqueID(obj.Actor)
 			if err != nil {

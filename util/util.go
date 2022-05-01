@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"mime/multipart"
+	"net/http"
 	"os"
 	"regexp"
 	"strings"
@@ -224,4 +226,28 @@ func CreateUniqueID(actor string) (string, error) {
 	}
 
 	return newID, nil
+}
+
+func GetFileContentType(out multipart.File) (string, error) {
+	buffer := make([]byte, 512)
+
+	_, err := out.Read(buffer)
+	if err != nil {
+		return "", err
+	}
+
+	out.Seek(0, 0)
+
+	contentType := http.DetectContentType(buffer)
+
+	return contentType, nil
+}
+
+func GetContentType(location string) string {
+	elements := strings.Split(location, ";")
+	if len(elements) > 0 {
+		return elements[0]
+	} else {
+		return location
+	}
 }

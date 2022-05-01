@@ -3,7 +3,7 @@ package routes
 import (
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
-	"github.com/FChannel0/FChannel-Server/post"
+	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
 )
@@ -54,7 +54,7 @@ func AdminIndex(ctx *fiber.Ctx) error {
 
 	adminData.Board.Post.Actor = actor.Id
 
-	adminData.PostBlacklist, _ = post.GetRegexBlacklistDB()
+	adminData.PostBlacklist, _ = util.GetRegexBlacklistDB()
 
 	adminData.Themes = &config.Themes
 

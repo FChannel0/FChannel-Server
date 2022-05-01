@@ -31,8 +31,6 @@ import (
 	"time"
 )
 
-var authReq = []string{"captcha", "email", "passphrase"}
-
 var MediaHashs = make(map[string]string)
 
 var Themes []string
@@ -77,7 +75,7 @@ func main() {
 	// root actor is used to follow remote feeds that are not local
 	//name, prefname, summary, auth requirements, restricted
 	if config.InstanceName != "" {
-		if _, err = db.CreateNewBoardDB(*activitypub.CreateNewActor("", config.InstanceName, config.InstanceSummary, authReq, false)); err != nil {
+		if _, err = db.CreateNewBoardDB(*activitypub.CreateNewActor("", config.InstanceName, config.InstanceSummary, config.AuthReq, false)); err != nil {
 			//panic(err)
 		}
 
@@ -225,13 +223,13 @@ func main() {
 	*/
 
 	app.Get("/:actor", routes.OutboxGet)
-	app.Get("/:actor/catalog", routes.CatalogGet)
+	app.Post("/:actor", routes.ActorPost)
 
+	app.Get("/:actor/catalog", routes.CatalogGet)
 	app.Get("/:actor/:post", routes.PostGet)
-	app.Get("/post", routes.ActorPost)
 
 	app.Get("/:actor/inbox", routes.ActorInbox)
-	app.Get("/:actor/outbox", routes.ActorOutbox)
+	app.Post("/:actor/outbox", routes.ActorOutbox)
 
 	app.Get("/:actor/following", routes.ActorFollowing)
 	app.Get("/:actor/followers", routes.ActorFollowers)
@@ -259,139 +257,6 @@ func neuter(next http.Handler) http.Handler {
 	})
 }
 
-func GetContentType(location string) string {
-	elements := strings.Split(location, ";")
-	if len(elements) > 0 {
-		return elements[0]
-	} else {
-		return location
-	}
-}
-
-func GetActorPost(w http.ResponseWriter, path string) error {
-	collection, err := activitypub.GetCollectionFromPath(config.Domain + "" + path)
-	if err != nil {
-		return err
-	}
-
-	if len(collection.OrderedItems) > 0 {
-		enc, err := json.MarshalIndent(collection, "", "\t")
-		if err != nil {
-			return err
-		}
-
-		w.Header().Set("Content-Type", "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"")
-		_, err = w.Write(enc)
-		return err
-	}
-
-	return nil
-}
-
-func AddFollowersToActivity(activity activitypub.Activity) (activitypub.Activity, error) {
-	activity.To = append(activity.To, activity.Actor.Id)
-
-	for _, e := range activity.To {
-		aFollowers, err := webfinger.GetActorCollection(e + "/followers")
-		if err != nil {
-			return activity, err
-		}
-
-		for _, k := range aFollowers.Items {
-			activity.To = append(activity.To, k.Id)
-		}
-	}
-
-	var nActivity activitypub.Activity
-
-	for _, e := range activity.To {
-		var alreadyTo = false
-		for _, k := range nActivity.To {
-			if e == k || e == activity.Actor.Id {
-				alreadyTo = true
-			}
-		}
-
-		if !alreadyTo {
-			nActivity.To = append(nActivity.To, e)
-		}
-	}
-
-	activity.To = nActivity.To
-
-	return activity, nil
-}
-
-func CreateActivity(activityType string, obj activitypub.ObjectBase) (activitypub.Activity, error) {
-	var newActivity activitypub.Activity
-
-	actor, err := webfinger.FingerActor(obj.Actor)
-	if err != nil {
-		return newActivity, err
-	}
-
-	newActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
-	newActivity.Type = activityType
-	newActivity.Published = obj.Published
-	newActivity.Actor = &actor
-	newActivity.Object = &obj
-
-	for _, e := range obj.To {
-		if obj.Actor != e {
-			newActivity.To = append(newActivity.To, e)
-		}
-	}
-
-	for _, e := range obj.Cc {
-		if obj.Actor != e {
-			newActivity.Cc = append(newActivity.Cc, e)
-		}
-	}
-
-	return newActivity, nil
-}
-
-func ParseCommentForReplies(comment string, op string) ([]activitypub.ObjectBase, error) {
-
-	re := regexp.MustCompile(`(>>(https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/)(f[A-Za-z0-9_.\-~]+-)?([A-Za-z0-9_.\-~]+)?#?([A-Za-z0-9_.\-~]+)?)`)
-	match := re.FindAllStringSubmatch(comment, -1)
-
-	var links []string
-
-	for i := 0; i < len(match); i++ {
-		str := strings.Replace(match[i][0], ">>", "", 1)
-		str = strings.Replace(str, "www.", "", 1)
-		str = strings.Replace(str, "http://", "", 1)
-		str = strings.Replace(str, "https://", "", 1)
-		str = config.TP + "" + str
-		_, isReply, err := db.IsReplyToOP(op, str)
-		if err != nil {
-			return nil, err
-		}
-
-		if !util.IsInStringArray(links, str) && isReply {
-			links = append(links, str)
-		}
-	}
-
-	var validLinks []activitypub.ObjectBase
-	for i := 0; i < len(links); i++ {
-		_, isValid, err := webfinger.CheckValidActivity(links[i])
-		if err != nil {
-			return nil, err
-		}
-
-		if isValid {
-			var reply activitypub.ObjectBase
-			reply.Id = links[i]
-			reply.Published = time.Now().UTC()
-			validLinks = append(validLinks, reply)
-		}
-	}
-
-	return validLinks, nil
-}
-
 func IsValidActor(id string) (activitypub.Actor, bool, error) {
 	actor, err := webfinger.FingerActor(id)
 	return actor, actor.Id != "", err
@@ -412,16 +277,6 @@ func MakeCaptchas(total int) error {
 	}
 
 	return nil
-}
-
-func SupportedMIMEType(mime string) bool {
-	for _, e := range config.SupportedFiles {
-		if e == mime {
-			return true
-		}
-	}
-
-	return false
 }
 
 func GetActorReported(w http.ResponseWriter, r *http.Request, id string) error {
@@ -484,7 +339,7 @@ func DeleteObjectRequest(id string) error {
 	nObj.Id = id
 	nObj.Actor = nActor.Id
 
-	activity, err := CreateActivity("Delete", nObj)
+	activity, err := webfinger.CreateActivity("Delete", nObj)
 	if err != nil {
 		return err
 	}
@@ -526,7 +381,7 @@ func DeleteObjectAndRepliesRequest(id string) error {
 	nObj.Id = id
 	nObj.Actor = nActor.Id
 
-	activity, err := CreateActivity("Delete", nObj)
+	activity, err := webfinger.CreateActivity("Delete", nObj)
 	if err != nil {
 		return err
 	}
@@ -616,31 +471,6 @@ func ResizeAttachmentToPreview() error {
 
 		return nil
 	})
-}
-
-func ParseCommentForReply(comment string) (string, error) {
-	re := regexp.MustCompile(`(>>(https?://[A-Za-z0-9_.:\-~]+\/[A-Za-z0-9_.\-~]+\/)(f[A-Za-z0-9_.\-~]+-)?([A-Za-z0-9_.\-~]+)?#?([A-Za-z0-9_.\-~]+)?)`)
-	match := re.FindAllStringSubmatch(comment, -1)
-
-	var links []string
-
-	for i := 0; i < len(match); i++ {
-		str := strings.Replace(match[i][0], ">>", "", 1)
-		links = append(links, str)
-	}
-
-	if len(links) > 0 {
-		_, isValid, err := webfinger.CheckValidActivity(strings.ReplaceAll(links[0], ">", ""))
-		if err != nil {
-			return "", err
-		}
-
-		if isValid {
-			return links[0], nil
-		}
-	}
-
-	return "", nil
 }
 
 func CreatedNeededDirectories() {
