@@ -84,7 +84,7 @@ func main() {
 	app.Post("/:actor", routes.ActorPost)
 	app.Get("/:actor/catalog", routes.CatalogGet)
 	app.Get("/:actor/:post", routes.PostGet)
-	app.Get("/:actor/inbox", routes.ActorInbox)
+	app.Post("/:actor/inbox", routes.ActorInbox)
 	app.Post("/:actor/outbox", routes.ActorOutbox)
 	app.Get("/:actor/following", routes.ActorFollowing)
 	app.Get("/:actor/followers", routes.ActorFollowers)
@@ -183,14 +183,14 @@ func TemplateFunctions(engine *html.Engine) {
 		return fmt.Sprint(t.Unix())
 	})
 
-	engine.AddFunc("proxy", MediaProxy)
+	engine.AddFunc("proxy", util.MediaProxy)
 
 	// previously short
 	engine.AddFunc("shortURL", util.ShortURL)
 
-	engine.AddFunc("parseAttachment", ParseAttachment)
+	engine.AddFunc("parseAttachment", post.ParseAttachment)
 
-	engine.AddFunc("parseContent", ParseContent)
+	engine.AddFunc("parseContent", post.ParseContent)
 
 	engine.AddFunc("shortImg", util.ShortImg)
 

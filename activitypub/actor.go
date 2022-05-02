@@ -863,3 +863,33 @@ func WriteActorObjectToCache(obj ObjectBase) (ObjectBase, error) {
 
 	return obj, nil
 }
+
+func GetActorOutbox(ctx *fiber.Ctx, actor Actor) error {
+
+	var collection Collection
+
+	c, err := GetActorObjectCollectionFromDB(actor.Id)
+	if err != nil {
+		return err
+	}
+	collection.OrderedItems = c.OrderedItems
+
+	collection.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+	collection.Actor = &actor
+
+	collection.TotalItems, err = GetObjectPostsTotalDB(actor)
+	if err != nil {
+		return err
+	}
+
+	collection.TotalImgs, err = GetObjectImgsTotalDB(actor)
+	if err != nil {
+		return err
+	}
+
+	enc, _ := json.Marshal(collection)
+
+	ctx.Response().Header.Set("Content-Type", config.ActivityStreams)
+	_, err = ctx.Write(enc)
+	return err
+}

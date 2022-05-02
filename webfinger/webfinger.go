@@ -283,3 +283,28 @@ func AddInstanceToIndexDB(actor string) error {
 
 	return nil
 }
+
+func MakeActivityFollowingReq(w http.ResponseWriter, r *http.Request, activity activitypub.Activity) (bool, error) {
+	actor, err := GetActor(activity.Object.Id)
+	if err != nil {
+		return false, err
+	}
+
+	req, err := http.NewRequest("POST", actor.Inbox, nil)
+	if err != nil {
+		return false, err
+	}
+
+	resp, err := util.RouteProxy(req)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	var respActivity activitypub.Activity
+
+	err = json.Unmarshal(body, &respActivity)
+	return respActivity.Type == "Accept", err
+}

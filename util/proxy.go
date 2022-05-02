@@ -37,3 +37,20 @@ func GetPathProxyType(path string) string {
 
 	return "clearnet"
 }
+
+func MediaProxy(url string) string {
+	re := regexp.MustCompile("(.+)?" + config.Domain + "(.+)?")
+
+	if re.MatchString(url) {
+		return url
+	}
+
+	re = regexp.MustCompile("(.+)?\\.onion(.+)?")
+
+	if re.MatchString(url) {
+		return url
+	}
+
+	config.MediaHashs[HashMedia(url)] = url
+	return "/api/media?hash=" + HashMedia(url)
+}

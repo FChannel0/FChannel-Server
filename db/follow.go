@@ -270,3 +270,35 @@ func MakeActivityRequest(activity activitypub.Activity) error {
 
 	return nil
 }
+
+func SendToFollowers(actor string, activity activitypub.Activity) error {
+	nActor, err := activitypub.GetActorFromDB(actor)
+	if err != nil {
+		return err
+	}
+
+	activity.Actor = &nActor
+
+	followers, err := activitypub.GetActorFollowDB(actor)
+	if err != nil {
+		return err
+	}
+
+	var to []string
+
+	for _, e := range followers {
+		for _, k := range activity.To {
+			if e.Id != k {
+				to = append(to, e.Id)
+			}
+		}
+	}
+
+	activity.To = to
+
+	if len(activity.Object.InReplyTo) > 0 {
+		err = MakeActivityRequest(activity)
+	}
+
+	return err
+}
