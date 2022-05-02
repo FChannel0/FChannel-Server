@@ -56,9 +56,9 @@ func main() {
 	app.Get("/followers", routes.Followers)
 
 	// Admin routes
-	app.Get("/verify", routes.AdminVerify)
-	app.Get("/auth", routes.AdminAuth)
-	app.Get("/"+config.Key+"/", routes.AdminIndex)
+	app.Post("/verify", routes.AdminVerify)
+	app.Post("/auth", routes.AdminAuth)
+	app.All("/"+config.Key+"/", routes.AdminIndex)
 	app.Get("/"+config.Key+"/addboard", routes.AdminAddBoard)
 	app.Get("/"+config.Key+"/postnews", routes.AdminPostNews)
 	app.Get("/"+config.Key+"/newsdelete", routes.AdminNewsDelete)

@@ -1,97 +1,97 @@
 a, a:link, a:visited, a:hover, a:active {
-	text-decoration: none
+  text-decoration: none
 }
 
 a:link, a:visited,  a:active {
-	color: black;
+  color: black;
 }
 
 a:hover {
-	color: #de0808;
+  color: #de0808;
 }
 
 body {
-	background-color: #eef2fe;
-	color: black;
+  background-color: #eef2fe;
+  color: black;
 }
 
 body.nsfw {
-	background-color: #ffffee;
-	color: #820404
+  background-color: #ffffee;
+  color: #820404
 }
 
 h1, h2, h3, h4, h5, h6 {
-	color: #af0a0f;
+  color: #af0a0f;
 }
 
 .popup-box {
-	border: 4px solid #d3caf0;
-	background-color: #eff5ff;
+  border: 4px solid #d3caf0;
+  background-color: #eff5ff;
 }
 
 .nsfw .popup-box {
-	border: 4px solid #f0e2d9;
-	background-color: #f9f9e0;
+  border: 4px solid #f0e2d9;
+  background-color: #f9f9e0;
 }
 
 .box {
-	background-color: #eff5ff;
+  background-color: #eff5ff;
 }
 
 .nsfw .box {
-	background-color: #f9f9e0;
+  background-color: #f9f9e0;
 }
 
 .box-alt {
-	background-color: #d3caf0;
+  background-color: #d3caf0;
 }
 
 .nsfw .box-alt {
-	background-color: #f0e2d9;
+  background-color: #f0e2d9;
 }
 
 
 .quote {
-	color: #789922;
+  color: #789922;
 }
 
 .post {
-	background-color: #d5daf0;
+  background-color: #d5daf0;
 }
 
 .nsfw .post {
-	background-color: #f0e0d6;
+  background-color: #f0e0d6;
 }
 
 :target > div > .post {
-	background-color: #d6bad0;
+  background-color: #d6bad0;
 }
 
 .nsfw :target > div > .post {
-	background-color: #f0c0b0;
+  background-color: #f0c0b0;
 }
 
 .title {
-	color: #0f0c5d;
+  color: #0f0c5d;
 }
 
 .name, .tripcode {
-	color: #117743;
+  color: #117743;
 }
 
 a.reply {
-	color: #af0a0f;
-	text-decoration: 1px underline;
+  color: #af0a0f;
+  text-decoration: 1px underline;
 }
 
 .replyLink {
-	color: #000080;
-	font-size: 0.8em;
+  color: #000080;
+  font-size: 0.8em;
 }
 
 #newpostbtn {
-	text-align: center;
-	margin-top: 80px;
+  text-align: center;
+  margin-top: 80px;
 }
 
 #postForm {
@@ -126,44 +126,44 @@ a.reply {
 }
 
 #reply-comment {
-	min-width: 300px;
-	width: 396px;
-	height: 200px;
+  min-width: 300px;
+  width: 396px;
+  height: 200px;
 }
 
 #reply-name {
-	width: 75%;
-	float: left;
+  width: 75%;
+  float: left;
 }
 
 #reply-options {
-	width: 25%;
-	float: right;
+  width: 25%;
+  float: right;
 }
 
 #reply-header {
-	display: inline-block;
-	width: 100%;
-	cursor: move;
+  display: inline-block;
+  width: 100%;
+  cursor: move;
 }
 
 #postForm #captcha {
-	display: block;
-	width: 100%;
+  display: block;
+  width: 100%;
 }
 
 .popup-box {
-	position: fixed;
-	min-width: 300px;
-	width: min-content;
-	z-index: 9;
-	display: block;
+  position: fixed;
+  min-width: 300px;
+  width: min-content;
+  z-index: 9;
+  display: block;
 }
 
 /* TODO: rename */
 .box2 {
-	border: 4px solid #f0e2d9;
-	background-color: #f9f9e0;
+  border: 4px solid #f0e2d9;
+  background-color: #f9f9e0;
 }
 
 .newsbox {
@@ -189,61 +189,69 @@ a.reply {
 }
 
 #stopTablePost {
-	float: right;
-	display: none;
+  float: right;
+  display: none;
 }
 
 #boardGrid {
-	display: grid;
-	grid-auto-columns: 1fr;
-	border: 4px solid #820404;
-	background-color: #f9f9e0;
+  display: grid;
+  grid-auto-columns: 1fr;
+  border: 4px solid #820404;
+  background-color: #f9f9e0;
 }
 
 #boardGridHeader {
-	border-bottom: 2px solid #820404;
-	display: inline-grid;
+  border-bottom: 2px solid #820404;
+  display: inline-grid;
 }
 
 .boardGridCell {
-	white-space: nowrap;
-	display: inline-grid;
-	text-align: left;
-	padding: 5px;
-	border-top: 2px solid #820404;
-	border-left: 2px solid #820404;
+  white-space: nowrap;
+  display: inline-grid;
+  text-align: left;
+  padding: 5px;
+  border-top: 2px solid #820404;
+  border-left: 2px solid #820404;
 }
 
 /* these may or may not work. my CSS is poor so i just kinda did stuff until it worked. */
 .boardGridCell:nth-child(-n+4) {
-	border-top: none;
+  border-top: none;
 }
 
 .boardGridCell:nth-child(3n+2) {
-	border-left: none;
+  border-left: none;
 }
 
 #threadfooter {
-	width: 100%;
-	table-layout: fixed;
-	border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
 }
 
 #threadfooter td {
-	padding: 0;
-	margin: 0;
+  padding: 0;
+  margin: 0;
 }
 
 #threadfooter #threadStats {
-	float: right;
+  float: right;
+}
+
+#boardlinks {
+    float: left;
 }
 
 #navlinks, #boardlinks {
-	padding: 0;
-	margin: 0;
+  padding: 0;
+  margin: 0;
 }
 
 #navlinks > li,
 #boardlinks > li {
-	display: inline;
+  display: inline;
+}
+
+#manageboard {
+    float: right;
 }

@@ -37,27 +37,28 @@
     {{ end }}
   </head>
   <body {{ if not .page.Board.Restricted }}class="nsfw"{{ end }} onload="applyTheme()">
-    <ul id="boardlinks">
-      {{ $l := len .page.Boards }}
-      <li>[<a href="/">Home</a>]</li>
-      {{range $i, $e := .page.Boards}}
-      {{ if eq (sub $l 1) 0 }}
-      <li>[ <a href="{{.Location}}">{{$e.Name}} </a>]</li>
-      {{ else if eq $i 0 }}
-      <li>[<a href="{{.Location}}">{{$e.Name}} </a>/</li>
-      {{ else if eq $i (sub $l 1) }}
-      <li><a href="{{.Location}}">{{$e.Name}}</a>]</li>
-      {{ else }}
-      <li><a href="{{.Location}}">{{$e.Name}} </a>/</li>
+    <div style="padding-bottom:5px;">
+      <ul id="boardlinks">
+        {{ $l := len .page.Boards }}
+        <li>[<a href="/">Home</a>]</li>
+        {{range $i, $e := .page.Boards}}
+        {{ if eq (sub $l 1) 0 }}
+        <li>[ <a href="{{.Location}}">{{$e.Name}} </a>]</li>
+        {{ else if eq $i 0 }}
+        <li>[<a href="{{.Location}}">{{$e.Name}} </a>/</li>
+        {{ else if eq $i (sub $l 1) }}
+        <li><a href="{{.Location}}">{{$e.Name}}</a>]</li>
+        {{ else }}
+        <li><a href="{{.Location}}">{{$e.Name}} </a>/</li>
+        {{ end }}
+        {{ end }}
+      </ul>
+      {{ if .page.Board.ModCred }}
+      {{ if eq .page.Board.ModCred .page.Board.Domain .page.Board.Actor.Id }}
+      <span id="manageboard">[<a href="/{{ .page.Key }}/{{ .page.Board.Name }}">Manage Board</a>]</span>
       {{ end }}
       {{ end }}
-    </ul>
-    {{ if .page.Board.ModCred }}
-    {{ if eq .page.Board.ModCred .page.Board.Domain .page.Board.Actor.Id }}
-    <span style="float: right;">[<a href="/{{ .page.Key }}/{{ .page.Board.Name }}">Manage Board</a>]</span>
-    {{ end }}
-    {{ end }}
-
+    </div>
     {{ embed }}
   </body>
 </html>
