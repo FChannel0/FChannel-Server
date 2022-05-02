@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
@@ -238,4 +239,47 @@ func AddFollowersToActivity(activity activitypub.Activity) (activitypub.Activity
 	activity.To = nActivity.To
 
 	return activity, nil
+}
+
+func IsValidActor(id string) (activitypub.Actor, bool, error) {
+	actor, err := FingerActor(id)
+	return actor, actor.Id != "", err
+}
+
+func AddInstanceToIndexDB(actor string) error {
+	// TODO: completely disabling this until it is actually reasonable to turn it on
+	// only actually allow this when it more or less works, i.e. can post, make threads, manage boards, etc
+	return nil
+
+	//sleep to be sure the webserver is fully initialized
+	//before making finger request
+	time.Sleep(15 * time.Second)
+
+	nActor, err := FingerActor(actor)
+	if err != nil {
+		return err
+	}
+
+	if nActor.Id == "" {
+		return nil
+	}
+
+	// TODO: maybe allow different indexes?
+	followers, err := activitypub.GetCollectionFromID("https://fchan.xyz/followers")
+	if err != nil {
+		return err
+	}
+
+	var alreadyIndex = false
+	for _, e := range followers.Items {
+		if e.Id == nActor.Id {
+			alreadyIndex = true
+		}
+	}
+
+	if !alreadyIndex {
+		return activitypub.AddFollower("https://fchan.xyz", nActor.Id)
+	}
+
+	return nil
 }

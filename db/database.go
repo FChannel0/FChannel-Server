@@ -2,9 +2,11 @@ package db
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"regexp"
 	"strings"
@@ -572,18 +574,13 @@ func CheckInactiveInstances() (map[string]string, error) {
 func GetAdminAuth() (string, string, error) {
 	query := fmt.Sprintf("select identifier, code from boardaccess where board='%s' and type='admin'", config.Domain)
 
-	rows, err := config.DB.Query(query)
-	if err != nil {
+	var code string
+	var identifier string
+	if err := config.DB.QueryRow(query).Scan(&identifier, &code); err != nil {
 		return "", "", err
 	}
 
-	var code string
-	var identifier string
-
-	rows.Next()
-	err = rows.Scan(&identifier, &code)
-
-	return code, identifier, err
+	return code, identifier, nil
 }
 
 func IsHashBanned(hash string) (bool, error) {
@@ -594,4 +591,158 @@ func IsHashBanned(hash string) (bool, error) {
 	_ = config.DB.QueryRow(query, hash).Scan(&h)
 
 	return h == hash, nil
+}
+
+func MakeCaptchas(total int) error {
+	dbtotal, err := GetCaptchaTotal()
+	if err != nil {
+		return err
+	}
+
+	difference := total - dbtotal
+
+	for i := 0; i < difference; i++ {
+		if err := CreateNewCaptcha(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func GetActorReported(w http.ResponseWriter, r *http.Request, id string) error {
+	auth := r.Header.Get("Authorization")
+	verification := strings.Split(auth, " ")
+
+	if len(verification) < 2 {
+		w.WriteHeader(http.StatusBadRequest)
+		_, err := w.Write([]byte(""))
+		return err
+	}
+
+	if res, err := HasAuth(verification[1], id); err == nil && !res {
+		w.WriteHeader(http.StatusBadRequest)
+		_, err = w.Write([]byte(""))
+		return err
+	} else if err != nil {
+		return err
+	}
+
+	var following activitypub.Collection
+	var err error
+
+	following.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+	following.Type = "Collection"
+	following.TotalItems, err = activitypub.GetActorReportedTotal(id)
+	if err != nil {
+		return err
+	}
+
+	following.Items, err = activitypub.GetActorReportedDB(id)
+	if err != nil {
+		return err
+	}
+
+	enc, err := json.MarshalIndent(following, "", "\t")
+	if err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Type", config.ActivityStreams)
+
+	_, err = w.Write(enc)
+	return err
+}
+
+func PrintAdminAuth() error {
+	identifier, code, err := GetAdminAuth()
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Mod key: " + config.Key)
+	fmt.Println("Admin Login: " + identifier + ", Code: " + code)
+	return nil
+}
+
+func DeleteObjectRequest(id string) error {
+	var nObj activitypub.ObjectBase
+	var nActor activitypub.Actor
+	nObj.Id = id
+	nObj.Actor = nActor.Id
+
+	activity, err := webfinger.CreateActivity("Delete", nObj)
+	if err != nil {
+		return err
+	}
+
+	obj, err := activitypub.GetObjectFromPath(id)
+	if err != nil {
+		return err
+	}
+
+	actor, err := webfinger.FingerActor(obj.Actor)
+	if err != nil {
+		return err
+	}
+	activity.Actor = &actor
+
+	followers, err := activitypub.GetActorFollowDB(obj.Actor)
+	if err != nil {
+		return err
+	}
+
+	for _, e := range followers {
+		activity.To = append(activity.To, e.Id)
+	}
+
+	following, err := activitypub.GetActorFollowingDB(obj.Actor)
+	if err != nil {
+		return err
+	}
+	for _, e := range following {
+		activity.To = append(activity.To, e.Id)
+	}
+
+	return MakeActivityRequest(activity)
+}
+
+func DeleteObjectAndRepliesRequest(id string) error {
+	var nObj activitypub.ObjectBase
+	var nActor activitypub.Actor
+	nObj.Id = id
+	nObj.Actor = nActor.Id
+
+	activity, err := webfinger.CreateActivity("Delete", nObj)
+	if err != nil {
+		return err
+	}
+
+	obj, err := activitypub.GetObjectByIDFromDB(id)
+	if err != nil {
+		return err
+	}
+
+	activity.Actor.Id = obj.OrderedItems[0].Actor
+
+	activity.Object = &obj.OrderedItems[0]
+
+	followers, err := activitypub.GetActorFollowDB(obj.OrderedItems[0].Actor)
+	if err != nil {
+		return err
+	}
+	for _, e := range followers {
+		activity.To = append(activity.To, e.Id)
+	}
+
+	following, err := activitypub.GetActorFollowingDB(obj.OrderedItems[0].Actor)
+	if err != nil {
+		return err
+	}
+
+	for _, e := range following {
+		activity.To = append(activity.To, e.Id)
+	}
+
+	return MakeActivityRequest(activity)
 }

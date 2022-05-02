@@ -251,3 +251,13 @@ func GetContentType(location string) string {
 		return location
 	}
 }
+
+func CreatedNeededDirectories() {
+	if _, err := os.Stat("./public"); os.IsNotExist(err) {
+		os.Mkdir("./public", 0755)
+	}
+
+	if _, err := os.Stat("./pem/board"); os.IsNotExist(err) {
+		os.MkdirAll("./pem/board", 0700)
+	}
+}

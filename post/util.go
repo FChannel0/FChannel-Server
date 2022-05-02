@@ -1,6 +1,7 @@
 package post
 
 import (
+	"fmt"
 	"io/ioutil"
 	"mime/multipart"
 	"os"
@@ -322,4 +323,62 @@ func ObjectFromForm(ctx *fiber.Ctx, obj activitypub.ObjectBase) (activitypub.Obj
 	}
 
 	return obj, nil
+}
+
+func ResizeAttachmentToPreview() error {
+	return activitypub.GetObjectsWithoutPreviewsCallback(func(id, href, mediatype, name string, size int, published time.Time) error {
+		re := regexp.MustCompile(`^\w+`)
+
+		_type := re.FindString(mediatype)
+
+		if _type == "image" {
+
+			re = regexp.MustCompile(`.+/`)
+
+			file := re.ReplaceAllString(mediatype, "")
+
+			nHref := util.GetUniqueFilename(file)
+
+			var nPreview activitypub.NestedObjectBase
+
+			re = regexp.MustCompile(`/\w+$`)
+			actor := re.ReplaceAllString(id, "")
+
+			nPreview.Type = "Preview"
+			uid, err := util.CreateUniqueID(actor)
+			if err != nil {
+				return err
+			}
+
+			nPreview.Id = fmt.Sprintf("%s/%s", actor, uid)
+			nPreview.Name = name
+			nPreview.Href = config.Domain + "" + nHref
+			nPreview.MediaType = mediatype
+			nPreview.Size = int64(size)
+			nPreview.Published = published
+			nPreview.Updated = published
+
+			re = regexp.MustCompile(`/public/.+`)
+
+			objFile := re.FindString(href)
+
+			if id != "" {
+				cmd := exec.Command("convert", "."+objFile, "-resize", "250x250>", "-strip", "."+nHref)
+
+				if err := cmd.Run(); err == nil {
+					fmt.Println(objFile + " -> " + nHref)
+					if err := activitypub.WritePreviewToDB(nPreview); err != nil {
+						return err
+					}
+					if err := activitypub.UpdateObjectWithPreview(id, nPreview.Id); err != nil {
+						return err
+					}
+				} else {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
 }

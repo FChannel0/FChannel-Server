@@ -27,7 +27,7 @@ func MediaProxy(url string) string {
 		return url
 	}
 
-	MediaHashs[util.HashMedia(url)] = url
+	config.MediaHashs[util.HashMedia(url)] = url
 	return "/api/media?hash=" + util.HashMedia(url)
 }
 
