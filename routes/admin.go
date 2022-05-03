@@ -3,10 +3,10 @@ package routes
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
@@ -96,7 +96,6 @@ func AdminAuth(ctx *fiber.Ctx) error {
 }
 
 func AdminIndex(ctx *fiber.Ctx) error {
-	fmt.Println("admin index")
 	id, _ := db.GetPasswordFromSession(ctx)
 	actor, _ := webfinger.GetActorFromPath(ctx.Path(), "/"+config.Key+"/")
 
@@ -150,6 +149,77 @@ func AdminIndex(ctx *fiber.Ctx) error {
 	})
 }
 
+func AdminFollow(ctx *fiber.Ctx) error {
+	actor, _ := webfinger.GetActorFromPath(ctx.Path(), "/"+config.Key+"/")
+
+	following := regexp.MustCompile(`(.+)\/following`)
+	followers := regexp.MustCompile(`(.+)\/followers`)
+
+	follow := ctx.FormValue("follow")
+	actorId := ctx.FormValue("actor")
+
+	//follow all of boards following
+	if following.MatchString(follow) {
+		followingActor, _ := webfinger.FingerActor(follow)
+		col, _ := webfinger.GetActorCollection(followingActor.Following)
+
+		var nObj activitypub.ObjectBase
+		nObj.Id = followingActor.Id
+
+		col.Items = append(col.Items, nObj)
+
+		for _, e := range col.Items {
+			if isFollowing, _ := activitypub.IsAlreadyFollowing(actorId, e.Id); isFollowing && e.Id != config.Domain && e.Id != actorId {
+				followActivity, _ := db.MakeFollowActivity(actorId, e.Id)
+
+				if actor, _ := webfinger.FingerActor(e.Id); actor.Id != "" {
+					db.MakeActivityRequestOutbox(followActivity)
+				}
+			}
+		}
+
+		//follow all of boards followers
+	} else if followers.MatchString(follow) {
+		followersActor, _ := webfinger.FingerActor(follow)
+		col, _ := webfinger.GetActorCollection(followersActor.Followers)
+
+		var nObj activitypub.ObjectBase
+		nObj.Id = followersActor.Id
+
+		col.Items = append(col.Items, nObj)
+
+		for _, e := range col.Items {
+			if isFollowing, _ := activitypub.IsAlreadyFollowing(actorId, e.Id); isFollowing && e.Id != config.Domain && e.Id != actorId {
+				followActivity, _ := db.MakeFollowActivity(actorId, e.Id)
+				if actor, _ := webfinger.FingerActor(e.Id); actor.Id != "" {
+					db.MakeActivityRequestOutbox(followActivity)
+				}
+			}
+		}
+
+		//do a normal follow to a single board
+	} else {
+		followActivity, _ := db.MakeFollowActivity(actorId, follow)
+
+		if isLocal, _ := activitypub.IsActorLocal(followActivity.Object.Actor); !isLocal && followActivity.Actor.Id == config.Domain {
+			_, err := ctx.Write([]byte("main board can only follow local boards. Create a new board and then follow outside boards from it."))
+			return err
+		}
+
+		if actor, _ := webfinger.FingerActor(follow); actor.Id != "" {
+			db.MakeActivityRequestOutbox(followActivity)
+		}
+	}
+
+	var redirect string
+
+	if actor.Name != "main" {
+		redirect = "/" + actor.Name
+	}
+
+	return ctx.Redirect("/"+config.Key+"/"+redirect, http.StatusSeeOther)
+}
+
 func AdminAddBoard(c *fiber.Ctx) error {
 	// STUB
 
@@ -166,4 +236,72 @@ func AdminNewsDelete(c *fiber.Ctx) error {
 	// STUB
 
 	return c.SendString("admin news delete")
+}
+
+func AdminActorIndex(ctx *fiber.Ctx) error {
+	actor, _ := webfinger.GetActorFromPath(ctx.Path(), "/"+config.Key+"/")
+
+	follow, _ := webfinger.GetActorCollection(actor.Following)
+	follower, _ := webfinger.GetActorCollection(actor.Followers)
+	reported, _ := activitypub.GetActorCollectionReq(actor.Id + "/reported")
+
+	var following []string
+	var followers []string
+	var reports []db.Report
+
+	for _, e := range follow.Items {
+		following = append(following, e.Id)
+	}
+
+	for _, e := range follower.Items {
+		followers = append(followers, e.Id)
+	}
+
+	for _, e := range reported.Items {
+		var r db.Report
+		r.Count = int(e.Size)
+		r.ID = e.Id
+		r.Reason = e.Content
+		reports = append(reports, r)
+	}
+
+	localReports, _ := db.GetLocalReportDB(actor.Name)
+
+	for _, e := range localReports {
+		var r db.Report
+		r.Count = e.Count
+		r.ID = e.ID
+		r.Reason = e.Reason
+		reports = append(reports, r)
+	}
+
+	var data AdminPage
+	data.Following = following
+	data.Followers = followers
+	data.Reported = reports
+	data.Domain = config.Domain
+	data.IsLocal, _ = activitypub.IsActorLocal(actor.Id)
+
+	data.Title = "Manage /" + actor.Name + "/"
+	data.Boards = webfinger.Boards
+	data.Board.Name = actor.Name
+	data.Board.Actor = actor
+	data.Key = config.Key
+	data.Board.TP = config.TP
+
+	data.Board.Post.Actor = actor.Id
+
+	data.AutoSubscribe, _ = activitypub.GetActorAutoSubscribeDB(actor.Id)
+
+	data.Themes = &config.Themes
+
+	data.RecentPosts = activitypub.GetRecentPostsDB(actor.Id)
+
+	if cookie := ctx.Cookies("theme"); cookie != "" {
+		data.ThemeCookie = cookie
+	}
+
+	return ctx.Render("manage", fiber.Map{
+		"page": data,
+	})
 }

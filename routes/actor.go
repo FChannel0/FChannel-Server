@@ -403,16 +403,12 @@ func ActorOutbox(ctx *fiber.Ctx) error {
 	return nil
 }
 
-func ActorFollowing(c *fiber.Ctx) error {
-	// STUB
-
-	return c.SendString("actor following")
+func ActorFollowing(ctx *fiber.Ctx) error {
+	return activitypub.GetActorFollowing(ctx, config.Domain+"/"+ctx.Params("actor"))
 }
 
-func ActorFollowers(c *fiber.Ctx) error {
-	// STUB
-
-	return c.SendString("actor followers")
+func ActorFollowers(ctx *fiber.Ctx) error {
+	return activitypub.GetActorFollowers(ctx, config.Domain+"/"+ctx.Params("actor"))
 }
 
 func ActorReported(c *fiber.Ctx) error {

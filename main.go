@@ -59,9 +59,12 @@ func main() {
 	app.Post("/verify", routes.AdminVerify)
 	app.Post("/auth", routes.AdminAuth)
 	app.All("/"+config.Key+"/", routes.AdminIndex)
+	app.Post("/"+config.Key+"/follow", routes.AdminFollow)
 	app.Get("/"+config.Key+"/addboard", routes.AdminAddBoard)
 	app.Get("/"+config.Key+"/postnews", routes.AdminPostNews)
 	app.Get("/"+config.Key+"/newsdelete", routes.AdminNewsDelete)
+	app.Post("/"+config.Key+"/:actor/follow", routes.AdminActorIndex)
+	app.Get("/"+config.Key+"/:actor", routes.AdminActorIndex)
 	app.Get("/news", routes.NewsGet)
 
 	// Board managment
@@ -80,16 +83,16 @@ func main() {
 	app.Get("/api/media", routes.Media)
 
 	// Board actor
-	app.Get("/:actor", routes.OutboxGet)
-	app.Post("/:actor", routes.ActorPost)
 	app.Get("/:actor/catalog", routes.CatalogGet)
-	app.Get("/:actor/:post", routes.PostGet)
 	app.Post("/:actor/inbox", routes.ActorInbox)
 	app.Post("/:actor/outbox", routes.ActorOutbox)
 	app.Get("/:actor/following", routes.ActorFollowing)
-	app.Get("/:actor/followers", routes.ActorFollowers)
+	app.All("/:actor/followers", routes.ActorFollowers)
 	app.Get("/:actor/reported", routes.ActorReported)
 	app.Get("/:actor/archive", routes.ActorArchive)
+	app.Get("/:actor", routes.OutboxGet)
+	app.Post("/:actor", routes.ActorPost)
+	app.Get("/:actor/:post", routes.PostGet)
 
 	//404 handler
 	app.Use(routes.NotFound)

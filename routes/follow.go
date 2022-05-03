@@ -1,15 +1,16 @@
 package routes
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"github.com/FChannel0/FChannel-Server/activitypub"
+	"github.com/FChannel0/FChannel-Server/config"
+	"github.com/gofiber/fiber/v2"
+)
 
-func Following(c *fiber.Ctx) error {
-	// STUB
-
-	return c.SendString("main following")
+func Following(ctx *fiber.Ctx) error {
+	return activitypub.GetActorFollowing(ctx, config.Domain)
 }
 
-func Followers(c *fiber.Ctx) error {
+func Followers(ctx *fiber.Ctx) error {
 	// STUB
-
-	return c.SendString("main followers")
+	return activitypub.GetActorFollowers(ctx, config.Domain)
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -1776,4 +1777,36 @@ func WriteWalletToDB(obj ObjectBase) error {
 		}
 	}
 	return nil
+}
+
+func GetRecentPostsDB(actorID string) []ObjectBase {
+	var collection []ObjectBase
+
+	query := `select id, actor, content, published, attachment from activitystream where actor=$1 and type='Note' union select id, actor, content, published, attachment from cacheactivitystream where actor in (select follower from follower where id=$1) and type='Note' order by published desc limit 20`
+
+	rows, err := config.DB.Query(query, actorID)
+
+	if err != nil {
+		log.Println("Could not get recent posts")
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		var nObj ObjectBase
+		var attachmentID string
+		rows.Scan(&nObj.Id, &nObj.Actor, &nObj.Content, &nObj.Published, &attachmentID)
+
+		isOP, _ := CheckIfObjectOP(nObj.Id)
+		nObj.Attachment, _ = GetObjectAttachment(attachmentID)
+
+		if !isOP {
+			var reply ObjectBase
+			reply.Id = nObj.Id
+			nObj.InReplyTo = append(nObj.InReplyTo, reply)
+		}
+
+		collection = append(collection, nObj)
+	}
+
+	return collection
 }

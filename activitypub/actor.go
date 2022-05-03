@@ -339,7 +339,7 @@ func GetActorFollowTotal(id string) (int, int, error) {
 	return following, followers, nil
 }
 
-func GetActorFollowers(w http.ResponseWriter, id string) error {
+func GetActorFollowers(ctx *fiber.Ctx, id string) error {
 	var following Collection
 	var err error
 
@@ -356,12 +356,12 @@ func GetActorFollowers(w http.ResponseWriter, id string) error {
 	}
 
 	enc, _ := json.MarshalIndent(following, "", "\t")
-	w.Header().Set("Content-Type", config.ActivityStreams)
-	_, err = w.Write(enc)
+	ctx.Response().Header.Set("Content-Type", config.ActivityStreams)
+	_, err = ctx.Write(enc)
 	return err
 }
 
-func GetActorFollowing(w http.ResponseWriter, id string) error {
+func GetActorFollowing(ctx *fiber.Ctx, id string) error {
 	var following Collection
 	var err error
 
@@ -378,8 +378,8 @@ func GetActorFollowing(w http.ResponseWriter, id string) error {
 	}
 
 	enc, _ := json.MarshalIndent(following, "", "\t")
-	w.Header().Set("Content-Type", config.ActivityStreams)
-	_, err = w.Write(enc)
+	ctx.Response().Header.Set("Content-Type", config.ActivityStreams)
+	_, err = ctx.Write(enc)
 
 	return err
 }

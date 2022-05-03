@@ -42,6 +42,7 @@ type AdminPage struct {
 	IsLocal       bool
 	PostBlacklist []util.PostBlacklist
 	AutoSubscribe bool
+	RecentPosts   []activitypub.ObjectBase
 
 	Themes      *[]string
 	ThemeCookie string

@@ -37,7 +37,6 @@ func GetActorCollection(collection string) (activitypub.Collection, error) {
 
 	if resp.StatusCode == 200 {
 		body, _ := ioutil.ReadAll(resp.Body)
-
 		if len(body) > 0 {
 			if err := json.Unmarshal(body, &nCollection); err != nil {
 				return nCollection, err
