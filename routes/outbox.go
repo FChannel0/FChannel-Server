@@ -12,14 +12,23 @@ import (
 )
 
 func Outbox(ctx *fiber.Ctx) error {
-	// STUB
 
-	return ctx.SendString("main outbox")
+	actor, err := webfinger.GetActorFromPath(ctx.Path(), "/")
+	if err != nil {
+		return err
+	}
+
+	if activitypub.AcceptActivity(ctx.Get("Accept")) {
+		activitypub.GetActorOutbox(ctx, actor)
+		return nil
+	}
+
+	return ParseOutboxRequest(ctx, actor)
 }
 
 func OutboxGet(ctx *fiber.Ctx) error {
 
-	actor := webfinger.GetActorByName(ctx.Params("actor"))
+	actor, _ := activitypub.GetActorByNameFromDB(ctx.Params("actor"))
 
 	if activitypub.AcceptActivity(ctx.Get("Accept")) {
 		activitypub.GetActorInfo(ctx, actor.Id)
@@ -62,7 +71,7 @@ func OutboxGet(ctx *fiber.Ctx) error {
 	data.Board.InReplyTo = ""
 	data.Board.To = actor.Outbox
 	data.Board.Actor = actor
-	data.Board.ModCred, _ = getPassword(ctx)
+	data.Board.ModCred, _ = db.GetPassword(ctx)
 	data.Board.Domain = config.Domain
 	data.Board.Restricted = actor.Restricted
 	data.CurrentPage = page

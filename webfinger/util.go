@@ -36,7 +36,7 @@ func (a BoardSortAsc) Len() int           { return len(a) }
 func (a BoardSortAsc) Less(i, j int) bool { return a[i].Name < a[j].Name }
 func (a BoardSortAsc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
-func GetActorByName(name string) activitypub.Actor {
+func GetActorByNameFromBoardCollection(name string) activitypub.Actor {
 	var actor activitypub.Actor
 	boards, _ := GetBoardCollection()
 	for _, e := range boards {
@@ -102,7 +102,7 @@ func GetActorFromPath(location string, prefix string) (activitypub.Actor, error)
 	}
 
 	if nActor.Id == "" {
-		nActor = GetActorByName(actor)
+		nActor = GetActorByNameFromBoardCollection(actor)
 	}
 
 	return nActor, nil

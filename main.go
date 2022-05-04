@@ -50,8 +50,8 @@ func main() {
 
 	// Main actor
 	app.Get("/", routes.Index)
-	app.Get("/inbox", routes.Inbox)
-	app.Get("/outbox", routes.Outbox)
+	app.Post("/inbox", routes.Inbox)
+	app.Post("/outbox", routes.Outbox)
 	app.Get("/following", routes.Following)
 	app.Get("/followers", routes.Followers)
 
@@ -60,7 +60,7 @@ func main() {
 	app.Post("/auth", routes.AdminAuth)
 	app.All("/"+config.Key+"/", routes.AdminIndex)
 	app.Post("/"+config.Key+"/follow", routes.AdminFollow)
-	app.Get("/"+config.Key+"/addboard", routes.AdminAddBoard)
+	app.Post("/"+config.Key+"/addboard", routes.AdminAddBoard)
 	app.Get("/"+config.Key+"/postnews", routes.AdminPostNews)
 	app.Get("/"+config.Key+"/newsdelete", routes.AdminNewsDelete)
 	app.Post("/"+config.Key+"/:actor/follow", routes.AdminActorIndex)

@@ -6,11 +6,13 @@ import (
 	"net/smtp"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/util"
+	"github.com/gofiber/fiber/v2"
 	_ "github.com/lib/pq"
 )
 
@@ -486,4 +488,36 @@ func Captcha() string {
 	}
 
 	return newID
+}
+
+func HasValidation(ctx *fiber.Ctx, actor activitypub.Actor) bool {
+	id, _ := GetPassword(ctx)
+
+	if id == "" || (id != actor.Id && id != config.Domain) {
+		//http.Redirect(w, r, "/", http.StatusSeeOther)
+		return false
+	}
+
+	return true
+}
+
+func GetPassword(r *fiber.Ctx) (string, string) {
+	c := r.Cookies("session_token")
+
+	sessionToken := c
+
+	response, err := Cache.Do("GET", sessionToken)
+	if err != nil {
+		return "", ""
+	}
+
+	token := fmt.Sprintf("%s", response)
+
+	parts := strings.Split(token, "|")
+
+	if len(parts) > 1 {
+		return parts[0], parts[1]
+	}
+
+	return "", ""
 }

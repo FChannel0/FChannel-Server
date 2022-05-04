@@ -169,7 +169,7 @@ func AdminFollow(ctx *fiber.Ctx) error {
 		col.Items = append(col.Items, nObj)
 
 		for _, e := range col.Items {
-			if isFollowing, _ := activitypub.IsAlreadyFollowing(actorId, e.Id); isFollowing && e.Id != config.Domain && e.Id != actorId {
+			if isFollowing, _ := activitypub.IsAlreadyFollowing(actorId, e.Id); !isFollowing && e.Id != config.Domain && e.Id != actorId {
 				followActivity, _ := db.MakeFollowActivity(actorId, e.Id)
 
 				if actor, _ := webfinger.FingerActor(e.Id); actor.Id != "" {
@@ -189,7 +189,7 @@ func AdminFollow(ctx *fiber.Ctx) error {
 		col.Items = append(col.Items, nObj)
 
 		for _, e := range col.Items {
-			if isFollowing, _ := activitypub.IsAlreadyFollowing(actorId, e.Id); isFollowing && e.Id != config.Domain && e.Id != actorId {
+			if isFollowing, _ := activitypub.IsAlreadyFollowing(actorId, e.Id); !isFollowing && e.Id != config.Domain && e.Id != actorId {
 				followActivity, _ := db.MakeFollowActivity(actorId, e.Id)
 				if actor, _ := webfinger.FingerActor(e.Id); actor.Id != "" {
 					db.MakeActivityRequestOutbox(followActivity)
@@ -220,10 +220,42 @@ func AdminFollow(ctx *fiber.Ctx) error {
 	return ctx.Redirect("/"+config.Key+"/"+redirect, http.StatusSeeOther)
 }
 
-func AdminAddBoard(c *fiber.Ctx) error {
-	// STUB
+func AdminAddBoard(ctx *fiber.Ctx) error {
+	actor, _ := activitypub.GetActorFromDB(config.Domain)
 
-	return c.SendString("admin add board")
+	if hasValidation := db.HasValidation(ctx, actor); !hasValidation {
+		return nil
+	}
+
+	var newActorActivity activitypub.Activity
+	var board activitypub.Actor
+
+	var restrict bool
+	if ctx.FormValue("restricted") == "True" {
+		restrict = true
+	} else {
+		restrict = false
+	}
+
+	board.Name = ctx.FormValue("name")
+	board.PreferredUsername = ctx.FormValue("prefname")
+	board.Summary = ctx.FormValue("summary")
+	board.Restricted = restrict
+
+	newActorActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+	newActorActivity.Type = "New"
+
+	var nobj activitypub.ObjectBase
+	newActorActivity.Actor = &actor
+	newActorActivity.Object = &nobj
+
+	newActorActivity.Object.Alias = board.Name
+	newActorActivity.Object.Name = board.PreferredUsername
+	newActorActivity.Object.Summary = board.Summary
+	newActorActivity.Object.Sensitive = board.Restricted
+
+	db.MakeActivityRequestOutbox(newActorActivity)
+	return ctx.Redirect("/"+config.Key, http.StatusSeeOther)
 }
 
 func AdminPostNews(c *fiber.Ctx) error {

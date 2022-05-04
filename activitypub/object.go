@@ -1116,6 +1116,10 @@ func GetObjectsWithoutPreviewsCallback(callback func(id string, href string, med
 func GetToFromJson(to []byte) ([]string, error) {
 	var generic interface{}
 
+	if len(to) == 0 {
+		return nil, nil
+	}
+
 	err := json.Unmarshal(to, &generic)
 	if err != nil {
 		return nil, err
