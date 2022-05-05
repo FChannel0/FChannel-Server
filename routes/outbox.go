@@ -71,7 +71,7 @@ func OutboxGet(ctx *fiber.Ctx) error {
 	data.Board.InReplyTo = ""
 	data.Board.To = actor.Outbox
 	data.Board.Actor = actor
-	data.Board.ModCred, _ = db.GetPassword(ctx)
+	data.Board.ModCred, _ = db.GetPasswordFromSession(ctx)
 	data.Board.Domain = config.Domain
 	data.Board.Restricted = actor.Restricted
 	data.CurrentPage = page

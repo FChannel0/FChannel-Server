@@ -23,7 +23,7 @@ func NewsGet(ctx *fiber.Ctx) error {
 	data.Board.Name = ""
 	data.Key = config.Key
 	data.Board.Domain = config.Domain
-	data.Board.ModCred, _ = db.GetPassword(ctx)
+	data.Board.ModCred, _ = db.GetPasswordFromSession(ctx)
 	data.Board.Actor = actor
 	data.Board.Post.Actor = actor.Id
 	data.Board.Restricted = actor.Restricted
@@ -55,7 +55,7 @@ func AllNewsGet(ctx *fiber.Ctx) error {
 	data.Board.Name = ""
 	data.Key = config.Key
 	data.Board.Domain = config.Domain
-	data.Board.ModCred, _ = db.GetPassword(ctx)
+	data.Board.ModCred, _ = db.GetPasswordFromSession(ctx)
 	data.Board.Actor = actor
 	data.Board.Post.Actor = actor.Id
 	data.Board.Restricted = actor.Restricted

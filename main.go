@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"path"
 	"regexp"
@@ -18,6 +19,7 @@ import (
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/template/html"
 
@@ -29,7 +31,6 @@ func main() {
 	Init()
 
 	defer db.Close()
-	defer db.CloseCache()
 
 	// Routing and templates
 	template := html.New("./views", ".html")
@@ -43,6 +44,16 @@ func main() {
 	})
 
 	app.Use(logger.New())
+
+	cookieKey, err := util.GetCookieKey()
+
+	if err != nil {
+		log.Println(err)
+	}
+
+	app.Use(encryptcookie.New(encryptcookie.Config{
+		Key: cookieKey,
+	}))
 
 	app.Static("/static", "./views")
 	app.Static("/static", "./static")
@@ -110,8 +121,6 @@ func Init() {
 	util.CreatedNeededDirectories()
 
 	db.ConnectDB()
-
-	db.InitCache()
 
 	db.RunDatabaseSchema()
 

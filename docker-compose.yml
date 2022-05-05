@@ -9,9 +9,6 @@ services:
       POSTGRES_DB: fchan
     volumes:
       - ./pgdata:/var/lib/postgresql/data
-  redis:
-    image: redis:6.2-alpine
-    restart: unless-stopped
   fchan:
     build: ./
     restart: unless-stopped
@@ -22,5 +19,4 @@ services:
     ports:
       - "3000:3000"
     links:
-      - redis
       - postgres

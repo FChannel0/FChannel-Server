@@ -4,7 +4,11 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"math/rand"
+	"os"
 	"strings"
+
+	"github.com/FChannel0/FChannel-Server/config"
+	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
 )
 
 const domain = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -33,4 +37,22 @@ func RandomID(size int) string {
 	}
 
 	return newID.String()
+}
+
+func GetCookieKey() (string, error) {
+	if config.CookieKey == "" {
+		var file *os.File
+		var err error
+
+		if file, err = os.OpenFile("config/config-init", os.O_APPEND|os.O_WRONLY, 0644); err != nil {
+			return "", err
+		}
+
+		defer file.Close()
+
+		config.CookieKey = encryptcookie.GenerateKey()
+		file.WriteString("cookiekey:" + config.CookieKey)
+	}
+
+	return config.CookieKey, nil
 }

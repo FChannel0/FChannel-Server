@@ -21,7 +21,7 @@ func ArchiveGet(ctx *fiber.Ctx) error {
 	returnData.Board.To = actor.Outbox
 	returnData.Board.Actor = *actor
 	returnData.Board.Summary = actor.Summary
-	returnData.Board.ModCred, _ = db.GetPassword(ctx)
+	returnData.Board.ModCred, _ = db.GetPasswordFromSession(ctx)
 	returnData.Board.Domain = config.Domain
 	returnData.Board.Restricted = actor.Restricted
 	returnData.Key = config.Key

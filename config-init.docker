@@ -37,6 +37,3 @@ publicindex:false
 ## add your instance salt here for secure tripcodes
 
 instancesalt:
-
-## we have redis at "redis", so...
-redis:redis://redis

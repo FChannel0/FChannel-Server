@@ -15,7 +15,6 @@ import (
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofrs/uuid"
 )
 
 func AdminVerify(ctx *fiber.Ctx) error {
@@ -54,17 +53,9 @@ func AdminVerify(ctx *fiber.Ctx) error {
 		return ctx.Redirect("/"+config.Key, http.StatusPermanentRedirect)
 	}
 
-	//TODO remove redis dependency
-	sessionToken, _ := uuid.NewV4()
-
-	_, err = db.Cache.Do("SETEX", sessionToken, "86400", body+"|"+verify.Code)
-	if err != nil {
-		return ctx.Redirect("/"+config.Key, http.StatusPermanentRedirect)
-	}
-
 	ctx.Cookie(&fiber.Cookie{
 		Name:    "session_token",
-		Value:   sessionToken.String(),
+		Value:   body + "|" + verify.Code,
 		Expires: time.Now().UTC().Add(60 * 60 * 48 * time.Second),
 	})
 

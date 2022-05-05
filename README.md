@@ -33,7 +33,6 @@ and to fix errors reported by `go vet` and make your code better with
 
 - Go v1.16+
 - PostgreSQL
-- Redis
 - ImageMagick
 - exiv2
 
@@ -76,9 +75,6 @@ and to fix errors reported by `go vet` and make your code better with
   `publicindex:true`     Add instance to the public instance index at https://fchan.xyz, if you do not want to be added set this value to `false` If you are on the public index and want to be removed get in contact with the FChan dev to be removed.
 
   `instancesalt:put your salt string here` Used for secure tripcodes currently.
-
-  `redis:redis://localhost` Used for Redis. This should be `redis://localhost` in most cases.
-
 
   Currently e-mail is not implemented to do anything special, but the code is in place
 

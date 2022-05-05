@@ -80,7 +80,7 @@ func PostGet(ctx *fiber.Ctx) error {
 	data.Board.To = actor.Outbox
 	data.Board.Actor = actor
 	data.Board.Summary = actor.Summary
-	data.Board.ModCred, _ = db.GetPassword(ctx)
+	data.Board.ModCred, _ = db.GetPasswordFromSession(ctx)
 	data.Board.Domain = config.Domain
 	data.Board.Restricted = actor.Restricted
 	data.ReturnTo = "feed"
@@ -147,7 +147,7 @@ func CatalogGet(ctx *fiber.Ctx) error {
 	data.Board.To = actor.Outbox
 	data.Board.Actor = actor
 	data.Board.Summary = actor.Summary
-	data.Board.ModCred, _ = db.GetPassword(ctx)
+	data.Board.ModCred, _ = db.GetPasswordFromSession(ctx)
 	data.Board.Domain = config.Domain
 	data.Board.Restricted = actor.Restricted
 	data.Key = config.Key

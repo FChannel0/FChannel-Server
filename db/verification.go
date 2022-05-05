@@ -491,7 +491,7 @@ func Captcha() string {
 }
 
 func HasValidation(ctx *fiber.Ctx, actor activitypub.Actor) bool {
-	id, _ := GetPassword(ctx)
+	id, _ := GetPasswordFromSession(ctx)
 
 	if id == "" || (id != actor.Id && id != config.Domain) {
 		//http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -501,19 +501,10 @@ func HasValidation(ctx *fiber.Ctx, actor activitypub.Actor) bool {
 	return true
 }
 
-func GetPassword(r *fiber.Ctx) (string, string) {
-	c := r.Cookies("session_token")
+func GetPasswordFromSession(r *fiber.Ctx) (string, string) {
+	cookie := r.Cookies("session_token")
 
-	sessionToken := c
-
-	response, err := Cache.Do("GET", sessionToken)
-	if err != nil {
-		return "", ""
-	}
-
-	token := fmt.Sprintf("%s", response)
-
-	parts := strings.Split(token, "|")
+	parts := strings.Split(cookie, "|")
 
 	if len(parts) > 1 {
 		return parts[0], parts[1]
