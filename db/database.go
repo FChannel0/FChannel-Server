@@ -185,7 +185,8 @@ func RemovePreviewFromFile(id string) error {
 		}
 	}
 
-	return activitypub.DeletePreviewFromDB(id)
+	obj := activitypub.ObjectBase{Id: id}
+	return obj.DeletePreview()
 }
 
 func GetRandomCaptcha() (string, error) {
@@ -395,12 +396,12 @@ func ArchivePosts(actor activitypub.Actor) error {
 
 		for _, e := range col.OrderedItems {
 			for _, k := range e.Replies.OrderedItems {
-				if err := activitypub.UpdateObjectTypeDB(k.Id, "Archive"); err != nil {
+				if err := k.UpdateType("Archive"); err != nil {
 					return err
 				}
 			}
 
-			if err := activitypub.UpdateObjectTypeDB(e.Id, "Archive"); err != nil {
+			if err := e.UpdateType("Archive"); err != nil {
 				return err
 			}
 		}
@@ -699,7 +700,7 @@ func DeleteObjectAndRepliesRequest(id string) error {
 		return err
 	}
 
-	obj, err := activitypub.GetObjectByIDFromDB(id)
+	obj, err := nObj.GetCollectionFromPath()
 	if err != nil {
 		return err
 	}

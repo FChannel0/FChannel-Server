@@ -23,13 +23,14 @@ func PostGet(ctx *fiber.Ctx) error {
 		return nil
 	}
 
-	postId := ctx.Params("post")
+	re := regexp.MustCompile("\\w+$")
+	postId := re.FindString(ctx.Path())
 
 	inReplyTo := actor.Id + "/" + postId
 
 	var data PageData
 
-	re := regexp.MustCompile("f(\\w|[!@#$%^&*<>])+-(\\w|[!@#$%^&*<>])+")
+	re = regexp.MustCompile("f(\\w|[!@#$%^&*<>])+-(\\w|[!@#$%^&*<>])+")
 
 	if re.MatchString(ctx.Path()) { // if non local actor post
 		name := activitypub.GetActorFollowNameFromPath(ctx.Path())
@@ -56,18 +57,19 @@ func PostGet(ctx *fiber.Ctx) error {
 			data.Board.Post.Actor = actor.Id
 		}
 	} else {
-		collection, err := activitypub.GetObjectByIDFromDB(inReplyTo)
+		obj := activitypub.ObjectBase{Id: inReplyTo}
+		collection, err := obj.GetCollectionFromPath()
 		if err != nil {
 			return err
 		}
 
-		if collection.Actor != nil {
+		if collection.Actor.Id != "" {
 			data.Board.Post.Actor = collection.Actor.Id
 			data.Board.InReplyTo = inReplyTo
+		}
 
-			if len(collection.OrderedItems) > 0 {
-				data.Posts = append(data.Posts, collection.OrderedItems[0])
-			}
+		if len(collection.OrderedItems) > 0 {
+			data.Posts = append(data.Posts, collection.OrderedItems[0])
 		}
 	}
 
@@ -124,7 +126,7 @@ func CatalogGet(ctx *fiber.Ctx) error {
 		return err
 	}
 
-	collection, err := activitypub.GetObjectFromDBCatalog(actor.Id)
+	collection, err := actor.GetCatalogCollection()
 
 	// TODO: implement this in template functions
 	//	"showArchive": func() bool {

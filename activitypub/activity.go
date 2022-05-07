@@ -1,18 +1,9 @@
 package activitypub
 
 import (
-	"crypto"
-	crand "crypto/rand"
-	"crypto/rsa"
-	"crypto/sha256"
-	"crypto/x509"
-	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"regexp"
 	"strings"
 
@@ -36,49 +27,6 @@ func AcceptActivity(header string) bool {
 	return accept
 }
 
-func (actor Actor) ActivitySign(signature string) (string, error) {
-	query := `select file from publicKeyPem where id=$1 `
-
-	rows, err := config.DB.Query(query, actor.PublicKey.Id)
-	if err != nil {
-		return "", err
-	}
-
-	defer rows.Close()
-
-	var file string
-	rows.Next()
-	rows.Scan(&file)
-
-	file = strings.ReplaceAll(file, "public.pem", "private.pem")
-	_, err = os.Stat(file)
-	if err != nil {
-		fmt.Println(`\n Unable to locate private key. Now,
-this means that you are now missing the proof that you are the
-owner of the "` + actor.Name + `" board. If you are the developer,
-then your job is just as easy as generating a new keypair, but
-if this board is live, then you'll also have to convince the other
-owners to switch their public keys for you so that they will start
-accepting your posts from your board from this site. Good luck ;)`)
-		return "", errors.New("unable to locate private key")
-	}
-
-	publickey, err := ioutil.ReadFile(file)
-	if err != nil {
-		return "", err
-	}
-
-	block, _ := pem.Decode(publickey)
-
-	pub, _ := x509.ParsePKCS1PrivateKey(block.Bytes)
-	rng := crand.Reader
-	hashed := sha256.New()
-	hashed.Write([]byte(signature))
-	cipher, _ := rsa.SignPKCS1v15(rng, pub, crypto.SHA256, hashed.Sum(nil))
-
-	return base64.StdEncoding.EncodeToString(cipher), nil
-}
-
 func DeleteReportActivity(id string) error {
 	query := `delete from reported where id=$1`
 
@@ -91,7 +39,7 @@ func GetActivityFromDB(id string) (Collection, error) {
 	var nActor Actor
 	var result []ObjectBase
 
-	nColl.Actor = &nActor
+	nColl.Actor = nActor
 
 	query := `select  actor, id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from  activitystream where id=$1 order by updated asc`
 
@@ -104,10 +52,8 @@ func GetActivityFromDB(id string) (Collection, error) {
 	for rows.Next() {
 		var post ObjectBase
 		var actor Actor
-		var attachID string
-		var previewID string
 
-		if err := rows.Scan(&nColl.Actor.Id, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attachID, &previewID, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
+		if err := rows.Scan(&nColl.Actor.Id, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &post.Attachment[0].Id, &post.Preview.Id, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
 			return nColl, err
 		}
 
@@ -116,7 +62,8 @@ func GetActivityFromDB(id string) (Collection, error) {
 		var postCnt int
 		var imgCnt int
 		var err error
-		post.Replies, postCnt, imgCnt, err = GetObjectRepliesDB(post)
+
+		post.Replies, postCnt, imgCnt, err = post.GetReplies()
 		if err != nil {
 			return nColl, err
 		}
@@ -124,12 +71,12 @@ func GetActivityFromDB(id string) (Collection, error) {
 		post.Replies.TotalItems = postCnt
 		post.Replies.TotalImgs = imgCnt
 
-		post.Attachment, err = GetObjectAttachment(attachID)
+		post.Attachment, err = post.Attachment[0].GetAttachment()
 		if err != nil {
 			return nColl, err
 		}
 
-		post.Preview, err = GetObjectPreview(previewID)
+		post.Preview, err = post.Preview.GetPreview()
 		if err != nil {
 			return nColl, err
 		}
@@ -307,22 +254,22 @@ func RejectActivity(activity Activity) Activity {
 	return accept
 }
 
-func ReportActivity(id string, reason string) (bool, error) {
-	if res, err := IsIDLocal(id); err == nil && !res {
+func (activity Activity) Report(reason string) (bool, error) {
+	if res, err := activity.Object.IsLocal(); err == nil && !res {
 		// TODO: not local error
 		return false, nil
 	} else if err != nil {
 		return false, err
 	}
 
-	actor, err := GetActivityFromDB(id)
+	activityCol, err := GetActivityFromDB(activity.Object.Id)
 	if err != nil {
 		return false, err
 	}
 
 	query := `select count from reported where id=$1`
 
-	rows, err := config.DB.Query(query, id)
+	rows, err := config.DB.Query(query, activity.Object.Id)
 	if err != nil {
 		return false, err
 	}
@@ -338,7 +285,7 @@ func ReportActivity(id string, reason string) (bool, error) {
 	if count < 1 {
 		query = `insert into reported (id, count, board, reason) values ($1, $2, $3, $4)`
 
-		_, err := config.DB.Exec(query, id, 1, actor.Actor.Id, reason)
+		_, err := config.DB.Exec(query, activity.Object.Object.Id, 1, activityCol.Actor.Id, reason)
 		if err != nil {
 			return false, err
 		}
@@ -346,7 +293,7 @@ func ReportActivity(id string, reason string) (bool, error) {
 		count = count + 1
 		query = `update reported set count=$1 where id=$2`
 
-		_, err := config.DB.Exec(query, count, id)
+		_, err := config.DB.Exec(query, count, activity.Object.Id)
 		if err != nil {
 			return false, err
 		}
@@ -355,7 +302,7 @@ func ReportActivity(id string, reason string) (bool, error) {
 	return true, nil
 }
 
-func WriteActivitytoCache(obj ObjectBase) error {
+func (obj ObjectBase) WriteCache() error {
 	obj.Name = util.EscapeString(obj.Name)
 	obj.Content = util.EscapeString(obj.Content)
 	obj.AttributedTo = util.EscapeString(obj.AttributedTo)
@@ -387,7 +334,7 @@ func WriteActivitytoCache(obj ObjectBase) error {
 	return err
 }
 
-func WriteActivitytoCacheWithAttachment(obj ObjectBase, attachment ObjectBase, preview NestedObjectBase) error {
+func (obj ObjectBase) WriteCacheWithAttachment(attachment ObjectBase) error {
 	obj.Name = util.EscapeString(obj.Name)
 	obj.Content = util.EscapeString(obj.Content)
 	obj.AttributedTo = util.EscapeString(obj.AttributedTo)
@@ -415,22 +362,11 @@ func WriteActivitytoCacheWithAttachment(obj ObjectBase, attachment ObjectBase, p
 
 	query = `insert into cacheactivitystream (id, type, name, content, attachment, preview, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 
-	_, err = config.DB.Exec(query, obj.Id, obj.Type, obj.Name, obj.Content, attachment.Id, preview.Id, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)
+	_, err = config.DB.Exec(query, obj.Id, obj.Type, obj.Name, obj.Content, attachment.Id, obj.Preview.Id, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)
 	return err
 }
 
-func WriteActivitytoDB(obj ObjectBase) error {
-	obj.Name = util.EscapeString(obj.Name)
-	obj.Content = util.EscapeString(obj.Content)
-	obj.AttributedTo = util.EscapeString(obj.AttributedTo)
-
-	query := `insert into activitystream (id, type, name, content, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
-
-	_, err := config.DB.Exec(query, obj.Id, obj.Type, obj.Name, obj.Content, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)
-	return err
-}
-
-func WriteActivitytoDBWithAttachment(obj ObjectBase, attachment ObjectBase, preview NestedObjectBase) {
+func (obj ObjectBase) WriteWithAttachment(attachment ObjectBase) {
 
 	obj.Name = util.EscapeString(obj.Name)
 	obj.Content = util.EscapeString(obj.Content)
@@ -438,7 +374,7 @@ func WriteActivitytoDBWithAttachment(obj ObjectBase, attachment ObjectBase, prev
 
 	query := `insert into activitystream (id, type, name, content, attachment, preview, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 
-	_, e := config.DB.Exec(query, obj.Id, obj.Type, obj.Name, obj.Content, attachment.Id, preview.Id, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)
+	_, e := config.DB.Exec(query, obj.Id, obj.Type, obj.Name, obj.Content, attachment.Id, obj.Preview.Id, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)
 
 	if e != nil {
 		fmt.Println("error inserting new activity with attachment")
@@ -446,35 +382,25 @@ func WriteActivitytoDBWithAttachment(obj ObjectBase, attachment ObjectBase, prev
 	}
 }
 
-func WriteAttachmentToCache(obj ObjectBase) error {
-	query := `select id from cacheactivitystream where id=$1`
-
-	rows, err := config.DB.Query(query, obj.Id)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
+func (obj ObjectBase) WriteAttachmentCache() error {
 	var id string
-	rows.Next()
-	err = rows.Scan(&id)
-	if err != nil {
+
+	query := `select id from cacheactivitystream where id=$1`
+	if err := config.DB.QueryRow(query, obj.Id).Scan(&id); err != nil {
+		if obj.Updated.IsZero() {
+			obj.Updated = obj.Published
+		}
+
+		query = `insert into cacheactivitystream (id, type, name, href, published, updated, attributedTo, mediatype, size) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+
+		_, err = config.DB.Exec(query, obj.Id, obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)
 		return err
-	} else if id != "" {
-		return nil // TODO: error?
 	}
 
-	if obj.Updated.IsZero() {
-		obj.Updated = obj.Published
-	}
-
-	query = `insert into cacheactivitystream (id, type, name, href, published, updated, attributedTo, mediatype, size) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-
-	_, err = config.DB.Exec(query, obj.Id, obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)
-	return err
+	return nil
 }
 
-func WriteAttachmentToDB(obj ObjectBase) {
+func (obj ObjectBase) WriteAttachment() {
 	query := `insert into activitystream (id, type, name, href, published, updated, attributedTo, mediatype, size) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
 	_, e := config.DB.Exec(query, obj.Id, obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)
@@ -485,35 +411,26 @@ func WriteAttachmentToDB(obj ObjectBase) {
 	}
 }
 
-func WritePreviewToCache(obj NestedObjectBase) error {
-	query := `select id from cacheactivitystream where id=$1`
-
-	rows, err := config.DB.Query(query, obj.Id)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
+func (obj NestedObjectBase) WritePreviewCache() error {
 	var id string
-	rows.Next()
-	err = rows.Scan(&id)
+
+	query := `select id from cacheactivitystream where id=$1`
+	err := config.DB.QueryRow(query, obj.Id).Scan(&id)
 	if err != nil {
+		if obj.Updated.IsZero() {
+			obj.Updated = obj.Published
+		}
+
+		query = `insert into cacheactivitystream (id, type, name, href, published, updated, attributedTo, mediatype, size) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+
+		_, err = config.DB.Exec(query, obj.Id, obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)
 		return err
-	} else if id != "" {
-		return nil // TODO: error?
 	}
 
-	if obj.Updated.IsZero() {
-		obj.Updated = obj.Published
-	}
-
-	query = `insert into cacheactivitystream (id, type, name, href, published, updated, attributedTo, mediatype, size) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
-
-	_, err = config.DB.Exec(query, obj.Id, obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)
-	return err
+	return nil
 }
 
-func WritePreviewToDB(obj NestedObjectBase) error {
+func (obj NestedObjectBase) WritePreview() error {
 	query := `insert into activitystream (id, type, name, href, published, updated, attributedTo, mediatype, size) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
 	_, err := config.DB.Exec(query, obj.Id, obj.Type, obj.Name, obj.Href, obj.Published, obj.Updated, obj.AttributedTo, obj.MediaType, obj.Size)

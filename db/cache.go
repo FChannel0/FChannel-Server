@@ -63,7 +63,7 @@ func WriteActorToCache(actorID string) error {
 	}
 
 	for _, e := range collection.OrderedItems {
-		if _, err := activitypub.WriteActorObjectToCache(e); err != nil {
+		if _, err := e.WriteActorObjectToCache(); err != nil {
 			return err
 		}
 	}

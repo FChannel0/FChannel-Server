@@ -45,12 +45,12 @@ func wantToServePage(actorName string, page int) (activitypub.Collection, bool, 
 	}
 
 	if actor.Id != "" {
-		collection, err = activitypub.GetObjectFromDBPage(actor.Id, page)
+		collection, err = actor.GetCollectionPage(page)
 		if err != nil {
 			return collection, false, err
 		}
 
-		collection.Actor = &actor
+		collection.Actor = actor
 		return collection, true, nil
 	}
 
@@ -67,12 +67,12 @@ func wantToServeCatalog(actorName string) (activitypub.Collection, bool, error) 
 	}
 
 	if actor.Id != "" {
-		collection, err = activitypub.GetObjectFromDBCatalog(actor.Id)
+		collection, err = actor.GetCatalogCollection()
 		if err != nil {
 			return collection, false, err
 		}
 
-		collection.Actor = &actor
+		collection.Actor = actor
 		return collection, true, nil
 	}
 
@@ -94,7 +94,7 @@ func wantToServeArchive(actorName string) (activitypub.Collection, bool, error) 
 			return collection, false, err
 		}
 
-		collection.Actor = &actor
+		collection.Actor = actor
 		return collection, true, nil
 	}
 
@@ -147,7 +147,7 @@ func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
 
 			nObj.Actor = config.Domain + "/" + actor.Name
 
-			nObj, err = activitypub.WriteObjectToDB(nObj)
+			nObj, err = nObj.Write()
 			if err != nil {
 				return err
 			}

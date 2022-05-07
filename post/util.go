@@ -248,7 +248,7 @@ func ObjectFromForm(ctx *fiber.Ctx, obj activitypub.ObjectBase) (activitypub.Obj
 			}
 		}
 
-		obj.Preview = activitypub.CreatePreviewObject(obj.Attachment[0])
+		obj.Preview = obj.Attachment[0].CreatePreview()
 	}
 
 	obj.AttributedTo = util.EscapeString(ctx.FormValue("name"))
@@ -368,10 +368,11 @@ func ResizeAttachmentToPreview() error {
 
 				if err := cmd.Run(); err == nil {
 					fmt.Println(objFile + " -> " + nHref)
-					if err := activitypub.WritePreviewToDB(nPreview); err != nil {
+					if err := nPreview.WritePreview(); err != nil {
 						return err
 					}
-					if err := activitypub.UpdateObjectWithPreview(id, nPreview.Id); err != nil {
+					obj := activitypub.ObjectBase{Id: id}
+					if err := obj.UpdatePreview(nPreview.Id); err != nil {
 						return err
 					}
 				} else {
@@ -510,13 +511,14 @@ func ParseLinkComments(board activitypub.Actor, op string, content string, threa
 			}
 
 			if quoteTitle == "" {
-				obj, err := activitypub.GetObjectFromDBFromID(parsedLink)
+				obj := activitypub.ObjectBase{Id: parsedLink}
+				col, err := obj.GetCollectionFromPath()
 				if err != nil {
 					return "", err
 				}
 
-				if len(obj.OrderedItems) > 0 {
-					quoteTitle = ParseLinkTitle(board.Outbox, op, obj.OrderedItems[0].Content)
+				if len(col.OrderedItems) > 0 {
+					quoteTitle = ParseLinkTitle(board.Outbox, op, col.OrderedItems[0].Content)
 				} else {
 					quoteTitle = ParseLinkTitle(board.Outbox, op, parsedLink)
 				}

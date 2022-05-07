@@ -265,7 +265,9 @@ func AddInstanceToIndexDB(actor string) error {
 	}
 
 	// TODO: maybe allow different indexes?
-	followers, err := activitypub.GetCollectionFromID("https://fchan.xyz/followers")
+
+	obj := activitypub.ObjectBase{Id: "https://fchan.xyz/followers"}
+	followers, err := obj.GetCollection()
 	if err != nil {
 		return err
 	}
@@ -278,7 +280,8 @@ func AddInstanceToIndexDB(actor string) error {
 	}
 
 	if !alreadyIndex {
-		return activitypub.AddFollower("https://fchan.xyz", nActor.Id)
+		actor := activitypub.Actor{Id: "https://fchan.xyz"}
+		return actor.AddFollower(nActor.Id)
 	}
 
 	return nil

@@ -129,7 +129,7 @@ type ObjectBase struct {
 	Updated      time.Time         `json:"updated,omitempty"`
 	Object       *NestedObjectBase `json:"object,omitempty"`
 	Attachment   []ObjectBase      `json:"attachment,omitempty"`
-	Replies      *CollectionBase   `json:"replies,omitempty"`
+	Replies      CollectionBase    `json:"replies,omitempty"`
 	StartTime    string            `json:"startTime,omitempty"`
 	Summary      string            `json:"summary,omitempty"`
 	Tag          []ObjectBase      `json:"tag,omitempty"`
@@ -191,7 +191,7 @@ type NestedObjectBase struct {
 }
 
 type CollectionBase struct {
-	Actor        *Actor       `json:"actor,omitempty"`
+	Actor        Actor        `json:"actor,omitempty"`
 	Summary      string       `json:"summary,omitempty"`
 	Type         string       `json:"type,omitempty"`
 	TotalItems   int          `json:"totalItems,omitempty"`

@@ -43,7 +43,7 @@ func ActorInbox(ctx *fiber.Ctx) error {
 		for _, e := range activity.To {
 			if res, err := activitypub.IsActorLocal(e); err == nil && res {
 				if res, err := activitypub.IsActorLocal(activity.Actor.Id); err == nil && res {
-					col, err := activitypub.GetCollectionFromID(activity.Object.Id)
+					col, err := activity.Object.GetCollection()
 					if err != nil {
 						return err
 					}
@@ -52,7 +52,7 @@ func ActorInbox(ctx *fiber.Ctx) error {
 						break
 					}
 
-					if _, err := activitypub.WriteObjectToCache(*activity.Object); err != nil {
+					if err := activity.Object.WriteCache(); err != nil {
 						return err
 					}
 
@@ -84,15 +84,15 @@ func ActorInbox(ctx *fiber.Ctx) error {
 			}
 
 			if actor.Id != "" && actor.Id != config.Domain {
-				if activity.Object.Replies != nil {
+				if activity.Object.Replies.OrderedItems != nil {
 					for _, k := range activity.Object.Replies.OrderedItems {
-						if err := activitypub.TombstoneObject(k.Id); err != nil {
+						if err := k.Tombstone(); err != nil {
 							return err
 						}
 					}
 				}
 
-				if err := activitypub.TombstoneObject(activity.Object.Id); err != nil {
+				if err := activity.Object.Tombstone(); err != nil {
 					return err
 				}
 				if err := actor.UnArchiveLast(); err != nil {

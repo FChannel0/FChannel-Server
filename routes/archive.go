@@ -19,7 +19,7 @@ func ArchiveGet(ctx *fiber.Ctx) error {
 	returnData.Board.PrefName = actor.PreferredUsername
 	returnData.Board.InReplyTo = ""
 	returnData.Board.To = actor.Outbox
-	returnData.Board.Actor = *actor
+	returnData.Board.Actor = actor
 	returnData.Board.Summary = actor.Summary
 	returnData.Board.ModCred, _ = db.GetPasswordFromSession(ctx)
 	returnData.Board.Domain = config.Domain
