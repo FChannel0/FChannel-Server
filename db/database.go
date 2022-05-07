@@ -388,7 +388,7 @@ func IsInactiveTimestamp(timeStamp string) bool {
 
 func ArchivePosts(actor activitypub.Actor) error {
 	if actor.Id != "" && actor.Id != config.Domain {
-		col, err := activitypub.GetAllActorArchiveDB(actor.Id, 165)
+		col, err := actor.GetAllArchive(165)
 		if err != nil {
 			return err
 		}
@@ -403,27 +403,6 @@ func ArchivePosts(actor activitypub.Actor) error {
 			if err := activitypub.UpdateObjectTypeDB(e.Id, "Archive"); err != nil {
 				return err
 			}
-		}
-	}
-
-	return nil
-}
-
-func UnArchiveLast(actorId string) error {
-	col, err := activitypub.GetActorCollectionDBTypeLimit(actorId, "Archive", 1)
-	if err != nil {
-		return err
-	}
-
-	for _, e := range col.OrderedItems {
-		for _, k := range e.Replies.OrderedItems {
-			if err := activitypub.UpdateObjectTypeDB(k.Id, "Note"); err != nil {
-				return err
-			}
-		}
-
-		if err := activitypub.UpdateObjectTypeDB(e.Id, "Note"); err != nil {
-			return err
 		}
 	}
 
@@ -628,17 +607,19 @@ func GetActorReported(w http.ResponseWriter, r *http.Request, id string) error {
 		return err
 	}
 
+	actor, _ := activitypub.GetActorFromDB(id)
+
 	var following activitypub.Collection
 	var err error
 
 	following.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 	following.Type = "Collection"
-	following.TotalItems, err = activitypub.GetActorReportedTotal(id)
+	following.TotalItems, err = actor.GetReportedTotal()
 	if err != nil {
 		return err
 	}
 
-	following.Items, err = activitypub.GetActorReportedDB(id)
+	following.Items, err = actor.GetReported()
 	if err != nil {
 		return err
 	}
@@ -686,8 +667,8 @@ func DeleteObjectRequest(id string) error {
 		return err
 	}
 	activity.Actor = &actor
-
-	followers, err := activitypub.GetActorFollowDB(obj.Actor)
+	objActor, _ := webfinger.GetActor(obj.Actor)
+	followers, err := objActor.GetFollow()
 	if err != nil {
 		return err
 	}
@@ -696,7 +677,7 @@ func DeleteObjectRequest(id string) error {
 		activity.To = append(activity.To, e.Id)
 	}
 
-	following, err := activitypub.GetActorFollowingDB(obj.Actor)
+	following, err := objActor.GetFollowing()
 	if err != nil {
 		return err
 	}
@@ -727,7 +708,8 @@ func DeleteObjectAndRepliesRequest(id string) error {
 
 	activity.Object = &obj.OrderedItems[0]
 
-	followers, err := activitypub.GetActorFollowDB(obj.OrderedItems[0].Actor)
+	objActor, _ := webfinger.GetActor(obj.OrderedItems[0].Actor)
+	followers, err := objActor.GetFollow()
 	if err != nil {
 		return err
 	}
@@ -735,7 +717,7 @@ func DeleteObjectAndRepliesRequest(id string) error {
 		activity.To = append(activity.To, e.Id)
 	}
 
-	following, err := activitypub.GetActorFollowingDB(obj.OrderedItems[0].Actor)
+	following, err := objActor.GetFollowing()
 	if err != nil {
 		return err
 	}
@@ -745,4 +727,19 @@ func DeleteObjectAndRepliesRequest(id string) error {
 	}
 
 	return MakeActivityRequest(activity)
+}
+
+// root actor is used to follow remote feeds that are not local
+//name, prefname, summary, auth requirements, restricted
+func InitInstance() {
+	if config.InstanceName != "" {
+		if _, err := CreateNewBoardDB(*activitypub.CreateNewActor("", config.InstanceName, config.InstanceSummary, config.AuthReq, false)); err != nil {
+			//panic(err)
+		}
+
+		if config.PublicIndexing == "true" {
+			// TODO: comment out later
+			//AddInstanceToIndex(config.Domain)
+		}
+	}
 }

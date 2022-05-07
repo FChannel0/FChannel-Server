@@ -31,8 +31,8 @@ func PostGet(ctx *fiber.Ctx) error {
 
 	re := regexp.MustCompile("f(\\w|[!@#$%^&*<>])+-(\\w|[!@#$%^&*<>])+")
 
-	if re.MatchString(postId) { // if non local actor post
-		name := activitypub.GetActorFollowNameFromPath(postId)
+	if re.MatchString(ctx.Path()) { // if non local actor post
+		name := activitypub.GetActorFollowNameFromPath(ctx.Path())
 
 		followActors, err := webfinger.GetActorsFollowFromName(actor, name)
 		if err != nil {

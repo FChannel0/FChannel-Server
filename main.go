@@ -1,20 +1,13 @@
 package main
 
 import (
-	"fmt"
-	"html/template"
-	"io/ioutil"
 	"log"
 	"math/rand"
-	"path"
-	"regexp"
-	"strings"
 	"time"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
-	"github.com/FChannel0/FChannel-Server/post"
 	"github.com/FChannel0/FChannel-Server/routes"
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
@@ -36,7 +29,7 @@ func main() {
 	template := html.New("./views", ".html")
 	template.Debug(true)
 
-	TemplateFunctions(template)
+	routes.TemplateFunctions(template)
 
 	app := fiber.New(fiber.Config{
 		AppName: "FChannel",
@@ -124,19 +117,12 @@ func Init() {
 
 	db.RunDatabaseSchema()
 
-	go db.MakeCaptchas(100)
-
-	config.Key = util.CreateKey(32)
-
-	webfinger.FollowingBoards, err = activitypub.GetActorFollowingDB(config.Domain)
+	actor, _ := activitypub.GetActorFromDB(config.Domain)
+	webfinger.FollowingBoards, err = actor.GetFollowing()
 
 	if err != nil {
 		panic(err)
 	}
-
-	go db.StartupArchive()
-
-	go db.CheckInactive()
 
 	webfinger.Boards, err = webfinger.GetBoardCollection()
 
@@ -144,105 +130,15 @@ func Init() {
 		panic(err)
 	}
 
-	// root actor is used to follow remote feeds that are not local
-	//name, prefname, summary, auth requirements, restricted
-	if config.InstanceName != "" {
-		if _, err = db.CreateNewBoardDB(*activitypub.CreateNewActor("", config.InstanceName, config.InstanceSummary, config.AuthReq, false)); err != nil {
-			//panic(err)
-		}
+	config.Key = util.CreateKey(32)
 
-		if config.PublicIndexing == "true" {
-			// TODO: comment out later
-			//AddInstanceToIndex(config.Domain)
-		}
-	}
+	go db.MakeCaptchas(100)
 
-	// get list of themes
-	themes, err := ioutil.ReadDir("./static/css/themes")
-	if err != nil {
-		panic(err)
-	}
+	go db.StartupArchive()
 
-	for _, f := range themes {
-		if e := path.Ext(f.Name()); e == ".css" {
-			config.Themes = append(config.Themes, strings.TrimSuffix(f.Name(), e))
-		}
-	}
-}
+	go db.CheckInactive()
 
-func TemplateFunctions(engine *html.Engine) {
-	engine.AddFunc("mod", func(i, j int) bool {
-		return i%j == 0
-	})
+	db.InitInstance()
 
-	engine.AddFunc("sub", func(i, j int) int {
-		return i - j
-	})
-
-	engine.AddFunc("add", func(i, j int) int {
-		return i + j
-	})
-
-	engine.AddFunc("unixtoreadable", func(u int) string {
-		return time.Unix(int64(u), 0).Format("Jan 02, 2006")
-	})
-
-	engine.AddFunc("timeToReadableLong", func(t time.Time) string {
-		return t.Format("01/02/06(Mon)15:04:05")
-	})
-
-	engine.AddFunc("timeToUnix", func(t time.Time) string {
-		return fmt.Sprint(t.Unix())
-	})
-
-	engine.AddFunc("proxy", util.MediaProxy)
-
-	// previously short
-	engine.AddFunc("shortURL", util.ShortURL)
-
-	engine.AddFunc("parseAttachment", post.ParseAttachment)
-
-	engine.AddFunc("parseContent", post.ParseContent)
-
-	engine.AddFunc("shortImg", util.ShortImg)
-
-	engine.AddFunc("convertSize", util.ConvertSize)
-
-	engine.AddFunc("isOnion", util.IsOnion)
-
-	engine.AddFunc("parseReplyLink", func(actorId string, op string, id string, content string) template.HTML {
-		actor, _ := webfinger.FingerActor(actorId)
-		title := strings.ReplaceAll(post.ParseLinkTitle(actor.Id+"/", op, content), `/\&lt;`, ">")
-		link := "<a href=\"/" + actor.Name + "/" + util.ShortURL(actor.Outbox, op) + "#" + util.ShortURL(actor.Outbox, id) + "\" title=\"" + title + "\" class=\"replyLink\">&gt;&gt;" + util.ShortURL(actor.Outbox, id) + "</a>"
-		return template.HTML(link)
-	})
-
-	engine.AddFunc("shortExcerpt", func(post activitypub.ObjectBase) string {
-		var returnString string
-
-		if post.Name != "" {
-			returnString = post.Name + "| " + post.Content
-		} else {
-			returnString = post.Content
-		}
-
-		re := regexp.MustCompile(`(^(.|\r\n|\n){100})`)
-
-		match := re.FindStringSubmatch(returnString)
-
-		if len(match) > 0 {
-			returnString = match[0] + "..."
-		}
-
-		re = regexp.MustCompile(`(^.+\|)`)
-
-		match = re.FindStringSubmatch(returnString)
-
-		if len(match) > 0 {
-			returnString = strings.Replace(returnString, match[0], "<b>"+match[0]+"</b>", 1)
-			returnString = strings.Replace(returnString, "|", ":", 1)
-		}
-
-		return returnString
-	})
+	util.LoadThemes()
 }

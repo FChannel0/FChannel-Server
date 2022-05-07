@@ -95,7 +95,7 @@ func ActorInbox(ctx *fiber.Ctx) error {
 				if err := activitypub.TombstoneObject(activity.Object.Id); err != nil {
 					return err
 				}
-				if err := db.UnArchiveLast(actor.Id); err != nil {
+				if err := actor.UnArchiveLast(); err != nil {
 					return err
 				}
 				break
@@ -118,12 +118,12 @@ func ActorInbox(ctx *fiber.Ctx) error {
 
 				alreadyFollow := false
 				alreadyFollowing := false
-				autoSub, err := activitypub.GetActorAutoSubscribeDB(response.Actor.Id)
+				autoSub, err := response.Actor.GetAutoSubscribe()
 				if err != nil {
 					return err
 				}
 
-				following, err := activitypub.GetActorFollowingDB(response.Actor.Id)
+				following, err := response.Actor.GetFollowing()
 				if err != nil {
 					return err
 				}
@@ -195,7 +195,7 @@ func ActorOutbox(ctx *fiber.Ctx) error {
 	}
 
 	if activitypub.AcceptActivity(ctx.Get("Accept")) {
-		activitypub.GetActorOutbox(ctx, actor)
+		actor.GetOutbox(ctx)
 		return nil
 	}
 
@@ -203,11 +203,13 @@ func ActorOutbox(ctx *fiber.Ctx) error {
 }
 
 func ActorFollowing(ctx *fiber.Ctx) error {
-	return activitypub.GetActorFollowing(ctx, config.Domain+"/"+ctx.Params("actor"))
+	actor, _ := activitypub.GetActorFromDB(config.Domain + "/" + ctx.Params("actor"))
+	return actor.GetFollowingResp(ctx)
 }
 
 func ActorFollowers(ctx *fiber.Ctx) error {
-	return activitypub.GetActorFollowers(ctx, config.Domain+"/"+ctx.Params("actor"))
+	actor, _ := activitypub.GetActorFromDB(config.Domain + "/" + ctx.Params("actor"))
+	return actor.GetFollowersResp(ctx)
 }
 
 func ActorReported(c *fiber.Ctx) error {

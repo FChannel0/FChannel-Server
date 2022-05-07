@@ -36,7 +36,7 @@ func AcceptActivity(header string) bool {
 	return accept
 }
 
-func ActivitySign(actor Actor, signature string) (string, error) {
+func (actor Actor) ActivitySign(signature string) (string, error) {
 	query := `select file from publicKeyPem where id=$1 `
 
 	rows, err := config.DB.Query(query, actor.PublicKey.Id)

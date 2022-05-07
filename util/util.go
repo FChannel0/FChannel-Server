@@ -2,11 +2,14 @@ package util
 
 import (
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"os"
+	"path"
 	"regexp"
 	"strings"
 
@@ -260,4 +263,42 @@ func CreatedNeededDirectories() {
 	if _, err := os.Stat("./pem/board"); os.IsNotExist(err) {
 		os.MkdirAll("./pem/board", 0700)
 	}
+}
+
+func LoadThemes() {
+	// get list of themes
+	themes, err := ioutil.ReadDir("./static/css/themes")
+	if err != nil {
+		panic(err)
+	}
+
+	for _, f := range themes {
+		if e := path.Ext(f.Name()); e == ".css" {
+			config.Themes = append(config.Themes, strings.TrimSuffix(f.Name(), e))
+		}
+	}
+}
+
+func GetBoardAuth(board string) ([]string, error) {
+	var auth []string
+
+	query := `select type from actorauth where board=$1`
+
+	var rows *sql.Rows
+	var err error
+	if rows, err = config.DB.Query(query, board); err != nil {
+		return auth, err
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		var _type string
+		if err := rows.Scan(&_type); err != nil {
+			return auth, err
+		}
+
+		auth = append(auth, _type)
+	}
+
+	return auth, nil
 }

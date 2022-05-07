@@ -7,10 +7,11 @@ import (
 )
 
 func Following(ctx *fiber.Ctx) error {
-	return activitypub.GetActorFollowing(ctx, config.Domain)
+	actor, _ := activitypub.GetActorFromDB(config.Domain)
+	return actor.GetFollowingResp(ctx)
 }
 
 func Followers(ctx *fiber.Ctx) error {
-	// STUB
-	return activitypub.GetActorFollowers(ctx, config.Domain)
+	actor, _ := activitypub.GetActorFromDB(config.Domain)
+	return actor.GetFollowersResp(ctx)
 }

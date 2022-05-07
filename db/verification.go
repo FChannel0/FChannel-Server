@@ -464,7 +464,7 @@ func HasBoardAccess(verify Verify) (bool, error) {
 }
 
 func BoardHasAuthType(board string, auth string) (bool, error) {
-	authTypes, err := activitypub.GetActorAuth(board)
+	authTypes, err := util.GetBoardAuth(board)
 	if err != nil {
 		return false, err
 	}

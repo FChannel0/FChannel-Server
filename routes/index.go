@@ -16,7 +16,7 @@ func Index(ctx *fiber.Ctx) error {
 
 	// this is a activitpub json request return json instead of html page
 	if activitypub.AcceptActivity(ctx.Get("Accept")) {
-		activitypub.GetActorInfo(ctx, actor.Id)
+		actor.GetInfoResp(ctx)
 		return nil
 	}
 

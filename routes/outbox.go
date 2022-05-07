@@ -19,7 +19,7 @@ func Outbox(ctx *fiber.Ctx) error {
 	}
 
 	if activitypub.AcceptActivity(ctx.Get("Accept")) {
-		activitypub.GetActorOutbox(ctx, actor)
+		actor.GetOutbox(ctx)
 		return nil
 	}
 
@@ -31,7 +31,7 @@ func OutboxGet(ctx *fiber.Ctx) error {
 	actor, _ := activitypub.GetActorByNameFromDB(ctx.Params("actor"))
 
 	if activitypub.AcceptActivity(ctx.Get("Accept")) {
-		activitypub.GetActorInfo(ctx, actor.Id)
+		actor.GetInfoResp(ctx)
 		return nil
 	}
 

@@ -160,7 +160,7 @@ func AdminFollow(ctx *fiber.Ctx) error {
 		col.Items = append(col.Items, nObj)
 
 		for _, e := range col.Items {
-			if isFollowing, _ := activitypub.IsAlreadyFollowing(actorId, e.Id); !isFollowing && e.Id != config.Domain && e.Id != actorId {
+			if isFollowing, _ := actor.IsAlreadyFollowing(e.Id); !isFollowing && e.Id != config.Domain && e.Id != actorId {
 				followActivity, _ := db.MakeFollowActivity(actorId, e.Id)
 
 				if actor, _ := webfinger.FingerActor(e.Id); actor.Id != "" {
@@ -180,7 +180,7 @@ func AdminFollow(ctx *fiber.Ctx) error {
 		col.Items = append(col.Items, nObj)
 
 		for _, e := range col.Items {
-			if isFollowing, _ := activitypub.IsAlreadyFollowing(actorId, e.Id); !isFollowing && e.Id != config.Domain && e.Id != actorId {
+			if isFollowing, _ := actor.IsAlreadyFollowing(e.Id); !isFollowing && e.Id != config.Domain && e.Id != actorId {
 				followActivity, _ := db.MakeFollowActivity(actorId, e.Id)
 				if actor, _ := webfinger.FingerActor(e.Id); actor.Id != "" {
 					db.MakeActivityRequestOutbox(followActivity)
@@ -314,7 +314,7 @@ func AdminActorIndex(ctx *fiber.Ctx) error {
 
 	data.Board.Post.Actor = actor.Id
 
-	data.AutoSubscribe, _ = activitypub.GetActorAutoSubscribeDB(actor.Id)
+	data.AutoSubscribe, _ = actor.GetAutoSubscribe()
 
 	data.Themes = &config.Themes
 

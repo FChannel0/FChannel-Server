@@ -40,7 +40,8 @@ func SetActorFollowingDB(activity activitypub.Activity) (activitypub.Activity, e
 	var query string
 	alreadyFollowing := false
 	alreadyFollower := false
-	following, err := activitypub.GetActorFollowingDB(activity.Object.Actor)
+	objActor, _ := webfinger.GetActor(activity.Object.Actor)
+	following, err := objActor.GetFollowing()
 	if err != nil {
 		return activity, err
 	}
@@ -77,7 +78,7 @@ func SetActorFollowingDB(activity activitypub.Activity) (activitypub.Activity, e
 		query = `delete from following where id=$1 and following=$2`
 		activity.Summary = activity.Object.Actor + " Unfollowing " + activity.Actor.Id
 		if res, err := activitypub.IsActorLocal(activity.Actor.Id); err == nil && !res {
-			go activitypub.DeleteActorCache(activity.Actor.Id)
+			go activity.Actor.DeleteCache()
 		} else {
 			return activity, err
 		}
@@ -108,13 +109,14 @@ func SetActorFollowingDB(activity activitypub.Activity) (activitypub.Activity, e
 	return activity, nil
 }
 
-func AutoFollow(actor string) error {
-	following, err := activitypub.GetActorFollowingDB(actor)
+func AutoFollow(actorID string) error {
+	actor, _ := webfinger.GetActor(actorID)
+	following, err := actor.GetFollowing()
 	if err != nil {
 		return err
 	}
 
-	follower, err := activitypub.GetActorFollowDB(actor)
+	follower, err := actor.GetFollow()
 	if err != nil {
 		return err
 	}
@@ -128,8 +130,8 @@ func AutoFollow(actor string) error {
 			}
 		}
 
-		if !isFollowing && e.Id != config.Domain && e.Id != actor {
-			followActivity, err := MakeFollowActivity(actor, e.Id)
+		if !isFollowing && e.Id != config.Domain && e.Id != actor.Id {
+			followActivity, err := MakeFollowActivity(actor.Id, e.Id)
 			if err != nil {
 				return err
 			}
@@ -204,7 +206,7 @@ func MakeActivityRequestOutbox(activity activitypub.Activity) error {
 	path = re.ReplaceAllString(path, "")
 
 	sig := fmt.Sprintf("(request-target): %s %s\nhost: %s\ndate: %s", "post", path, instance, date)
-	encSig, err := activitypub.ActivitySign(*activity.Actor, sig)
+	encSig, err := activity.Actor.ActivitySign(sig)
 	if err != nil {
 		return err
 	}
@@ -246,7 +248,7 @@ func MakeActivityRequest(activity activitypub.Activity) error {
 					path = re.ReplaceAllString(path, "")
 
 					sig := fmt.Sprintf("(request-target): %s %s\nhost: %s\ndate: %s", "post", path, instance, date)
-					encSig, err := activitypub.ActivitySign(*activity.Actor, sig)
+					encSig, err := activity.Actor.ActivitySign(sig)
 					if err != nil {
 						return err
 					}
@@ -271,15 +273,15 @@ func MakeActivityRequest(activity activitypub.Activity) error {
 	return nil
 }
 
-func SendToFollowers(actor string, activity activitypub.Activity) error {
-	nActor, err := activitypub.GetActorFromDB(actor)
+func SendToFollowers(actorID string, activity activitypub.Activity) error {
+	nActor, err := activitypub.GetActorFromDB(actorID)
 	if err != nil {
 		return err
 	}
 
 	activity.Actor = &nActor
 
-	followers, err := activitypub.GetActorFollowDB(actor)
+	followers, err := nActor.GetFollow()
 	if err != nil {
 		return err
 	}

@@ -3,7 +3,10 @@ package routes
 import (
 	"errors"
 	"fmt"
+	"html/template"
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
@@ -12,6 +15,7 @@ import (
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/template/html"
 )
 
 var ErrorPageLimit = errors.New("above page limit")
@@ -85,7 +89,7 @@ func wantToServeArchive(actorName string) (activitypub.Collection, bool, error) 
 	}
 
 	if actor.Id != "" {
-		collection, err = activitypub.GetActorCollectionDBType(actor.Id, "Archive")
+		collection, err = actor.GetCollectionType("Archive")
 		if err != nil {
 			return collection, false, err
 		}
@@ -222,7 +226,8 @@ func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
 					}
 				}
 
-				webfinger.FollowingBoards, err = activitypub.GetActorFollowingDB(config.Domain)
+				actor, _ := activitypub.GetActorFromDB(config.Domain)
+				webfinger.FollowingBoards, err = actor.GetFollowing()
 				if err != nil {
 					return err
 				}
@@ -297,4 +302,81 @@ func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
 	}
 
 	return nil
+}
+
+func TemplateFunctions(engine *html.Engine) {
+	engine.AddFunc("mod", func(i, j int) bool {
+		return i%j == 0
+	})
+
+	engine.AddFunc("sub", func(i, j int) int {
+		return i - j
+	})
+
+	engine.AddFunc("add", func(i, j int) int {
+		return i + j
+	})
+
+	engine.AddFunc("unixtoreadable", func(u int) string {
+		return time.Unix(int64(u), 0).Format("Jan 02, 2006")
+	})
+
+	engine.AddFunc("timeToReadableLong", func(t time.Time) string {
+		return t.Format("01/02/06(Mon)15:04:05")
+	})
+
+	engine.AddFunc("timeToUnix", func(t time.Time) string {
+		return fmt.Sprint(t.Unix())
+	})
+
+	engine.AddFunc("proxy", util.MediaProxy)
+
+	// previously short
+	engine.AddFunc("shortURL", util.ShortURL)
+
+	engine.AddFunc("parseAttachment", post.ParseAttachment)
+
+	engine.AddFunc("parseContent", post.ParseContent)
+
+	engine.AddFunc("shortImg", util.ShortImg)
+
+	engine.AddFunc("convertSize", util.ConvertSize)
+
+	engine.AddFunc("isOnion", util.IsOnion)
+
+	engine.AddFunc("parseReplyLink", func(actorId string, op string, id string, content string) template.HTML {
+		actor, _ := webfinger.FingerActor(actorId)
+		title := strings.ReplaceAll(post.ParseLinkTitle(actor.Id+"/", op, content), `/\&lt;`, ">")
+		link := "<a href=\"/" + actor.Name + "/" + util.ShortURL(actor.Outbox, op) + "#" + util.ShortURL(actor.Outbox, id) + "\" title=\"" + title + "\" class=\"replyLink\">&gt;&gt;" + util.ShortURL(actor.Outbox, id) + "</a>"
+		return template.HTML(link)
+	})
+
+	engine.AddFunc("shortExcerpt", func(post activitypub.ObjectBase) string {
+		var returnString string
+
+		if post.Name != "" {
+			returnString = post.Name + "| " + post.Content
+		} else {
+			returnString = post.Content
+		}
+
+		re := regexp.MustCompile(`(^(.|\r\n|\n){100})`)
+
+		match := re.FindStringSubmatch(returnString)
+
+		if len(match) > 0 {
+			returnString = match[0] + "..."
+		}
+
+		re = regexp.MustCompile(`(^.+\|)`)
+
+		match = re.FindStringSubmatch(returnString)
+
+		if len(match) > 0 {
+			returnString = strings.Replace(returnString, match[0], "<b>"+match[0]+"</b>", 1)
+			returnString = strings.Replace(returnString, "|", ":", 1)
+		}
+
+		return returnString
+	})
 }
