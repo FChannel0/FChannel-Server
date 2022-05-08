@@ -12,7 +12,6 @@ import (
 )
 
 func Outbox(ctx *fiber.Ctx) error {
-
 	actor, err := webfinger.GetActorFromPath(ctx.Path(), "/")
 	if err != nil {
 		return err
@@ -27,29 +26,27 @@ func Outbox(ctx *fiber.Ctx) error {
 }
 
 func OutboxGet(ctx *fiber.Ctx) error {
+	actor, err := activitypub.GetActorByNameFromDB(ctx.Params("actor"))
 
-	actor, _ := activitypub.GetActorByNameFromDB(ctx.Params("actor"))
+	if err != nil {
+		return nil
+	}
 
 	if activitypub.AcceptActivity(ctx.Get("Accept")) {
 		actor.GetInfoResp(ctx)
 		return nil
 	}
 
-	collection, valid, err := wantToServePage(ctx.Params("actor"), 0)
-	if err != nil {
-		return err
-	} else if !valid {
-		// TODO: 404 template
-		return ctx.SendString("404")
-	}
-
 	var page int
-	postNum := ctx.Query("page")
-	if postNum != "" {
-		page, err = strconv.Atoi(postNum)
-		if err != nil {
+	if postNum := ctx.Query("page"); postNum != "" {
+		if page, err = strconv.Atoi(postNum); err != nil {
 			return err
 		}
+	}
+
+	collection, err := actor.WantToServePage(page)
+	if err != nil {
+		return err
 	}
 
 	var offset = 15

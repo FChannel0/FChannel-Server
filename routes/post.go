@@ -12,14 +12,15 @@ import (
 )
 
 func PostGet(ctx *fiber.Ctx) error {
+
 	actor, err := activitypub.GetActorByNameFromDB(ctx.Params("actor"))
 	if err != nil {
-		return err
+		return nil
 	}
 
 	// this is a activitpub json request return json instead of html page
 	if activitypub.AcceptActivity(ctx.Get("Accept")) {
-		activitypub.GetActorPost(ctx, ctx.Path())
+		GetActorPost(ctx, ctx.Path())
 		return nil
 	}
 

@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"errors"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"regexp"
@@ -18,8 +18,6 @@ import (
 	"github.com/gofiber/template/html"
 )
 
-var ErrorPageLimit = errors.New("above page limit")
-
 func getThemeCookie(c *fiber.Ctx) string {
 	cookie := c.Cookies("theme")
 	if cookie != "" {
@@ -28,33 +26,6 @@ func getThemeCookie(c *fiber.Ctx) string {
 	}
 
 	return "default"
-}
-
-func wantToServePage(actorName string, page int) (activitypub.Collection, bool, error) {
-	var collection activitypub.Collection
-	serve := false
-
-	// TODO: don't hard code?
-	if page > 10 {
-		return collection, serve, ErrorPageLimit
-	}
-
-	actor, err := activitypub.GetActorByNameFromDB(actorName)
-	if err != nil {
-		return collection, false, err
-	}
-
-	if actor.Id != "" {
-		collection, err = actor.GetCollectionPage(page)
-		if err != nil {
-			return collection, false, err
-		}
-
-		collection.Actor = actor
-		return collection, true, nil
-	}
-
-	return collection, serve, nil
 }
 
 func wantToServeCatalog(actorName string) (activitypub.Collection, bool, error) {
@@ -99,6 +70,28 @@ func wantToServeArchive(actorName string) (activitypub.Collection, bool, error) 
 	}
 
 	return collection, serve, nil
+}
+
+func GetActorPost(ctx *fiber.Ctx, path string) error {
+	obj := activitypub.ObjectBase{Id: config.Domain + "" + path}
+	collection, err := obj.GetCollectionFromPath()
+
+	if err != nil {
+		return err
+	}
+
+	if len(collection.OrderedItems) > 0 {
+		enc, err := json.MarshalIndent(collection, "", "\t")
+		if err != nil {
+			return err
+		}
+
+		ctx.Response().Header.Set("Content-Type", "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"")
+		_, err = ctx.Write(enc)
+		return err
+	}
+
+	return nil
 }
 
 func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
@@ -194,7 +187,7 @@ func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
 			return err
 		}
 
-		if res, err := activitypub.IsActivityLocal(activity); err == nil && res {
+		if res, err := activity.IsLocal(); err == nil && res {
 			if res := db.VerifyHeaderSignature(ctx, *activity.Actor); err == nil && !res {
 				ctx.Response().Header.Set("Status", "403")
 				_, err = ctx.Write([]byte(""))

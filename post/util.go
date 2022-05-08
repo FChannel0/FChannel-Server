@@ -271,7 +271,7 @@ func ObjectFromForm(ctx *fiber.Ctx, obj activitypub.ObjectBase) (activitypub.Obj
 	}
 
 	if originalPost.Id != "" {
-		if local, _ := activitypub.IsActivityLocal(activity); !local {
+		if local, _ := activity.IsLocal(); !local {
 			actor, err := webfinger.FingerActor(originalPost.Id)
 			if err != nil {
 				return obj, err
@@ -308,7 +308,7 @@ func ObjectFromForm(ctx *fiber.Ctx, obj activitypub.ObjectBase) (activitypub.Obj
 
 			activity.To = append(activity.To, e.Id)
 
-			if local, err := activitypub.IsActivityLocal(activity); err == nil && !local {
+			if local, err := activity.IsLocal(); err == nil && !local {
 				actor, err := webfinger.FingerActor(e.Id)
 				if err != nil {
 					return obj, err

@@ -33,7 +33,7 @@ func GetActor(id string) (activitypub.Actor, error) {
 		return respActor, nil
 	}
 
-	actor, instance := activitypub.GetActorInstance(id)
+	actor, instance := activitypub.GetActorAndInstance(id)
 
 	if ActorCache[actor+"@"+instance].Id != "" {
 		respActor = ActorCache[actor+"@"+instance]
@@ -70,7 +70,7 @@ func GetActor(id string) (activitypub.Actor, error) {
 func FingerActor(path string) (activitypub.Actor, error) {
 	var nActor activitypub.Actor
 
-	actor, instance := activitypub.GetActorInstance(path)
+	actor, instance := activitypub.GetActorAndInstance(path)
 
 	if actor == "" && instance == "" {
 		return nActor, nil

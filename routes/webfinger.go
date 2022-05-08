@@ -33,7 +33,8 @@ func Webfinger(c *fiber.Ctx) error {
 		actorDomain[0] = "/" + actorDomain[0]
 	}
 
-	if res, err := activitypub.IsActorLocal(config.TP + "" + actorDomain[1] + "" + actorDomain[0]); err == nil && !res {
+	actor := activitypub.Actor{Id: config.TP + "" + actorDomain[1] + "" + actorDomain[0]}
+	if res, err := actor.IsLocal(); err == nil && !res {
 		c.Status(fiber.StatusBadRequest)
 		return c.Send([]byte("actor not local"))
 	} else if err != nil {

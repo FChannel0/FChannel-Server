@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"regexp"
 	"time"
@@ -30,7 +29,6 @@ func AdminVerify(ctx *fiber.Ctx) error {
 	req, err := http.NewRequest("POST", config.Domain+"/auth", bytes.NewBuffer(j))
 
 	if err != nil {
-		log.Println("error making verify req")
 		return err
 	}
 
@@ -39,7 +37,6 @@ func AdminVerify(ctx *fiber.Ctx) error {
 	resp, err := http.DefaultClient.Do(req)
 
 	if err != nil {
-		log.Println("error getting verify resp")
 		return err
 	}
 
@@ -69,7 +66,6 @@ func AdminAuth(ctx *fiber.Ctx) error {
 	err := json.Unmarshal(ctx.Body(), &verify)
 
 	if err != nil {
-		log.Println("error get verify from json")
 		return err
 	}
 
@@ -192,7 +188,8 @@ func AdminFollow(ctx *fiber.Ctx) error {
 	} else {
 		followActivity, _ := db.MakeFollowActivity(actorId, follow)
 
-		if isLocal, _ := activitypub.IsActorLocal(followActivity.Object.Actor); !isLocal && followActivity.Actor.Id == config.Domain {
+		actor := activitypub.Actor{Id: followActivity.Object.Actor}
+		if isLocal, _ := actor.IsLocal(); !isLocal && followActivity.Actor.Id == config.Domain {
 			_, err := ctx.Write([]byte("main board can only follow local boards. Create a new board and then follow outside boards from it."))
 			return err
 		}
@@ -303,7 +300,7 @@ func AdminActorIndex(ctx *fiber.Ctx) error {
 	data.Followers = followers
 	data.Reported = reports
 	data.Domain = config.Domain
-	data.IsLocal, _ = activitypub.IsActorLocal(actor.Id)
+	data.IsLocal, _ = actor.IsLocal()
 
 	data.Title = "Manage /" + actor.Name + "/"
 	data.Boards = webfinger.Boards

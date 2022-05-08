@@ -658,7 +658,7 @@ func DeleteObjectRequest(id string) error {
 		return err
 	}
 
-	obj, err := activitypub.GetObjectFromPath(id)
+	obj, err := nObj.GetFromPath()
 	if err != nil {
 		return err
 	}

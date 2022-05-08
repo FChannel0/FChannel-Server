@@ -34,15 +34,16 @@ func ActorInbox(ctx *fiber.Ctx) error {
 	}
 
 	if !db.VerifyHeaderSignature(ctx, *activity.Actor) {
-		response := activitypub.RejectActivity(activity)
+		response := activity.Reject()
 		return db.MakeActivityRequest(response)
 	}
 
 	switch activity.Type {
 	case "Create":
 		for _, e := range activity.To {
-			if res, err := activitypub.IsActorLocal(e); err == nil && res {
-				if res, err := activitypub.IsActorLocal(activity.Actor.Id); err == nil && res {
+			actor := activitypub.Actor{Id: e}
+			if res, err := actor.IsLocal(); err == nil && res {
+				if res, err := activity.Actor.IsLocal(); err == nil && res {
 					col, err := activity.Object.GetCollection()
 					if err != nil {
 						return err
@@ -107,7 +108,7 @@ func ActorInbox(ctx *fiber.Ctx) error {
 		for _, e := range activity.To {
 			if res, err := activitypub.GetActorFromDB(e); err == nil && res.Id != "" {
 				response := db.AcceptFollow(activity)
-				response, err := activitypub.SetActorFollowerDB(response)
+				response, err := response.SetFollower()
 				if err != nil {
 					return err
 				}
@@ -168,7 +169,7 @@ func ActorInbox(ctx *fiber.Ctx) error {
 				return err
 			} else {
 				fmt.Println("follow request for rejected")
-				response := activitypub.RejectActivity(activity)
+				response := activity.Reject()
 				return db.MakeActivityRequest(response)
 			}
 		}

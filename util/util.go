@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"mime/multipart"
@@ -213,7 +214,7 @@ func CreateUniqueID(actor string) (string, error) {
 		args := fmt.Sprintf("%s/%s/%s", config.Domain, actor, newID)
 		rows, err := config.DB.Query(query, args)
 		if err != nil {
-			return "", err
+			return "", MakeError(err, "CreateUniqueID")
 		}
 
 		defer rows.Close()
@@ -236,7 +237,7 @@ func GetFileContentType(out multipart.File) (string, error) {
 
 	_, err := out.Read(buffer)
 	if err != nil {
-		return "", err
+		return "", MakeError(err, "GetFileContentType")
 	}
 
 	out.Seek(0, 0)
@@ -269,7 +270,7 @@ func LoadThemes() {
 	// get list of themes
 	themes, err := ioutil.ReadDir("./static/css/themes")
 	if err != nil {
-		panic(err)
+		MakeError(err, "LoadThemes")
 	}
 
 	for _, f := range themes {
@@ -287,18 +288,27 @@ func GetBoardAuth(board string) ([]string, error) {
 	var rows *sql.Rows
 	var err error
 	if rows, err = config.DB.Query(query, board); err != nil {
-		return auth, err
+		return auth, MakeError(err, "GetBoardAuth")
 	}
 
 	defer rows.Close()
 	for rows.Next() {
 		var _type string
 		if err := rows.Scan(&_type); err != nil {
-			return auth, err
+			return auth, MakeError(err, "GetBoardAuth")
 		}
 
 		auth = append(auth, _type)
 	}
 
 	return auth, nil
+}
+
+func MakeError(err error, msg string) error {
+	if err != nil {
+		s := fmt.Sprintf("%s: %s", msg, err.Error())
+		return errors.New(s)
+	}
+
+	return nil
 }

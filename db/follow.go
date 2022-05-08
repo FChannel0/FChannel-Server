@@ -77,7 +77,7 @@ func SetActorFollowingDB(activity activitypub.Activity) (activitypub.Activity, e
 	if alreadyFollowing && alreadyFollower {
 		query = `delete from following where id=$1 and following=$2`
 		activity.Summary = activity.Object.Actor + " Unfollowing " + activity.Actor.Id
-		if res, err := activitypub.IsActorLocal(activity.Actor.Id); err == nil && !res {
+		if res, err := activity.Actor.IsLocal(); err == nil && !res {
 			go activity.Actor.DeleteCache()
 		} else {
 			return activity, err
@@ -95,7 +95,7 @@ func SetActorFollowingDB(activity activitypub.Activity) (activitypub.Activity, e
 
 		query = `insert into following (id, following) values ($1, $2)`
 		activity.Summary = activity.Object.Actor + " Following " + activity.Actor.Id
-		if res, err := activitypub.IsActorLocal(activity.Actor.Id); err == nil && !res {
+		if res, err := activity.Actor.IsLocal(); err == nil && !res {
 			go WriteActorToCache(activity.Actor.Id)
 		}
 		if _, err := config.DB.Exec(query, activity.Object.Actor, activity.Actor.Id); err != nil {
@@ -197,7 +197,7 @@ func MakeActivityRequestOutbox(activity activitypub.Activity) error {
 	if activity.Actor.Id == config.Domain {
 		instance = re.ReplaceAllString(config.Domain, "")
 	} else {
-		_, instance = activitypub.GetActorInstance(activity.Actor.Id)
+		_, instance = activitypub.GetActorAndInstance(activity.Actor.Id)
 	}
 
 	date := time.Now().UTC().Format(time.RFC1123)
@@ -233,7 +233,7 @@ func MakeActivityRequest(activity activitypub.Activity) error {
 			}
 
 			if actor.Id != "" {
-				_, instance := activitypub.GetActorInstance(actor.Id)
+				_, instance := activitypub.GetActorAndInstance(actor.Id)
 
 				if actor.Inbox != "" {
 					req, err := http.NewRequest("POST", actor.Inbox, bytes.NewBuffer(j))
