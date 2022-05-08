@@ -3,14 +3,13 @@ package routes
 import (
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
-	"github.com/FChannel0/FChannel-Server/db"
+	"github.com/FChannel0/FChannel-Server/post"
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
 )
 
 func ArchiveGet(ctx *fiber.Ctx) error {
-	// TODO
 	collection := ctx.Locals("collection").(activitypub.Collection)
 	actor := collection.Actor
 
@@ -21,7 +20,7 @@ func ArchiveGet(ctx *fiber.Ctx) error {
 	returnData.Board.To = actor.Outbox
 	returnData.Board.Actor = actor
 	returnData.Board.Summary = actor.Summary
-	returnData.Board.ModCred, _ = db.GetPasswordFromSession(ctx)
+	returnData.Board.ModCred, _ = util.GetPasswordFromSession(ctx)
 	returnData.Board.Domain = config.Domain
 	returnData.Board.Restricted = actor.Restricted
 	returnData.Key = config.Key
@@ -32,12 +31,12 @@ func ArchiveGet(ctx *fiber.Ctx) error {
 	var err error
 	returnData.Instance, err = activitypub.GetActorFromDB(config.Domain)
 
-	capt, err := db.GetRandomCaptcha()
+	capt, err := util.GetRandomCaptcha()
 	if err != nil {
-		return err
+		return util.MakeError(err, "ArchiveGet")
 	}
 	returnData.Board.Captcha = config.Domain + "/" + capt
-	returnData.Board.CaptchaCode = util.GetCaptchaCode(returnData.Board.Captcha)
+	returnData.Board.CaptchaCode = post.GetCaptchaCode(returnData.Board.Captcha)
 
 	returnData.Title = "/" + actor.Name + "/ - " + actor.PreferredUsername
 

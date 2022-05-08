@@ -6,7 +6,7 @@ import (
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
-	"github.com/FChannel0/FChannel-Server/webfinger"
+	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -38,11 +38,11 @@ func Webfinger(c *fiber.Ctx) error {
 		c.Status(fiber.StatusBadRequest)
 		return c.Send([]byte("actor not local"))
 	} else if err != nil {
-		return err
+		return util.MakeError(err, "Webfinger")
 	}
 
-	var finger webfinger.Webfinger
-	var link webfinger.WebfingerLink
+	var finger activitypub.Webfinger
+	var link activitypub.WebfingerLink
 
 	finger.Subject = "acct:" + actorDomain[0] + "@" + actorDomain[1]
 	link.Rel = "self"

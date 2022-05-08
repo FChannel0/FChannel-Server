@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"runtime"
 	"strings"
 
 	"github.com/FChannel0/FChannel-Server/config"
@@ -28,33 +29,18 @@ func IsOnion(url string) bool {
 
 func StripTransferProtocol(value string) string {
 	re := regexp.MustCompile("(http://|https://)?(www.)?")
-
 	value = re.ReplaceAllString(value, "")
 
 	return value
 }
 
-func GetCaptchaCode(captcha string) string {
-	re := regexp.MustCompile("\\w+\\.\\w+$")
-	code := re.FindString(captcha)
-
-	re = regexp.MustCompile("\\w+")
-	code = re.FindString(code)
-
-	return code
-}
-
 func ShortURL(actorName string, url string) string {
+	var reply string
 
 	re := regexp.MustCompile(`.+\/`)
-
 	actor := re.FindString(actorName)
-
 	urlParts := strings.Split(url, "|")
-
 	op := urlParts[0]
-
-	var reply string
 
 	if len(urlParts) > 1 {
 		reply = urlParts[1]
@@ -99,17 +85,11 @@ func LocalShort(url string) string {
 
 func RemoteShort(url string) string {
 	re := regexp.MustCompile(`\w+$`)
-
 	id := re.FindString(StripTransferProtocol(url))
-
 	re = regexp.MustCompile(`.+/.+/`)
-
 	actorurl := re.FindString(StripTransferProtocol(url))
-
 	re = regexp.MustCompile(`/.+/`)
-
 	actorname := re.FindString(actorurl)
-
 	actorname = strings.Replace(actorname, "/", "", -1)
 
 	return "f" + actorname + "-" + id
@@ -117,9 +97,7 @@ func RemoteShort(url string) string {
 
 func ShortImg(url string) string {
 	nURL := url
-
 	re := regexp.MustCompile(`(\.\w+$)`)
-
 	fileName := re.ReplaceAllString(url, "")
 
 	if len(fileName) > 26 {
@@ -199,32 +177,19 @@ func HashBytes(media []byte) string {
 
 func EscapeString(text string) string {
 	// TODO: not enough
-
 	text = strings.Replace(text, "<", "&lt;", -1)
 	return text
 }
 
 func CreateUniqueID(actor string) (string, error) {
 	var newID string
-	isUnique := false
-	for !isUnique {
-		newID = RandomID(8)
 
+	for true {
+		newID = RandomID(8)
 		query := "select id from activitystream where id=$1"
 		args := fmt.Sprintf("%s/%s/%s", config.Domain, actor, newID)
-		rows, err := config.DB.Query(query, args)
-		if err != nil {
-			return "", MakeError(err, "CreateUniqueID")
-		}
 
-		defer rows.Close()
-
-		// reusing a variable here
-		// if we encounter a match, it'll get set to false causing the outer for loop to loop and to go through this all over again
-		// however if nothing is there, it'll remain true and exit the loop
-		isUnique = true
-		for rows.Next() {
-			isUnique = false
+		if err := config.DB.QueryRow(query, args); err != nil {
 			break
 		}
 	}
@@ -234,14 +199,13 @@ func CreateUniqueID(actor string) (string, error) {
 
 func GetFileContentType(out multipart.File) (string, error) {
 	buffer := make([]byte, 512)
-
 	_, err := out.Read(buffer)
+
 	if err != nil {
 		return "", MakeError(err, "GetFileContentType")
 	}
 
 	out.Seek(0, 0)
-
 	contentType := http.DetectContentType(buffer)
 
 	return contentType, nil
@@ -249,26 +213,33 @@ func GetFileContentType(out multipart.File) (string, error) {
 
 func GetContentType(location string) string {
 	elements := strings.Split(location, ";")
+
 	if len(elements) > 0 {
 		return elements[0]
-	} else {
-		return location
 	}
+
+	return location
 }
 
-func CreatedNeededDirectories() {
+func CreatedNeededDirectories() error {
 	if _, err := os.Stat("./public"); os.IsNotExist(err) {
-		os.Mkdir("./public", 0755)
+		if err = os.Mkdir("./public", 0755); err != nil {
+			return MakeError(err, "CreatedNeededDirectories")
+		}
 	}
 
 	if _, err := os.Stat("./pem/board"); os.IsNotExist(err) {
-		os.MkdirAll("./pem/board", 0700)
+		if err = os.MkdirAll("./pem/board", 0700); err != nil {
+			return MakeError(err, "CreatedNeededDirectories")
+		}
 	}
+
+	return nil
 }
 
-func LoadThemes() {
-	// get list of themes
+func LoadThemes() error {
 	themes, err := ioutil.ReadDir("./static/css/themes")
+
 	if err != nil {
 		MakeError(err, "LoadThemes")
 	}
@@ -278,15 +249,16 @@ func LoadThemes() {
 			config.Themes = append(config.Themes, strings.TrimSuffix(f.Name(), e))
 		}
 	}
+
+	return nil
 }
 
 func GetBoardAuth(board string) ([]string, error) {
 	var auth []string
-
-	query := `select type from actorauth where board=$1`
-
 	var rows *sql.Rows
 	var err error
+
+	query := `select type from actorauth where board=$1`
 	if rows, err = config.DB.Query(query, board); err != nil {
 		return auth, MakeError(err, "GetBoardAuth")
 	}
@@ -306,7 +278,8 @@ func GetBoardAuth(board string) ([]string, error) {
 
 func MakeError(err error, msg string) error {
 	if err != nil {
-		s := fmt.Sprintf("%s: %s", msg, err.Error())
+		_, _, line, _ := runtime.Caller(1)
+		s := fmt.Sprintf("%s:%d : %s", msg, line, err.Error())
 		return errors.New(s)
 	}
 

@@ -1,6 +1,9 @@
 package db
 
-import "github.com/FChannel0/FChannel-Server/config"
+import (
+	"github.com/FChannel0/FChannel-Server/config"
+	"github.com/FChannel0/FChannel-Server/util"
+)
 
 type Report struct {
 	ID     string
@@ -14,57 +17,53 @@ type Removed struct {
 	Board string
 }
 
-func CreateLocalDeleteDB(id string, _type string) error {
-	query := `select id from removed where id=$1`
+func CloseLocalReport(id string, board string) error {
+	query := `delete from reported where id=$1 and board=$2`
+	_, err := config.DB.Exec(query, id, board)
 
-	rows, err := config.DB.Query(query, id)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	if rows.Next() {
-		var i string
-
-		if err := rows.Scan(&i); err != nil {
-			return err
-		}
-
-		if i != "" {
-			query := `update removed set type=$1 where id=$2`
-
-			if _, err := config.DB.Exec(query, _type, id); err != nil {
-				return err
-			}
-		}
-	} else {
-		query := `insert into removed (id, type) values ($1, $2)`
-
-		if _, err := config.DB.Exec(query, id, _type); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return util.MakeError(err, "CloseLocalReportDB")
 }
 
-func GetLocalDeleteDB() ([]Removed, error) {
+func CreateLocalDelete(id string, _type string) error {
+	var i string
+
+	query := `select id from removed where id=$1`
+	if err := config.DB.QueryRow(query, id).Scan(&i); err != nil {
+		query := `insert into removed (id, type) values ($1, $2)`
+		if _, err := config.DB.Exec(query, id, _type); err != nil {
+			return util.MakeError(err, "CreateLocalDeleteDB")
+		}
+	}
+
+	query = `update removed set type=$1 where id=$2`
+	_, err := config.DB.Exec(query, _type, id)
+
+	return util.MakeError(err, "CreateLocalDeleteDB")
+}
+
+func CreateLocalReport(id string, board string, reason string) error {
+	query := `insert into reported (id, count, board, reason) values ($1, $2, $3, $4)`
+	_, err := config.DB.Exec(query, id, 1, board, reason)
+
+	return util.MakeError(err, "CreateLocalReportDB")
+}
+
+func GetLocalDelete() ([]Removed, error) {
 	var deleted []Removed
 
 	query := `select id, type from removed`
-
 	rows, err := config.DB.Query(query)
+
 	if err != nil {
-		return deleted, err
+		return deleted, util.MakeError(err, "GetLocalDeleteDB")
 	}
 
 	defer rows.Close()
-
 	for rows.Next() {
 		var r Removed
 
 		if err := rows.Scan(&r.ID, &r.Type); err != nil {
-			return deleted, err
+			return deleted, util.MakeError(err, "GetLocalDeleteDB")
 		}
 
 		deleted = append(deleted, r)
@@ -73,69 +72,26 @@ func GetLocalDeleteDB() ([]Removed, error) {
 	return deleted, nil
 }
 
-func CreateLocalReportDB(id string, board string, reason string) error {
-	query := `select id, count from reported where id=$1 and board=$2`
-
-	rows, err := config.DB.Query(query, id, board)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	if rows.Next() {
-		var i string
-		var count int
-
-		if err := rows.Scan(&i, &count); err != nil {
-			return err
-		}
-
-		if i != "" {
-			count = count + 1
-			query := `update reported set count=$1 where id=$2`
-
-			if _, err := config.DB.Exec(query, count, id); err != nil {
-				return err
-			}
-		}
-	} else {
-		query := `insert into reported (id, count, board, reason) values ($1, $2, $3, $4)`
-
-		if _, err := config.DB.Exec(query, id, 1, board, reason); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func GetLocalReportDB(board string) ([]Report, error) {
+func GetLocalReport(board string) ([]Report, error) {
 	var reported []Report
 
 	query := `select id, count, reason from reported where board=$1`
-
 	rows, err := config.DB.Query(query, board)
-	if err != nil {
-		return reported, err
-	}
-	defer rows.Close()
 
+	if err != nil {
+		return reported, util.MakeError(err, "GetLocalReportDB")
+	}
+
+	defer rows.Close()
 	for rows.Next() {
 		var r Report
 
 		if err := rows.Scan(&r.ID, &r.Count, &r.Reason); err != nil {
-			return reported, err
+			return reported, util.MakeError(err, "GetLocalReportDB")
 		}
 
 		reported = append(reported, r)
 	}
 
 	return reported, nil
-}
-
-func CloseLocalReportDB(id string, board string) error {
-	query := `delete from reported where id=$1 and board=$2`
-
-	_, err := config.DB.Exec(query, id, board)
-	return err
 }

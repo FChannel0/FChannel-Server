@@ -2,11 +2,9 @@ package db
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"regexp"
 	"strings"
@@ -15,7 +13,6 @@ import (
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/util"
-	"github.com/FChannel0/FChannel-Server/webfinger"
 	_ "github.com/lib/pq"
 )
 
@@ -25,8 +22,7 @@ type NewsItem struct {
 	Time    int
 }
 
-// ConnectDB connects to the PostgreSQL database configured.
-func ConnectDB() error {
+func Connect() error {
 	host := config.DBHost
 	port := config.DBPort
 	user := config.DBUser
@@ -37,89 +33,98 @@ func ConnectDB() error {
 		"dbname=%s sslmode=disable", host, port, user, password, dbname)
 
 	_db, err := sql.Open("postgres", psqlInfo)
+
 	if err != nil {
-		return err
+		return util.MakeError(err, "Connect")
 	}
 
 	if err := _db.Ping(); err != nil {
-		return err
+		return util.MakeError(err, "Connect")
 	}
 
-	fmt.Println("Successfully connected DB")
+	config.Log.Println("Successfully connected DB")
 
 	config.DB = _db
+
 	return nil
 }
 
-// Close closes the database connection.
 func Close() error {
-	return config.DB.Close()
+	err := config.DB.Close()
+
+	return util.MakeError(err, "Close")
 }
 
 func RunDatabaseSchema() error {
 	query, err := ioutil.ReadFile("databaseschema.psql")
 	if err != nil {
-		return err
+		return util.MakeError(err, "RunDatabaseSchema")
 	}
 
 	_, err = config.DB.Exec(string(query))
-	return err
+	return util.MakeError(err, "RunDatabaseSchema")
 }
 
-func CreateNewBoardDB(actor activitypub.Actor) (activitypub.Actor, error) {
-	query := `insert into actor (type, id, name, preferedusername, inbox, outbox, following, followers, summary, restricted) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
-
-	_, err := config.DB.Exec(query, actor.Type, actor.Id, actor.Name, actor.PreferredUsername, actor.Inbox, actor.Outbox, actor.Following, actor.Followers, actor.Summary, actor.Restricted)
-
-	if err != nil {
-		// TODO: board exists error
-		return activitypub.Actor{}, err
+func CreateNewBoard(actor activitypub.Actor) (activitypub.Actor, error) {
+	if _, err := activitypub.GetActorFromDB(actor.Id); err == nil {
+		return activitypub.Actor{}, util.MakeError(err, "CreateNewBoardDB")
 	} else {
-		fmt.Println("board added")
+		query := `insert into actor (type, id, name, preferedusername, inbox, outbox, following, followers, summary, restricted) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+		_, err := config.DB.Exec(query, actor.Type, actor.Id, actor.Name, actor.PreferredUsername, actor.Inbox, actor.Outbox, actor.Following, actor.Followers, actor.Summary, actor.Restricted)
+
+		if err != nil {
+			return activitypub.Actor{}, util.MakeError(err, "CreateNewBoardDB")
+		}
+
+		config.Log.Println("board added")
 
 		for _, e := range actor.AuthRequirement {
 			query = `insert into actorauth (type, board) values ($1, $2)`
-
 			if _, err := config.DB.Exec(query, e, actor.Name); err != nil {
-				return activitypub.Actor{}, err
+				return activitypub.Actor{}, util.MakeError(err, "CreateNewBoardDB")
 			}
 		}
 
-		var verify Verify
+		var verify util.Verify
 
-		verify.Identifier = actor.Id
-		verify.Code = util.CreateKey(50)
 		verify.Type = "admin"
-
-		CreateVerification(verify)
-
 		verify.Identifier = actor.Id
-		verify.Code = util.CreateKey(50)
+
+		if verify.Code, err = util.CreateKey(50); err != nil {
+			return activitypub.Actor{}, util.MakeError(err, "CreateNewBoardDB")
+		}
+
+		if err := verify.Create(); err != nil {
+			return activitypub.Actor{}, util.MakeError(err, "CreateNewBoardDB")
+		}
+
 		verify.Type = "janitor"
-
-		CreateVerification(verify)
-
 		verify.Identifier = actor.Id
-		verify.Code = util.CreateKey(50)
-		verify.Type = "post"
 
-		CreateVerification(verify)
+		if verify.Code, err = util.CreateKey(50); err != nil {
+			return activitypub.Actor{}, util.MakeError(err, "CreateNewBoardDB")
+		}
 
-		var nverify Verify
+		if err := verify.Create(); err != nil {
+			return activitypub.Actor{}, util.MakeError(err, "CreateNewBoardDB")
+		}
+
+		var nverify util.Verify
 		nverify.Board = actor.Id
 		nverify.Identifier = "admin"
 		nverify.Type = "admin"
-		CreateBoardMod(nverify)
+
+		if err := nverify.CreateBoardMod(); err != nil {
+			return activitypub.Actor{}, util.MakeError(err, "CreateNewBoardDB")
+		}
 
 		nverify.Board = actor.Id
 		nverify.Identifier = "janitor"
 		nverify.Type = "janitor"
-		CreateBoardMod(nverify)
 
-		nverify.Board = actor.Id
-		nverify.Identifier = "post"
-		nverify.Type = "post"
-		CreateBoardMod(nverify)
+		if err := nverify.CreateBoardMod(); err != nil {
+			return activitypub.Actor{}, util.MakeError(err, "CreateNewBoardDB")
+		}
 
 		activitypub.CreatePem(actor)
 
@@ -128,165 +133,90 @@ func CreateNewBoardDB(actor activitypub.Actor) (activitypub.Actor, error) {
 			var nActivity activitypub.Activity
 
 			nActor, err := activitypub.GetActorFromDB(config.Domain)
+
 			if err != nil {
-				return actor, err
+				return actor, util.MakeError(err, "CreateNewBoardDB")
 			}
 
 			nActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 			nActivity.Type = "Follow"
 			nActivity.Actor = &nActor
 			nActivity.Object = &nObject
-
 			mActor, err := activitypub.GetActorFromDB(actor.Id)
+
 			if err != nil {
-				return actor, err
+				return actor, util.MakeError(err, "CreateNewBoardDB")
 			}
 
 			nActivity.Object.Actor = mActor.Id
 			nActivity.To = append(nActivity.To, actor.Id)
 
-			response := AcceptFollow(nActivity)
-			if _, err := SetActorFollowingDB(response); err != nil {
-				return actor, err
+			activityRequest := nActivity.AcceptFollow()
+
+			if _, err := activityRequest.SetActorFollowing(); err != nil {
+				return actor, util.MakeError(err, "CreateNewBoardDB")
 			}
-			if err := MakeActivityRequest(nActivity); err != nil {
-				return actor, err
+
+			if err := activityRequest.MakeRequestInbox(); err != nil {
+				return actor, util.MakeError(err, "CreateNewBoardDB")
 			}
 		}
-
 	}
 
 	return actor, nil
 }
 
 func RemovePreviewFromFile(id string) error {
+	var href string
+
 	query := `select href from activitystream where id in (select preview from activitystream where id=$1)`
-	rows, err := config.DB.Query(query, id)
-	if err != nil {
-		return err
+	if err := config.DB.QueryRow(query, id).Scan(&href); err != nil {
+		return nil
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var href string
+	href = strings.Replace(href, config.Domain+"/", "", 1)
 
-		if err := rows.Scan(&href); err != nil {
-			return err
+	if href != "static/notfound.png" {
+		if _, err := os.Stat(href); err != nil {
+			return util.MakeError(err, "RemovePreviewFromFile")
 		}
 
-		href = strings.Replace(href, config.Domain+"/", "", 1)
-
-		if href != "static/notfound.png" {
-			_, err = os.Stat(href)
-			if err == nil {
-				return os.Remove(href)
-			}
-			return err
-		}
+		err := os.Remove(href)
+		return util.MakeError(err, "RemovePreviewFromFile")
 	}
 
 	obj := activitypub.ObjectBase{Id: id}
-	return obj.DeletePreview()
-}
-
-func GetRandomCaptcha() (string, error) {
-	var verify string
-
-	query := `select identifier from verification where type='captcha' order by random() limit 1`
-
-	rows, err := config.DB.Query(query)
-	if err != nil {
-		return verify, err
-	}
-	defer rows.Close()
-
-	rows.Next()
-	if err := rows.Scan(&verify); err != nil {
-		return verify, err
-	}
-
-	return verify, nil
-}
-
-func GetCaptchaTotal() (int, error) {
-	query := `select count(*) from verification where type='captcha'`
-
-	rows, err := config.DB.Query(query)
-	if err != nil {
-		return 0, err
-	}
-
-	defer rows.Close()
-
-	var count int
-	for rows.Next() {
-		if err := rows.Scan(&count); err != nil {
-			return count, err
-		}
-	}
-
-	return count, nil
-}
-
-func GetCaptchaCodeDB(verify string) (string, error) {
-	query := `select code from verification where identifier=$1 limit 1`
-
-	rows, err := config.DB.Query(query, verify)
-	if err != nil {
-		return "", err
-	}
-	defer rows.Close()
-
-	var code string
-
-	rows.Next()
-	if err := rows.Scan(&code); err != nil {
-		fmt.Println("Could not get verification captcha")
-	}
-
-	return code, nil
-}
-
-func DeleteCaptchaCodeDB(verify string) error {
-	query := `delete from verification where identifier=$1`
-
-	_, err := config.DB.Exec(query, verify)
-	if err != nil {
-		return err
-	}
-
-	return os.Remove("./" + verify)
+	err := obj.DeletePreview()
+	return util.MakeError(err, "RemovePreviewFromFile")
 }
 
 //if limit less than 1 return all news items
-func GetNewsFromDB(limit int) ([]NewsItem, error) {
+func GetNews(limit int) ([]NewsItem, error) {
 	var news []NewsItem
-
 	var query string
-	if limit > 0 {
-		query = `select title, content, time from newsItem order by time desc limit $1`
-	} else {
-		query = `select title, content, time from newsItem order by time desc`
-	}
 
 	var rows *sql.Rows
 	var err error
+
 	if limit > 0 {
+		query = `select title, content, time from newsItem order by time desc limit $1`
 		rows, err = config.DB.Query(query, limit)
 	} else {
+		query = `select title, content, time from newsItem order by time desc`
 		rows, err = config.DB.Query(query)
 	}
 
 	if err != nil {
-		return news, nil
+		return news, util.MakeError(err, "GetNews")
 	}
 
 	defer rows.Close()
 	for rows.Next() {
-		n := NewsItem{}
 		var content string
+		n := NewsItem{}
+
 		if err := rows.Scan(&n.Title, &content, &n.Time); err != nil {
-			return news, err
+			return news, util.MakeError(err, "GetNews")
 		}
 
 		content = strings.ReplaceAll(content, "\n", "<br>")
@@ -298,21 +228,13 @@ func GetNewsFromDB(limit int) ([]NewsItem, error) {
 	return news, nil
 }
 
-func GetNewsItemFromDB(timestamp int) (NewsItem, error) {
+func GetNewsItem(timestamp int) (NewsItem, error) {
 	var news NewsItem
 	var content string
+
 	query := `select title, content, time from newsItem where time=$1 limit 1`
-
-	rows, err := config.DB.Query(query, timestamp)
-	if err != nil {
-		return news, err
-	}
-
-	defer rows.Close()
-
-	rows.Next()
-	if err := rows.Scan(&news.Title, &content, &news.Time); err != nil {
-		return news, err
+	if err := config.DB.QueryRow(query, timestamp).Scan(&news.Title, &content, &news.Time); err != nil {
+		return news, util.MakeError(err, "GetNewsItem")
 	}
 
 	content = strings.ReplaceAll(content, "\n", "<br>")
@@ -321,65 +243,54 @@ func GetNewsItemFromDB(timestamp int) (NewsItem, error) {
 	return news, nil
 }
 
-func deleteNewsItemFromDB(timestamp int) error {
+func DeleteNewsItem(timestamp int) error {
 	query := `delete from newsItem where time=$1`
 	_, err := config.DB.Exec(query, timestamp)
-	return err
+
+	return util.MakeError(err, "DeleteNewsItem")
 }
 
-func WriteNewsToDB(news NewsItem) error {
+func WriteNews(news NewsItem) error {
 	query := `insert into newsItem (title, content, time) values ($1, $2, $3)`
-
 	_, err := config.DB.Exec(query, news.Title, news.Content, time.Now().Unix())
-	return err
+
+	return util.MakeError(err, "WriteNews")
 }
 
-func AddInstanceToInactiveDB(instance string) error {
-	query := `select timestamp from inactive where instance=$1`
-
-	rows, err := config.DB.Query(query, instance)
-	if err != nil {
-		return err
-	}
-
+func AddInstanceToInactive(instance string) error {
 	var timeStamp string
-	defer rows.Close()
-	rows.Next()
-	rows.Scan(&timeStamp)
 
-	if timeStamp == "" {
+	query := `select timestamp from inactive where instance=$1`
+	if err := config.DB.QueryRow(query, instance).Scan(&timeStamp); err != nil {
 		query := `insert into inactive (instance, timestamp) values ($1, $2)`
-
 		_, err := config.DB.Exec(query, instance, time.Now().UTC().Format(time.RFC3339))
-		return err
+
+		return util.MakeError(err, "AddInstanceToInactive")
 	}
 
 	if !IsInactiveTimestamp(timeStamp) {
 		return nil
 	}
 
-	query = `delete from following where following like $1`
-	if _, err := config.DB.Exec(query, "%"+instance+"%"); err != nil {
-		return err
-	}
-
 	query = `delete from follower where follower like $1`
-	if _, err = config.DB.Exec(query, "%"+instance+"%"); err != nil {
-		return err
+	if _, err := config.DB.Exec(query, "%"+instance+"%"); err != nil {
+		return util.MakeError(err, "AddInstanceToInactive")
 	}
 
-	return DeleteInstanceFromInactiveDB(instance)
+	err := DeleteInstanceFromInactive(instance)
+	return util.MakeError(err, "AddInstanceToInactive")
 }
 
-func DeleteInstanceFromInactiveDB(instance string) error {
+func DeleteInstanceFromInactive(instance string) error {
 	query := `delete from inactive where instance=$1`
-
 	_, err := config.DB.Exec(query, instance)
-	return err
+
+	return util.MakeError(err, "DeleteInstanceFromInactive")
 }
 
 func IsInactiveTimestamp(timeStamp string) bool {
 	stamp, _ := time.Parse(time.RFC3339, timeStamp)
+
 	if time.Now().UTC().Sub(stamp).Hours() > 48 {
 		return true
 	}
@@ -387,45 +298,9 @@ func IsInactiveTimestamp(timeStamp string) bool {
 	return false
 }
 
-func ArchivePosts(actor activitypub.Actor) error {
-	if actor.Id != "" && actor.Id != config.Domain {
-		col, err := actor.GetAllArchive(165)
-		if err != nil {
-			return err
-		}
-
-		for _, e := range col.OrderedItems {
-			for _, k := range e.Replies.OrderedItems {
-				if err := k.UpdateType("Archive"); err != nil {
-					return err
-				}
-			}
-
-			if err := e.UpdateType("Archive"); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func IsReplyInThread(inReplyTo string, id string) (bool, error) {
-	obj, _, err := webfinger.CheckValidActivity(inReplyTo)
-	if err != nil {
-		return false, err
-	}
-
-	for _, e := range obj.OrderedItems[0].Replies.OrderedItems {
-		if e.Id == id {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
 func IsReplyToOP(op string, link string) (string, bool, error) {
+	var id string
+
 	if op == link {
 		return link, true, nil
 	}
@@ -440,52 +315,22 @@ func IsReplyToOP(op string, link string) (string, bool, error) {
 	}
 
 	query := `select id from replies where id like $1 and inreplyto=$2`
-
-	rows, err := config.DB.Query(query, link, op)
-	if err != nil {
-		return op, false, err
-	}
-
-	defer rows.Close()
-
-	var id string
-	rows.Next()
-	if err := rows.Scan(&id); err != nil {
-		return id, false, err
+	if err := config.DB.QueryRow(query, link, op).Scan(&id); err != nil {
+		return op, false, nil
 	}
 
 	return id, id != "", nil
 }
 
 func GetReplyOP(link string) (string, error) {
-	query := `select id from replies where id in (select inreplyto from replies where id=$1) and inreplyto=''`
-
-	rows, err := config.DB.Query(query, link)
-	if err != nil {
-		return "", err
-	}
-	defer rows.Close()
-
 	var id string
 
-	rows.Next()
-	err = rows.Scan(&id)
-	return id, err
-}
-
-func StartupArchive() error {
-	for _, e := range webfinger.FollowingBoards {
-		actor, err := activitypub.GetActorFromDB(e.Id)
-		if err != nil {
-			return err
-		}
-
-		if err := ArchivePosts(actor); err != nil {
-			return err
-		}
+	query := `select id from replies where id in (select inreplyto from replies where id=$1) and inreplyto=''`
+	if err := config.DB.QueryRow(query, link).Scan(&id); err != nil {
+		return "", nil
 	}
 
-	return nil
+	return id, nil
 }
 
 func CheckInactive() {
@@ -496,54 +341,59 @@ func CheckInactive() {
 }
 
 func CheckInactiveInstances() (map[string]string, error) {
+	var rows *sql.Rows
+	var err error
+
 	instances := make(map[string]string)
+
 	query := `select following from following`
-
-	rows, err := config.DB.Query(query)
-	if err != nil {
-		return instances, err
+	if rows, err = config.DB.Query(query); err != nil {
+		return instances, util.MakeError(err, "CheckInactiveInstances")
 	}
-	defer rows.Close()
 
+	defer rows.Close()
 	for rows.Next() {
 		var instance string
+
 		if err := rows.Scan(&instance); err != nil {
-			return instances, err
+			return instances, util.MakeError(err, "CheckInactiveInstances")
 		}
 
 		instances[instance] = instance
 	}
 
 	query = `select follower from follower`
-	rows, err = config.DB.Query(query)
-	if err != nil {
-		return instances, err
+	if rows, err = config.DB.Query(query); err != nil {
+		return instances, util.MakeError(err, "CheckInactiveInstances")
 	}
-	defer rows.Close()
 
+	defer rows.Close()
 	for rows.Next() {
 		var instance string
+
 		if err := rows.Scan(&instance); err != nil {
-			return instances, err
+			return instances, util.MakeError(err, "CheckInactiveInstances")
 		}
 
 		instances[instance] = instance
 	}
 
 	re := regexp.MustCompile(config.Domain + `(.+)?`)
+
 	for _, e := range instances {
-		actor, err := webfinger.GetActor(e)
+		actor, err := activitypub.GetActor(e)
+
 		if err != nil {
-			return instances, err
+			return instances, util.MakeError(err, "CheckInactiveInstances")
 		}
 
 		if actor.Id == "" && !re.MatchString(e) {
-			if err := AddInstanceToInactiveDB(e); err != nil {
-				return instances, err
+			if err := AddInstanceToInactive(e); err != nil {
+				return instances, util.MakeError(err, "CheckInactiveInstances")
 			}
 		} else {
-			if err := DeleteInstanceFromInactiveDB(e); err != nil {
-				return instances, err
+			if err := DeleteInstanceFromInactive(e); err != nil {
+				return instances, util.MakeError(err, "CheckInactiveInstances")
 			}
 		}
 	}
@@ -552,12 +402,12 @@ func CheckInactiveInstances() (map[string]string, error) {
 }
 
 func GetAdminAuth() (string, string, error) {
-	query := fmt.Sprintf("select identifier, code from boardaccess where board='%s' and type='admin'", config.Domain)
-
 	var code string
 	var identifier string
-	if err := config.DB.QueryRow(query).Scan(&identifier, &code); err != nil {
-		return "", "", err
+
+	query := `select identifier, code from boardaccess where board=$1 and type='admin'`
+	if err := config.DB.QueryRow(query, config.Domain).Scan(&identifier, &code); err != nil {
+		return "", "", nil
 	}
 
 	return code, identifier, nil
@@ -567,175 +417,27 @@ func IsHashBanned(hash string) (bool, error) {
 	var h string
 
 	query := `select hash from bannedmedia where hash=$1`
-
 	_ = config.DB.QueryRow(query, hash).Scan(&h)
 
 	return h == hash, nil
 }
 
-func MakeCaptchas(total int) error {
-	dbtotal, err := GetCaptchaTotal()
-	if err != nil {
-		return err
-	}
-
-	difference := total - dbtotal
-
-	for i := 0; i < difference; i++ {
-		if err := CreateNewCaptcha(); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func GetActorReported(w http.ResponseWriter, r *http.Request, id string) error {
-	auth := r.Header.Get("Authorization")
-	verification := strings.Split(auth, " ")
-
-	if len(verification) < 2 {
-		w.WriteHeader(http.StatusBadRequest)
-		_, err := w.Write([]byte(""))
-		return err
-	}
-
-	if res, err := HasAuth(verification[1], id); err == nil && !res {
-		w.WriteHeader(http.StatusBadRequest)
-		_, err = w.Write([]byte(""))
-		return err
-	} else if err != nil {
-		return err
-	}
-
-	actor, _ := activitypub.GetActorFromDB(id)
-
-	var following activitypub.Collection
-	var err error
-
-	following.AtContext.Context = "https://www.w3.org/ns/activitystreams"
-	following.Type = "Collection"
-	following.TotalItems, err = actor.GetReportedTotal()
-	if err != nil {
-		return err
-	}
-
-	following.Items, err = actor.GetReported()
-	if err != nil {
-		return err
-	}
-
-	enc, err := json.MarshalIndent(following, "", "\t")
-	if err != nil {
-		return err
-	}
-
-	w.Header().Set("Content-Type", config.ActivityStreams)
-
-	_, err = w.Write(enc)
-	return err
-}
-
 func PrintAdminAuth() error {
-	identifier, code, err := GetAdminAuth()
+	code, identifier, err := GetAdminAuth()
+
 	if err != nil {
-		return err
+		return util.MakeError(err, "PrintAdminAuth")
 	}
 
-	fmt.Println("Mod key: " + config.Key)
-	fmt.Println("Admin Login: " + identifier + ", Code: " + code)
+	config.Log.Println("Mod key: " + config.Key)
+	config.Log.Println("Admin Login: " + identifier + ", Code: " + code)
 	return nil
 }
 
-func DeleteObjectRequest(id string) error {
-	var nObj activitypub.ObjectBase
-	var nActor activitypub.Actor
-	nObj.Id = id
-	nObj.Actor = nActor.Id
-
-	activity, err := webfinger.CreateActivity("Delete", nObj)
-	if err != nil {
-		return err
-	}
-
-	obj, err := nObj.GetFromPath()
-	if err != nil {
-		return err
-	}
-
-	actor, err := webfinger.FingerActor(obj.Actor)
-	if err != nil {
-		return err
-	}
-	activity.Actor = &actor
-	objActor, _ := webfinger.GetActor(obj.Actor)
-	followers, err := objActor.GetFollow()
-	if err != nil {
-		return err
-	}
-
-	for _, e := range followers {
-		activity.To = append(activity.To, e.Id)
-	}
-
-	following, err := objActor.GetFollowing()
-	if err != nil {
-		return err
-	}
-	for _, e := range following {
-		activity.To = append(activity.To, e.Id)
-	}
-
-	return MakeActivityRequest(activity)
-}
-
-func DeleteObjectAndRepliesRequest(id string) error {
-	var nObj activitypub.ObjectBase
-	var nActor activitypub.Actor
-	nObj.Id = id
-	nObj.Actor = nActor.Id
-
-	activity, err := webfinger.CreateActivity("Delete", nObj)
-	if err != nil {
-		return err
-	}
-
-	obj, err := nObj.GetCollectionFromPath()
-	if err != nil {
-		return err
-	}
-
-	activity.Actor.Id = obj.OrderedItems[0].Actor
-
-	activity.Object = &obj.OrderedItems[0]
-
-	objActor, _ := webfinger.GetActor(obj.OrderedItems[0].Actor)
-	followers, err := objActor.GetFollow()
-	if err != nil {
-		return err
-	}
-	for _, e := range followers {
-		activity.To = append(activity.To, e.Id)
-	}
-
-	following, err := objActor.GetFollowing()
-	if err != nil {
-		return err
-	}
-
-	for _, e := range following {
-		activity.To = append(activity.To, e.Id)
-	}
-
-	return MakeActivityRequest(activity)
-}
-
-// root actor is used to follow remote feeds that are not local
-//name, prefname, summary, auth requirements, restricted
-func InitInstance() {
+func InitInstance() error {
 	if config.InstanceName != "" {
-		if _, err := CreateNewBoardDB(*activitypub.CreateNewActor("", config.InstanceName, config.InstanceSummary, config.AuthReq, false)); err != nil {
-			//panic(err)
+		if _, err := CreateNewBoard(*activitypub.CreateNewActor("", config.InstanceName, config.InstanceSummary, config.AuthReq, false)); err != nil {
+			return util.MakeError(err, "InitInstance")
 		}
 
 		if config.PublicIndexing == "true" {
@@ -743,4 +445,6 @@ func InitInstance() {
 			//AddInstanceToIndex(config.Domain)
 		}
 	}
+
+	return nil
 }

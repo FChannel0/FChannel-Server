@@ -4,6 +4,7 @@ import (
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
+	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
 )
@@ -11,7 +12,7 @@ import (
 func Index(ctx *fiber.Ctx) error {
 	actor, err := activitypub.GetActorFromDB(config.Domain)
 	if err != nil {
-		return err
+		return util.MakeError(err, "Index")
 	}
 
 	// this is a activitpub json request return json instead of html page
@@ -22,18 +23,19 @@ func Index(ctx *fiber.Ctx) error {
 
 	var data PageData
 
-	col, err := webfinger.GetCollectionFromReq("https://fchan.xyz/followers")
+	reqActivity := activitypub.Activity{Id: "https://fchan.xyz/followers"}
+	col, err := reqActivity.GetCollection()
 	if err != nil {
-		return err
+		return util.MakeError(err, "Index")
 	}
 
 	if len(col.Items) > 0 {
 		data.InstanceIndex = col.Items
 	}
 
-	data.NewsItems, err = db.GetNewsFromDB(3)
+	data.NewsItems, err = db.GetNews(3)
 	if err != nil {
-		return err
+		return util.MakeError(err, "Index")
 	}
 
 	data.Title = "Welcome to " + actor.PreferredUsername
@@ -42,7 +44,7 @@ func Index(ctx *fiber.Ctx) error {
 	data.Board.Name = ""
 	data.Key = config.Key
 	data.Board.Domain = config.Domain
-	data.Board.ModCred, _ = db.GetPasswordFromSession(ctx)
+	data.Board.ModCred, _ = util.GetPasswordFromSession(ctx)
 	data.Board.Actor = actor
 	data.Board.Post.Actor = actor.Id
 	data.Board.Restricted = actor.Restricted

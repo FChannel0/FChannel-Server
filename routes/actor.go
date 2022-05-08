@@ -3,7 +3,6 @@ package routes
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
-	"github.com/FChannel0/FChannel-Server/db"
 	"github.com/FChannel0/FChannel-Server/post"
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
@@ -21,21 +19,21 @@ import (
 func ActorInbox(ctx *fiber.Ctx) error {
 	activity, err := activitypub.GetActivityFromJson(ctx)
 	if err != nil {
-		return err
+		return util.MakeError(err, "ActorInbox")
 	}
 
 	if activity.Actor.PublicKey.Id == "" {
-		nActor, err := webfinger.FingerActor(activity.Actor.Id)
+		nActor, err := activitypub.FingerActor(activity.Actor.Id)
 		if err != nil {
-			return err
+			return util.MakeError(err, "ActorInbox")
 		}
 
 		activity.Actor = &nActor
 	}
 
-	if !db.VerifyHeaderSignature(ctx, *activity.Actor) {
+	if !activity.Actor.VerifyHeaderSignature(ctx) {
 		response := activity.Reject()
-		return db.MakeActivityRequest(response)
+		return response.MakeRequestInbox()
 	}
 
 	switch activity.Type {
@@ -44,9 +42,10 @@ func ActorInbox(ctx *fiber.Ctx) error {
 			actor := activitypub.Actor{Id: e}
 			if res, err := actor.IsLocal(); err == nil && res {
 				if res, err := activity.Actor.IsLocal(); err == nil && res {
-					col, err := activity.Object.GetCollection()
+					reqActivity := activitypub.Activity{Id: activity.Object.Id}
+					col, err := reqActivity.GetCollection()
 					if err != nil {
-						return err
+						return util.MakeError(err, "ActorInbox")
 					}
 
 					if len(col.OrderedItems) < 1 {
@@ -54,24 +53,24 @@ func ActorInbox(ctx *fiber.Ctx) error {
 					}
 
 					if err := activity.Object.WriteCache(); err != nil {
-						return err
+						return util.MakeError(err, "ActorInbox")
 					}
 
 					actor, err := activitypub.GetActorFromDB(e)
 					if err != nil {
-						return err
+						return util.MakeError(err, "ActorInbox")
 					}
 
-					if err := db.ArchivePosts(actor); err != nil {
-						return err
+					if err := actor.ArchivePosts(); err != nil {
+						return util.MakeError(err, "ActorInbox")
 					}
 
 					//SendToFollowers(e, activity)
 				} else if err != nil {
-					return err
+					return util.MakeError(err, "ActorInbox")
 				}
 			} else if err != nil {
-				return err
+				return util.MakeError(err, "ActorInbox")
 			}
 		}
 
@@ -81,23 +80,23 @@ func ActorInbox(ctx *fiber.Ctx) error {
 		for _, e := range activity.To {
 			actor, err := activitypub.GetActorFromDB(e)
 			if err != nil {
-				return err
+				return util.MakeError(err, "")
 			}
 
 			if actor.Id != "" && actor.Id != config.Domain {
 				if activity.Object.Replies.OrderedItems != nil {
 					for _, k := range activity.Object.Replies.OrderedItems {
 						if err := k.Tombstone(); err != nil {
-							return err
+							return util.MakeError(err, "ActorInbox")
 						}
 					}
 				}
 
 				if err := activity.Object.Tombstone(); err != nil {
-					return err
+					return util.MakeError(err, "ActorInbox")
 				}
 				if err := actor.UnArchiveLast(); err != nil {
-					return err
+					return util.MakeError(err, "ActorInbox")
 				}
 				break
 			}
@@ -107,26 +106,26 @@ func ActorInbox(ctx *fiber.Ctx) error {
 	case "Follow":
 		for _, e := range activity.To {
 			if res, err := activitypub.GetActorFromDB(e); err == nil && res.Id != "" {
-				response := db.AcceptFollow(activity)
-				response, err := response.SetFollower()
+				response := activity.AcceptFollow()
+				response, err := response.SetActorFollower()
 				if err != nil {
-					return err
+					return util.MakeError(err, "ActorInbox")
 				}
 
-				if err := db.MakeActivityRequest(response); err != nil {
-					return err
+				if err := response.MakeRequestInbox(); err != nil {
+					return util.MakeError(err, "ActorInbox")
 				}
 
 				alreadyFollow := false
 				alreadyFollowing := false
 				autoSub, err := response.Actor.GetAutoSubscribe()
 				if err != nil {
-					return err
+					return util.MakeError(err, "ActorInbox")
 				}
 
 				following, err := response.Actor.GetFollowing()
 				if err != nil {
-					return err
+					return util.MakeError(err, "ActorInbox")
 				}
 
 				for _, e := range following {
@@ -135,14 +134,15 @@ func ActorInbox(ctx *fiber.Ctx) error {
 					}
 				}
 
-				actor, err := webfinger.FingerActor(response.Object.Actor)
+				actor, err := activitypub.FingerActor(response.Object.Actor)
 				if err != nil {
-					return err
+					return util.MakeError(err, "ActorInbox")
 				}
 
-				remoteActorFollowingCol, err := webfinger.GetCollectionFromReq(actor.Following)
+				reqActivity := activitypub.Activity{Id: actor.Following}
+				remoteActorFollowingCol, err := reqActivity.GetCollection()
 				if err != nil {
-					return err
+					return util.MakeError(err, "ActorInbox")
 				}
 
 				for _, e := range remoteActorFollowingCol.Items {
@@ -152,34 +152,34 @@ func ActorInbox(ctx *fiber.Ctx) error {
 				}
 
 				if autoSub && !alreadyFollow && alreadyFollowing {
-					followActivity, err := db.MakeFollowActivity(response.Actor.Id, response.Object.Actor)
+					followActivity, err := response.Actor.MakeFollowActivity(response.Object.Actor)
 					if err != nil {
-						return err
+						return util.MakeError(err, "ActorInbox")
 					}
 
-					if res, err := webfinger.FingerActor(response.Object.Actor); err == nil && res.Id != "" {
-						if err := db.MakeActivityRequestOutbox(followActivity); err != nil {
-							return err
+					if res, err := activitypub.FingerActor(response.Object.Actor); err == nil && res.Id != "" {
+						if err := followActivity.MakeRequestOutbox(); err != nil {
+							return util.MakeError(err, "ActorInbox")
 						}
 					} else if err != nil {
-						return err
+						return util.MakeError(err, "ActorInbox")
 					}
 				}
 			} else if err != nil {
-				return err
+				return util.MakeError(err, "ActorInbox")
 			} else {
-				fmt.Println("follow request for rejected")
+				config.Log.Println("follow request for rejected")
 				response := activity.Reject()
-				return db.MakeActivityRequest(response)
+				return response.MakeRequestInbox()
 			}
 		}
 		break
 
 	case "Reject":
 		if activity.Object.Object.Type == "Follow" {
-			fmt.Println("follow rejected")
-			if _, err := db.SetActorFollowingDB(activity); err != nil {
-				return err
+			config.Log.Println("follow rejected")
+			if _, err := activity.SetActorFollowing(); err != nil {
+				return util.MakeError(err, "ActorInbox")
 			}
 		}
 		break
@@ -192,7 +192,7 @@ func ActorOutbox(ctx *fiber.Ctx) error {
 	//var activity activitypub.Activity
 	actor, err := webfinger.GetActorFromPath(ctx.Path(), "/")
 	if err != nil {
-		return err
+		return util.MakeError(err, "ActorOutbox")
 	}
 
 	if activitypub.AcceptActivity(ctx.Get("Accept")) {

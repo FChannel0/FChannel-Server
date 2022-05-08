@@ -5,7 +5,7 @@ import (
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
-	"github.com/FChannel0/FChannel-Server/db"
+	"github.com/FChannel0/FChannel-Server/post"
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
@@ -36,23 +36,23 @@ func PostGet(ctx *fiber.Ctx) error {
 	if re.MatchString(ctx.Path()) { // if non local actor post
 		name := activitypub.GetActorFollowNameFromPath(ctx.Path())
 
-		followActors, err := webfinger.GetActorsFollowFromName(actor, name)
+		followActors, err := actor.GetFollowFromName(name)
 		if err != nil {
-			return err
+			return util.MakeError(err, "PostGet")
 		}
 
 		followCollection, err := activitypub.GetActorsFollowPostFromId(followActors, postId)
 		if err != nil {
-			return err
+			return util.MakeError(err, "PostGet")
 		}
 
 		if len(followCollection.OrderedItems) > 0 {
 			data.Board.InReplyTo = followCollection.OrderedItems[0].Id
 			data.Posts = append(data.Posts, followCollection.OrderedItems[0])
 
-			actor, err := webfinger.FingerActor(data.Board.InReplyTo)
+			actor, err := activitypub.FingerActor(data.Board.InReplyTo)
 			if err != nil {
-				return err
+				return util.MakeError(err, "PostGet")
 			}
 
 			data.Board.Post.Actor = actor.Id
@@ -61,7 +61,7 @@ func PostGet(ctx *fiber.Ctx) error {
 		obj := activitypub.ObjectBase{Id: inReplyTo}
 		collection, err := obj.GetCollectionFromPath()
 		if err != nil {
-			return err
+			return util.MakeError(err, "PostGet")
 		}
 
 		if collection.Actor.Id != "" {
@@ -83,21 +83,21 @@ func PostGet(ctx *fiber.Ctx) error {
 	data.Board.To = actor.Outbox
 	data.Board.Actor = actor
 	data.Board.Summary = actor.Summary
-	data.Board.ModCred, _ = db.GetPasswordFromSession(ctx)
+	data.Board.ModCred, _ = util.GetPasswordFromSession(ctx)
 	data.Board.Domain = config.Domain
 	data.Board.Restricted = actor.Restricted
 	data.ReturnTo = "feed"
 
-	capt, err := db.GetRandomCaptcha()
+	capt, err := util.GetRandomCaptcha()
 	if err != nil {
-		return err
+		return util.MakeError(err, "PostGet")
 	}
 	data.Board.Captcha = config.Domain + "/" + capt
-	data.Board.CaptchaCode = util.GetCaptchaCode(data.Board.Captcha)
+	data.Board.CaptchaCode = post.GetCaptchaCode(data.Board.Captcha)
 
 	data.Instance, err = activitypub.GetActorFromDB(config.Domain)
 	if err != nil {
-		return err
+		return util.MakeError(err, "PostGet")
 	}
 
 	data.Key = config.Key
@@ -124,7 +124,7 @@ func CatalogGet(ctx *fiber.Ctx) error {
 	actorName := ctx.Params("actor")
 	actor, err := activitypub.GetActorByNameFromDB(actorName)
 	if err != nil {
-		return err
+		return util.MakeError(err, "CatalogGet")
 	}
 
 	collection, err := actor.GetCatalogCollection()
@@ -150,7 +150,7 @@ func CatalogGet(ctx *fiber.Ctx) error {
 	data.Board.To = actor.Outbox
 	data.Board.Actor = actor
 	data.Board.Summary = actor.Summary
-	data.Board.ModCred, _ = db.GetPasswordFromSession(ctx)
+	data.Board.ModCred, _ = util.GetPasswordFromSession(ctx)
 	data.Board.Domain = config.Domain
 	data.Board.Restricted = actor.Restricted
 	data.Key = config.Key
@@ -160,16 +160,16 @@ func CatalogGet(ctx *fiber.Ctx) error {
 
 	data.Instance, err = activitypub.GetActorFromDB(config.Domain)
 	if err != nil {
-		return err
+		return util.MakeError(err, "CatalogGet")
 	}
 
-	capt, err := db.GetRandomCaptcha()
+	capt, err := util.GetRandomCaptcha()
 	if err != nil {
-		return err
+		return util.MakeError(err, "CatalogGet")
 	}
 
 	data.Board.Captcha = config.Domain + "/" + capt
-	data.Board.CaptchaCode = util.GetCaptchaCode(data.Board.Captcha)
+	data.Board.CaptchaCode = post.GetCaptchaCode(data.Board.Captcha)
 
 	data.Title = "/" + data.Board.Name + "/ - catalog"
 

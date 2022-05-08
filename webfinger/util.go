@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
+	"github.com/FChannel0/FChannel-Server/util"
 )
 
 var Boards []Board
@@ -38,6 +39,7 @@ func (a BoardSortAsc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 func GetActorByNameFromBoardCollection(name string) activitypub.Actor {
 	var actor activitypub.Actor
+
 	boards, _ := GetBoardCollection()
 	for _, e := range boards {
 		if e.Actor.Name == name {
@@ -50,17 +52,21 @@ func GetActorByNameFromBoardCollection(name string) activitypub.Actor {
 
 func GetBoardCollection() ([]Board, error) {
 	var collection []Board
+
 	for _, e := range FollowingBoards {
 		var board Board
+
 		boardActor, err := activitypub.GetActorFromDB(e.Id)
+
 		if err != nil {
-			return collection, err
+			return collection, util.MakeError(err, "GetBoardCollection")
 		}
 
 		if boardActor.Id == "" {
-			boardActor, err = FingerActor(e.Id)
+			boardActor, err = activitypub.FingerActor(e.Id)
+
 			if err != nil {
-				return collection, err
+				return collection, util.MakeError(err, "GetBoardCollection")
 			}
 		}
 
@@ -69,6 +75,7 @@ func GetBoardCollection() ([]Board, error) {
 		board.Location = "/" + boardActor.Name
 		board.Actor = boardActor
 		board.Restricted = boardActor.Restricted
+
 		collection = append(collection, board)
 	}
 
@@ -78,11 +85,11 @@ func GetBoardCollection() ([]Board, error) {
 }
 
 func GetActorFromPath(location string, prefix string) (activitypub.Actor, error) {
+	var actor string
+
 	pattern := fmt.Sprintf("%s([^/\n]+)(/.+)?", prefix)
 	re := regexp.MustCompile(pattern)
 	match := re.FindStringSubmatch(location)
-
-	var actor string
 
 	if len(match) < 1 {
 		actor = "/"
@@ -97,8 +104,9 @@ func GetActorFromPath(location string, prefix string) (activitypub.Actor, error)
 	var nActor activitypub.Actor
 
 	nActor, err := activitypub.GetActorByNameFromDB(actor)
+
 	if err != nil {
-		return nActor, err
+		return nActor, util.MakeError(err, "GetActorFromPath")
 	}
 
 	if nActor.Id == "" {
@@ -106,4 +114,20 @@ func GetActorFromPath(location string, prefix string) (activitypub.Actor, error)
 	}
 
 	return nActor, nil
+}
+
+func StartupArchive() error {
+	for _, e := range FollowingBoards {
+		actor, err := activitypub.GetActorFromDB(e.Id)
+
+		if err != nil {
+			return util.MakeError(err, "StartupArchive")
+		}
+
+		if err := actor.ArchivePosts(); err != nil {
+			return util.MakeError(err, "StartupArchive")
+		}
+	}
+
+	return nil
 }

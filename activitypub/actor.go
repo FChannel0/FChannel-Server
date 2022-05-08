@@ -11,15 +11,19 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
-	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/gofiber/fiber/v2"
 )
+
+var ActorCache = make(map[string]Actor)
 
 func (actor Actor) AddFollower(follower string) error {
 	query := `insert into follower (id, follower) values ($1, $2)`
@@ -39,7 +43,7 @@ func (actor Actor) ActivitySign(signature string) (string, error) {
 
 	_, err := os.Stat(file)
 	if err != nil {
-		fmt.Println(`\n Unable to locate private key. Now,
+		config.Log.Println(`\n Unable to locate private key. Now,
 this means that you are now missing the proof that you are the
 owner of the "` + actor.Name + `" board. If you are the developer,
 then your job is just as easy as generating a new keypair, but
@@ -65,6 +69,75 @@ accepting your posts from your board from this site. Good luck ;)`)
 	return base64.StdEncoding.EncodeToString(cipher), nil
 }
 
+func (actor Actor) ArchivePosts() error {
+	if actor.Id != "" && actor.Id != config.Domain {
+		col, err := actor.GetAllArchive(165)
+
+		if err != nil {
+			return util.MakeError(err, "ArchivePosts")
+		}
+
+		for _, e := range col.OrderedItems {
+			for _, k := range e.Replies.OrderedItems {
+				if err := k.UpdateType("Archive"); err != nil {
+					return util.MakeError(err, "ArchivePosts")
+				}
+			}
+
+			if err := e.UpdateType("Archive"); err != nil {
+				return util.MakeError(err, "ArchivePosts")
+			}
+		}
+	}
+
+	return nil
+}
+
+func (actor Actor) AutoFollow() error {
+	nActor, _ := GetActor(actor.Id)
+	following, err := nActor.GetFollowing()
+
+	if err != nil {
+		return util.MakeError(err, "AutoFollow")
+	}
+
+	follower, err := nActor.GetFollow()
+
+	if err != nil {
+		return util.MakeError(err, "AutoFollow")
+	}
+
+	isFollowing := false
+
+	for _, e := range follower {
+		for _, k := range following {
+			if e.Id == k.Id {
+				isFollowing = true
+			}
+		}
+
+		if !isFollowing && e.Id != config.Domain && e.Id != nActor.Id {
+			followActivity, err := nActor.MakeFollowActivity(e.Id)
+
+			if err != nil {
+				return util.MakeError(err, "AutoFollow")
+			}
+
+			nActor, err := FingerActor(e.Id)
+
+			if err != nil {
+				return util.MakeError(err, "AutoFollow")
+			}
+
+			if nActor.Id != "" {
+				followActivity.MakeRequestOutbox()
+			}
+		}
+	}
+
+	return nil
+}
+
 func (actor Actor) DeleteCache() error {
 	query := `select id from cacheactivitystream where id in (select id from cacheactivitystream where actor=$1)`
 	rows, err := config.DB.Query(query, actor.Id)
@@ -88,6 +161,37 @@ func (actor Actor) DeleteCache() error {
 	return nil
 }
 
+func (actor Actor) GetAllArchive(offset int) (Collection, error) {
+	var nColl Collection
+	var result []ObjectBase
+
+	query := `select x.id, x.updated from (select id, updated from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, updated from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, updated from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc offset $2`
+	rows, err := config.DB.Query(query, actor.Id, offset)
+
+	if err != nil {
+		return nColl, util.MakeError(err, "GetAllArchive")
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		var post ObjectBase
+
+		if err := rows.Scan(&post.Id, &post.Updated); err != nil {
+			return nColl, util.MakeError(err, "GetAllArchive")
+		}
+
+		post.Replies, _, _, err = post.GetReplies()
+
+		result = append(result, post)
+	}
+
+	nColl.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+
+	nColl.OrderedItems = result
+
+	return nColl, nil
+}
+
 func (actor Actor) GetAutoSubscribe() (bool, error) {
 	var subscribed bool
 
@@ -97,6 +201,188 @@ func (actor Actor) GetAutoSubscribe() (bool, error) {
 	}
 
 	return subscribed, nil
+}
+
+func (actor Actor) GetCatalogCollection() (Collection, error) {
+	var nColl Collection
+	var result []ObjectBase
+
+	var err error
+	var rows *sql.Rows
+
+	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc limit 165`
+	if rows, err = config.DB.Query(query, actor.Id); err != nil {
+		return nColl, util.MakeError(err, "GetCatalogCollection")
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		var post ObjectBase
+		var actor Actor
+
+		var attch ObjectBase
+		post.Attachment = append(post.Attachment, attch)
+
+		var prev NestedObjectBase
+		post.Preview = &prev
+
+		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &post.Attachment[0].Id, &post.Preview.Id, &actor.Id, &post.TripCode, &post.Sensitive)
+
+		if err != nil {
+			return nColl, util.MakeError(err, "GetCatalogCollection")
+		}
+
+		post.Actor = actor.Id
+
+		var replies CollectionBase
+
+		post.Replies = replies
+
+		post.Replies.TotalItems, post.Replies.TotalImgs, err = post.GetRepliesCount()
+
+		if err != nil {
+			return nColl, util.MakeError(err, "GetCatalogCollection")
+		}
+
+		post.Attachment, err = post.Attachment[0].GetAttachment()
+
+		if err != nil {
+			return nColl, util.MakeError(err, "GetCatalogCollection")
+		}
+
+		post.Preview, err = post.Preview.GetPreview()
+
+		if err != nil {
+			return nColl, util.MakeError(err, "GetCatalogCollection")
+		}
+
+		result = append(result, post)
+	}
+
+	nColl.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+
+	nColl.OrderedItems = result
+
+	return nColl, nil
+}
+
+func (actor Actor) GetCollectionPage(page int) (Collection, error) {
+	var nColl Collection
+	var result []ObjectBase
+
+	var err error
+	var rows *sql.Rows
+
+	query := `select count (x.id) over(), x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc limit 15 offset $2`
+
+	if rows, err = config.DB.Query(query, actor.Id, page*15); err != nil {
+		return nColl, util.MakeError(err, "GetCollectionPage")
+	}
+
+	var count int
+	defer rows.Close()
+	for rows.Next() {
+		var post ObjectBase
+		var actor Actor
+
+		var attch ObjectBase
+		post.Attachment = append(post.Attachment, attch)
+
+		var prev NestedObjectBase
+		post.Preview = &prev
+
+		err = rows.Scan(&count, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &post.Attachment[0].Id, &post.Preview.Id, &actor.Id, &post.TripCode, &post.Sensitive)
+
+		if err != nil {
+			return nColl, util.MakeError(err, "GetCollectionPage")
+		}
+
+		post.Actor = actor.Id
+
+		post.Replies, post.Replies.TotalItems, post.Replies.TotalImgs, err = post.GetRepliesLimit(5)
+
+		if err != nil {
+			return nColl, util.MakeError(err, "GetCollectionPage")
+		}
+
+		post.Attachment, err = post.Attachment[0].GetAttachment()
+
+		if err != nil {
+			return nColl, util.MakeError(err, "GetCollectionPage")
+		}
+
+		post.Preview, err = post.Preview.GetPreview()
+
+		if err != nil {
+			return nColl, util.MakeError(err, "GetCollectionPage")
+		}
+
+		result = append(result, post)
+	}
+
+	nColl.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+
+	nColl.TotalItems = count
+
+	nColl.OrderedItems = result
+
+	return nColl, nil
+}
+
+func (actor Actor) GetCollection() (Collection, error) {
+	var nColl Collection
+	var result []ObjectBase
+
+	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' order by updated desc`
+	rows, err := config.DB.Query(query, actor.Id)
+
+	if err != nil {
+		return nColl, util.MakeError(err, "GetCollection")
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		var post ObjectBase
+		var actor Actor
+
+		var attch ObjectBase
+		post.Attachment = append(post.Attachment, attch)
+
+		var prev NestedObjectBase
+		post.Preview = &prev
+
+		if err := rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &post.Attachment[0].Id, &post.Preview.Id, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
+			return nColl, util.MakeError(err, "GetCollection")
+		}
+
+		post.Actor = actor.Id
+
+		post.Replies, post.Replies.TotalItems, post.Replies.TotalImgs, err = post.GetReplies()
+
+		if err != nil {
+			return nColl, util.MakeError(err, "GetCollection")
+		}
+
+		post.Attachment, err = post.Attachment[0].GetAttachment()
+
+		if err != nil {
+			return nColl, util.MakeError(err, "GetCollection")
+		}
+
+		post.Preview, err = post.Preview.GetPreview()
+
+		if err != nil {
+			return nColl, util.MakeError(err, "GetCollection")
+		}
+
+		result = append(result, post)
+	}
+
+	nColl.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+
+	nColl.OrderedItems = result
+
+	return nColl, nil
 }
 
 func (actor Actor) GetCollectionType(nType string) (Collection, error) {
@@ -232,6 +518,50 @@ func (actor Actor) GetFollow() ([]ObjectBase, error) {
 	return followerCollection, nil
 }
 
+func (actor Actor) GetFollowing() ([]ObjectBase, error) {
+	var followingCollection []ObjectBase
+
+	query := `select following from following where id=$1`
+	rows, err := config.DB.Query(query, actor.Id)
+
+	if err != nil {
+		return followingCollection, util.MakeError(err, "GetFollowing")
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		var obj ObjectBase
+
+		if err := rows.Scan(&obj.Id); err != nil {
+			return followingCollection, util.MakeError(err, "GetFollowing")
+		}
+
+		followingCollection = append(followingCollection, obj)
+	}
+
+	return followingCollection, nil
+}
+
+func (actor Actor) GetFollowFromName(name string) ([]string, error) {
+	var followingActors []string
+
+	activity := Activity{Id: actor.Following}
+	follow, err := activity.GetCollection()
+	if err != nil {
+		return followingActors, util.MakeError(err, "GetFollowFromName")
+	}
+
+	re := regexp.MustCompile("\\w+?$")
+
+	for _, e := range follow.Items {
+		if re.FindString(e.Id) == name {
+			followingActors = append(followingActors, e.Id)
+		}
+	}
+
+	return followingActors, nil
+}
+
 func (actor Actor) GetFollowingTotal() (int, error) {
 	var following int
 
@@ -276,7 +606,7 @@ func (actor Actor) GetFollowersResp(ctx *fiber.Ctx) error {
 	ctx.Response().Header.Set("Content-Type", config.ActivityStreams)
 	_, err = ctx.Write(enc)
 
-	return err
+	return util.MakeError(err, "")
 }
 
 func (actor Actor) GetFollowingResp(ctx *fiber.Ctx) error {
@@ -304,28 +634,15 @@ func (actor Actor) GetFollowingResp(ctx *fiber.Ctx) error {
 	return util.MakeError(err, "GetFollowingResp")
 }
 
-func (actor Actor) GetFollowing() ([]ObjectBase, error) {
-	var followingCollection []ObjectBase
+func (actor Actor) GetImgTotal() (int, error) {
+	var count int
 
-	query := `select following from following where id=$1`
-	rows, err := config.DB.Query(query, actor.Id)
-
-	if err != nil {
-		return followingCollection, util.MakeError(err, "GetFollowing")
+	query := `select count(attachment) from activitystream where actor=$1 and id in (select id from replies where inreplyto='' and type='Note' )`
+	if err := config.DB.QueryRow(query, actor.Id).Scan(&count); err != nil {
+		return count, util.MakeError(err, "GetImgTotal")
 	}
 
-	defer rows.Close()
-	for rows.Next() {
-		var obj ObjectBase
-
-		if err := rows.Scan(&obj.Id); err != nil {
-			return followingCollection, util.MakeError(err, "GetFollowing")
-		}
-
-		followingCollection = append(followingCollection, obj)
-	}
-
-	return followingCollection, nil
+	return count, nil
 }
 
 func (actor Actor) GetInfoResp(ctx *fiber.Ctx) error {
@@ -337,60 +654,47 @@ func (actor Actor) GetInfoResp(ctx *fiber.Ctx) error {
 	return util.MakeError(err, "GetInfoResp")
 }
 
-func (actor Actor) GetCollection() (Collection, error) {
-	var nColl Collection
-	var result []ObjectBase
+func (actor Actor) GetPostTotal() (int, error) {
+	var count int
 
-	query := `select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' order by updated desc`
-	rows, err := config.DB.Query(query, actor.Id)
+	query := `select count(id) from activitystream where actor=$1 and id in (select id from replies where inreplyto='' and type='Note')`
+	if err := config.DB.QueryRow(query, actor.Id).Scan(&count); err != nil {
+		return count, util.MakeError(err, "GetPostTotal")
+	}
+
+	return count, nil
+}
+
+func (actor Actor) GetOutbox(ctx *fiber.Ctx) error {
+	var collection Collection
+
+	c, err := actor.GetCollection()
 
 	if err != nil {
-		return nColl, util.MakeError(err, "GetCollection")
+		return util.MakeError(err, "GetOutbox")
 	}
 
-	defer rows.Close()
-	for rows.Next() {
-		var post ObjectBase
-		var actor Actor
+	collection.OrderedItems = c.OrderedItems
+	collection.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+	collection.Actor = actor
 
-		var attch ObjectBase
-		post.Attachment = append(post.Attachment, attch)
+	collection.TotalItems, err = actor.GetPostTotal()
 
-		var prev NestedObjectBase
-		post.Preview = &prev
-
-		if err := rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &post.Attachment[0].Id, &post.Preview.Id, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
-			return nColl, util.MakeError(err, "GetCollection")
-		}
-
-		post.Actor = actor.Id
-
-		post.Replies, post.Replies.TotalItems, post.Replies.TotalImgs, err = post.GetReplies()
-
-		if err != nil {
-			return nColl, util.MakeError(err, "GetCollection")
-		}
-
-		post.Attachment, err = post.Attachment[0].GetAttachment()
-
-		if err != nil {
-			return nColl, util.MakeError(err, "GetCollection")
-		}
-
-		post.Preview, err = post.Preview.GetPreview()
-
-		if err != nil {
-			return nColl, util.MakeError(err, "GetCollection")
-		}
-
-		result = append(result, post)
+	if err != nil {
+		return util.MakeError(err, "GetOutbox")
 	}
 
-	nColl.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+	collection.TotalImgs, err = actor.GetImgTotal()
 
-	nColl.OrderedItems = result
+	if err != nil {
+		return util.MakeError(err, "GetOutbox")
+	}
 
-	return nColl, nil
+	enc, _ := json.Marshal(collection)
+	ctx.Response().Header.Set("Content-Type", config.ActivityStreams)
+	_, err = ctx.Write(enc)
+
+	return util.MakeError(err, "GetOutbox")
 }
 
 func (actor Actor) GetRecentPosts() ([]ObjectBase, error) {
@@ -467,35 +771,14 @@ func (actor Actor) GetReportedTotal() (int, error) {
 	return count, nil
 }
 
-func (actor Actor) GetAllArchive(offset int) (Collection, error) {
-	var nColl Collection
-	var result []ObjectBase
+func (actor Actor) HasValidation(ctx *fiber.Ctx) bool {
+	id, _ := util.GetPasswordFromSession(ctx)
 
-	query := `select x.id, x.updated from (select id, updated from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, updated from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, updated from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc offset $2`
-	rows, err := config.DB.Query(query, actor.Id, offset)
-
-	if err != nil {
-		return nColl, util.MakeError(err, "GetAllArchive")
+	if id == "" || (id != actor.Id && id != config.Domain) {
+		return false
 	}
 
-	defer rows.Close()
-	for rows.Next() {
-		var post ObjectBase
-
-		if err := rows.Scan(&post.Id, &post.Updated); err != nil {
-			return nColl, util.MakeError(err, "GetAllArchive")
-		}
-
-		post.Replies, _, _, err = post.GetReplies()
-
-		result = append(result, post)
-	}
-
-	nColl.AtContext.Context = "https://www.w3.org/ns/activitystreams"
-
-	nColl.OrderedItems = result
-
-	return nColl, nil
+	return true
 }
 
 func (actor Actor) IsAlreadyFollowing(follow string) (bool, error) {
@@ -530,6 +813,70 @@ func (actor Actor) IsAlreadyFollower(follow string) (bool, error) {
 	return false, nil
 }
 
+func (actor Actor) IsLocal() (bool, error) {
+	actor, err := GetActorFromDB(actor.Id)
+	return actor.Id != "", util.MakeError(err, "IsLocal")
+}
+
+func (actor Actor) IsValid() (Actor, bool, error) {
+	actor, err := FingerActor(actor.Id)
+	return actor, actor.Id != "", util.MakeError(err, "IsValid")
+}
+
+func (actor Actor) ReportedResp(ctx *fiber.Ctx) error {
+	var err error
+
+	auth := ctx.Get("Authorization")
+	verification := strings.Split(auth, " ")
+
+	if len(verification) < 2 {
+		ctx.Response().Header.SetStatusCode(http.StatusBadRequest)
+		_, err := ctx.Write([]byte(""))
+		return util.MakeError(err, "GetReported")
+	}
+
+	if hasAuth, err := util.HasAuth(verification[1], actor.Id); !hasAuth {
+		ctx.Response().Header.SetStatusCode(http.StatusBadRequest)
+		_, err := ctx.Write([]byte(""))
+		return util.MakeError(err, "GetReported")
+	} else if err != nil {
+		return util.MakeError(err, "GetReported")
+	}
+
+	actor, err = GetActorFromDB(actor.Id)
+
+	if err != nil {
+		return util.MakeError(err, "GetReported")
+	}
+
+	var following Collection
+
+	following.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+	following.Type = "Collection"
+	following.TotalItems, err = actor.GetReportedTotal()
+
+	if err != nil {
+		return util.MakeError(err, "GetReported")
+	}
+
+	following.Items, err = actor.GetReported()
+
+	if err != nil {
+		return util.MakeError(err, "GetReported")
+	}
+
+	enc, err := json.MarshalIndent(following, "", "\t")
+
+	if err != nil {
+		return util.MakeError(err, "GetReported")
+	}
+
+	ctx.Response().Header.Set("Content-Type", config.ActivityStreams)
+	_, err = ctx.Write(enc)
+
+	return util.MakeError(err, "GetReported")
+}
+
 func (actor Actor) SetActorAutoSubscribeDB() error {
 	current, err := actor.GetAutoSubscribe()
 
@@ -543,36 +890,37 @@ func (actor Actor) SetActorAutoSubscribeDB() error {
 	return util.MakeError(err, "SetActorAutoSubscribeDB")
 }
 
-func (actor Actor) GetOutbox(ctx *fiber.Ctx) error {
-	var collection Collection
-
-	c, err := actor.GetCollection()
+func (actor Actor) SendToFollowers(activity Activity) error {
+	nActor, err := GetActorFromDB(actor.Id)
 
 	if err != nil {
-		return util.MakeError(err, "GetOutbox")
+		return util.MakeError(err, "SendToFollowers")
 	}
 
-	collection.OrderedItems = c.OrderedItems
-	collection.AtContext.Context = "https://www.w3.org/ns/activitystreams"
-	collection.Actor = actor
-
-	collection.TotalItems, err = actor.GetPostTotal()
+	activity.Actor = &nActor
+	followers, err := nActor.GetFollow()
 
 	if err != nil {
-		return util.MakeError(err, "GetOutbox")
+		return util.MakeError(err, "SendToFollowers")
 	}
 
-	collection.TotalImgs, err = actor.GetImgTotal()
+	var to []string
 
-	if err != nil {
-		return util.MakeError(err, "GetOutbox")
+	for _, e := range followers {
+		for _, k := range activity.To {
+			if e.Id != k {
+				to = append(to, e.Id)
+			}
+		}
 	}
 
-	enc, _ := json.Marshal(collection)
-	ctx.Response().Header.Set("Content-Type", config.ActivityStreams)
-	_, err = ctx.Write(enc)
+	activity.To = to
 
-	return util.MakeError(err, "GetOutbox")
+	if len(activity.Object.InReplyTo) > 0 {
+		err = activity.MakeRequestInbox()
+	}
+
+	return util.MakeError(err, "SendToFollowers")
 }
 
 func (actor Actor) UnArchiveLast() error {
@@ -597,135 +945,135 @@ func (actor Actor) UnArchiveLast() error {
 	return nil
 }
 
-func (actor Actor) IsLocal() (bool, error) {
-	actor, err := GetActorFromDB(actor.Id)
-	return actor.Id != "", util.MakeError(err, "IsLocal")
+func (actor Actor) Verify(signature string, verify string) error {
+	sig, _ := base64.StdEncoding.DecodeString(signature)
+
+	if actor.PublicKey.PublicKeyPem == "" {
+		_actor, err := FingerActor(actor.Id)
+		if err != nil {
+			return util.MakeError(err, "Verify")
+		}
+		actor = _actor
+	}
+
+	block, _ := pem.Decode([]byte(actor.PublicKey.PublicKeyPem))
+	pub, _ := x509.ParsePKIXPublicKey(block.Bytes)
+
+	hashed := sha256.New()
+	hashed.Write([]byte(verify))
+
+	return rsa.VerifyPKCS1v15(pub.(*rsa.PublicKey), crypto.SHA256, hashed.Sum(nil), sig)
 }
 
-func (actor Actor) GetCatalogCollection() (Collection, error) {
-	var nColl Collection
-	var result []ObjectBase
+func (actor Actor) VerifyHeaderSignature(ctx *fiber.Ctx) bool {
+	var sig string
+	var path string
+	var host string
+	var date string
+	var method string
+	var digest string
+	var contentLength string
 
-	var err error
-	var rows *sql.Rows
+	s := ParseHeaderSignature(ctx.Get("Signature"))
 
-	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc limit 165`
-	if rows, err = config.DB.Query(query, actor.Id); err != nil {
-		return nColl, util.MakeError(err, "GetCatalogCollection")
+	for i, e := range s.Headers {
+		var nl string
+		if i < len(s.Headers)-1 {
+			nl = "\n"
+		}
+
+		switch e {
+		case "(request-target)":
+			method = strings.ToLower(ctx.Method())
+			path = ctx.Path()
+			sig += "(request-target): " + method + " " + path + "" + nl
+			break
+		case "host":
+			host = ctx.Hostname()
+			sig += "host: " + host + "" + nl
+			break
+		case "date":
+			date = ctx.Get("date")
+			sig += "date: " + date + "" + nl
+			break
+		case "digest":
+			digest = ctx.Get("digest")
+			sig += "digest: " + digest + "" + nl
+			break
+		case "content-length":
+			contentLength = ctx.Get("content-length")
+			sig += "content-length: " + contentLength + "" + nl
+			break
+		}
 	}
 
-	defer rows.Close()
-	for rows.Next() {
-		var post ObjectBase
-		var actor Actor
-
-		var attch ObjectBase
-		post.Attachment = append(post.Attachment, attch)
-
-		var prev NestedObjectBase
-		post.Preview = &prev
-
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &post.Attachment[0].Id, &post.Preview.Id, &actor.Id, &post.TripCode, &post.Sensitive)
-
-		if err != nil {
-			return nColl, util.MakeError(err, "GetCatalogCollection")
-		}
-
-		post.Actor = actor.Id
-
-		var replies CollectionBase
-
-		post.Replies = replies
-
-		post.Replies.TotalItems, post.Replies.TotalImgs, err = post.GetRepliesCount()
-
-		if err != nil {
-			return nColl, util.MakeError(err, "GetCatalogCollection")
-		}
-
-		post.Attachment, err = post.Attachment[0].GetAttachment()
-
-		if err != nil {
-			return nColl, util.MakeError(err, "GetCatalogCollection")
-		}
-
-		post.Preview, err = post.Preview.GetPreview()
-
-		if err != nil {
-			return nColl, util.MakeError(err, "GetCatalogCollection")
-		}
-
-		result = append(result, post)
+	if s.KeyId != actor.PublicKey.Id {
+		return false
 	}
 
-	nColl.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+	t, _ := time.Parse(time.RFC1123, date)
 
-	nColl.OrderedItems = result
+	if time.Now().UTC().Sub(t).Seconds() > 75 {
+		return false
+	}
 
-	return nColl, nil
+	if actor.Verify(s.Signature, sig) != nil {
+		return false
+	}
+
+	return true
 }
 
-func (actor Actor) GetCollectionPage(page int) (Collection, error) {
-	var nColl Collection
-	var result []ObjectBase
+func (actor Actor) WriteCache() error {
+	actor, err := FingerActor(actor.Id)
 
+	if err != nil {
+		return util.MakeError(err, "WriteCache")
+	}
+
+	reqActivity := Activity{Id: actor.Outbox}
+	collection, err := reqActivity.GetCollection()
+
+	if err != nil {
+		return util.MakeError(err, "WriteCache")
+	}
+
+	for _, e := range collection.OrderedItems {
+		if err := e.WriteCache(); err != nil {
+			return util.MakeError(err, "WriteCache")
+		}
+	}
+
+	return nil
+}
+
+func (actor Actor) MakeFollowActivity(follow string) (Activity, error) {
+	var followActivity Activity
 	var err error
-	var rows *sql.Rows
 
-	query := `select count (x.id) over(), x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc limit 15 offset $2`
+	followActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+	followActivity.Type = "Follow"
 
-	if rows, err = config.DB.Query(query, actor.Id, page*15); err != nil {
-		return nColl, util.MakeError(err, "GetCollectionPage")
+	var obj ObjectBase
+	var nactor Actor
+
+	if actor.Id == config.Domain {
+		nactor, err = GetActorFromDB(actor.Id)
+	} else {
+		nactor, err = FingerActor(actor.Id)
 	}
 
-	var count int
-	defer rows.Close()
-	for rows.Next() {
-		var post ObjectBase
-		var actor Actor
-
-		var attch ObjectBase
-		post.Attachment = append(post.Attachment, attch)
-
-		var prev NestedObjectBase
-		post.Preview = &prev
-
-		err = rows.Scan(&count, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &post.Attachment[0].Id, &post.Preview.Id, &actor.Id, &post.TripCode, &post.Sensitive)
-
-		if err != nil {
-			return nColl, util.MakeError(err, "GetCollectionPage")
-		}
-
-		post.Actor = actor.Id
-
-		post.Replies, post.Replies.TotalItems, post.Replies.TotalImgs, err = post.GetRepliesLimit(5)
-
-		if err != nil {
-			return nColl, util.MakeError(err, "GetCollectionPage")
-		}
-
-		post.Attachment, err = post.Attachment[0].GetAttachment()
-
-		if err != nil {
-			return nColl, util.MakeError(err, "GetCollectionPage")
-		}
-
-		post.Preview, err = post.Preview.GetPreview()
-
-		if err != nil {
-			return nColl, util.MakeError(err, "GetCollectionPage")
-		}
-
-		result = append(result, post)
+	if err != nil {
+		return followActivity, util.MakeError(err, "MakeFollowActivity")
 	}
 
-	nColl.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+	followActivity.Actor = &nactor
+	followActivity.Object = &obj
 
-	nColl.TotalItems = count
+	followActivity.Object.Actor = follow
+	followActivity.To = append(followActivity.To, follow)
 
-	nColl.OrderedItems = result
-
-	return nColl, nil
+	return followActivity, nil
 }
 
 func (actor Actor) WantToServePage(page int) (Collection, error) {
@@ -743,26 +1091,4 @@ func (actor Actor) WantToServePage(page int) (Collection, error) {
 	collection.Actor = actor
 
 	return collection, nil
-}
-
-func (actor Actor) GetImgTotal() (int, error) {
-	var count int
-
-	query := `select count(attachment) from activitystream where actor=$1 and id in (select id from replies where inreplyto='' and type='Note' )`
-	if err := config.DB.QueryRow(query, actor.Id).Scan(&count); err != nil {
-		return count, util.MakeError(err, "GetImgTotal")
-	}
-
-	return count, nil
-}
-
-func (actor Actor) GetPostTotal() (int, error) {
-	var count int
-
-	query := `select count(id) from activitystream where actor=$1 and id in (select id from replies where inreplyto='' and type='Note')`
-	if err := config.DB.QueryRow(query, actor.Id).Scan(&count); err != nil {
-		return count, util.MakeError(err, "GetPostTotal")
-	}
-
-	return count, nil
 }

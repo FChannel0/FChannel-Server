@@ -15,7 +15,6 @@ import (
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
 	"github.com/FChannel0/FChannel-Server/util"
-	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -46,8 +45,9 @@ func ParseCommentForReplies(comment string, op string) ([]activitypub.ObjectBase
 		str = strings.Replace(str, "https://", "", 1)
 		str = config.TP + "" + str
 		_, isReply, err := db.IsReplyToOP(op, str)
+
 		if err != nil {
-			return nil, err
+			return nil, util.MakeError(err, "ParseCommentForReplies")
 		}
 
 		if !util.IsInStringArray(links, str) && isReply {
@@ -57,13 +57,16 @@ func ParseCommentForReplies(comment string, op string) ([]activitypub.ObjectBase
 
 	var validLinks []activitypub.ObjectBase
 	for i := 0; i < len(links); i++ {
-		_, isValid, err := webfinger.CheckValidActivity(links[i])
+		reqActivity := activitypub.Activity{Id: links[i]}
+		_, isValid, err := reqActivity.CheckValid()
+
 		if err != nil {
-			return nil, err
+			return nil, util.MakeError(err, "ParseCommentForReplies")
 		}
 
 		if isValid {
 			var reply activitypub.ObjectBase
+
 			reply.Id = links[i]
 			reply.Published = time.Now().UTC()
 			validLinks = append(validLinks, reply)
@@ -85,9 +88,11 @@ func ParseCommentForReply(comment string) (string, error) {
 	}
 
 	if len(links) > 0 {
-		_, isValid, err := webfinger.CheckValidActivity(strings.ReplaceAll(links[0], ">", ""))
+		reqActivity := activitypub.Activity{Id: strings.ReplaceAll(links[0], ">", "")}
+		_, isValid, err := reqActivity.CheckValid()
+
 		if err != nil {
-			return "", err
+			return "", util.MakeError(err, "ParseCommentForReply")
 		}
 
 		if isValid {
@@ -125,11 +130,13 @@ func ParseLinkTitle(actorName string, op string, content string) string {
 
 func ParseOptions(ctx *fiber.Ctx, obj activitypub.ObjectBase) activitypub.ObjectBase {
 	options := util.EscapeString(ctx.FormValue("options"))
+
 	if options != "" {
 		option := strings.Split(options, ";")
 		email := regexp.MustCompile(".+@.+\\..+")
 		wallet := regexp.MustCompile("wallet:.+")
 		delete := regexp.MustCompile("delete:.+")
+
 		for _, e := range option {
 			if e == "noko" {
 				obj.Option = append(obj.Option, "noko")
@@ -163,20 +170,21 @@ func CheckCaptcha(captcha string) (bool, error) {
 	}
 
 	path := "public/" + parts[0] + ".png"
-	code, err := db.GetCaptchaCodeDB(path)
+	code, err := util.GetCaptchaCode(path)
+
 	if err != nil {
-		return false, err
+		return false, util.MakeError(err, "ParseOptions")
 	}
 
 	if code != "" {
-		err = db.DeleteCaptchaCodeDB(path)
+		err = util.DeleteCaptchaCode(path)
 		if err != nil {
-			return false, err
+			return false, util.MakeError(err, "ParseOptions")
 		}
 
-		err = db.CreateNewCaptcha()
+		err = util.CreateNewCaptcha()
 		if err != nil {
-			return false, err
+			return false, util.MakeError(err, "ParseOptions")
 		}
 
 	}
@@ -184,19 +192,28 @@ func CheckCaptcha(captcha string) (bool, error) {
 	return code == strings.ToUpper(parts[1]), nil
 }
 
+func GetCaptchaCode(captcha string) string {
+	re := regexp.MustCompile("\\w+\\.\\w+$")
+	code := re.FindString(captcha)
+
+	re = regexp.MustCompile("\\w+")
+	code = re.FindString(code)
+
+	return code
+}
+
 func IsMediaBanned(f multipart.File) (bool, error) {
 	f.Seek(0, 0)
-
 	fileBytes := make([]byte, 2048)
-
 	_, err := f.Read(fileBytes)
+
 	if err != nil {
-		return true, err
+		return true, util.MakeError(err, "IsMediaBanned")
 	}
 
 	hash := util.HashBytes(fileBytes)
-
 	f.Seek(0, 0)
+
 	return db.IsHashBanned(hash)
 }
 
@@ -211,30 +228,28 @@ func SupportedMIMEType(mime string) bool {
 }
 
 func ObjectFromForm(ctx *fiber.Ctx, obj activitypub.ObjectBase) (activitypub.ObjectBase, error) {
+	var err error
+	var file multipart.File
 
 	header, _ := ctx.FormFile("file")
-
-	var file multipart.File
 
 	if header != nil {
 		file, _ = header.Open()
 	}
 
-	var err error
-
 	if file != nil {
 		defer file.Close()
-
 		var tempFile = new(os.File)
+
 		obj.Attachment, tempFile, err = activitypub.CreateAttachmentObject(file, header)
+
 		if err != nil {
-			return obj, err
+			return obj, util.MakeError(err, "ObjectFromForm")
 		}
 
 		defer tempFile.Close()
 
 		fileBytes, _ := ioutil.ReadAll(file)
-
 		tempFile.Write(fileBytes)
 
 		re := regexp.MustCompile(`image/(jpe?g|png|webp)`)
@@ -244,7 +259,7 @@ func ObjectFromForm(ctx *fiber.Ctx, obj activitypub.ObjectBase) (activitypub.Obj
 			cmd := exec.Command("exiv2", "rm", "."+fileLoc)
 
 			if err := cmd.Run(); err != nil {
-				return obj, err
+				return obj, util.MakeError(err, "ObjectFromForm")
 			}
 		}
 
@@ -256,12 +271,11 @@ func ObjectFromForm(ctx *fiber.Ctx, obj activitypub.ObjectBase) (activitypub.Obj
 	obj.Name = util.EscapeString(ctx.FormValue("subject"))
 	obj.Content = util.EscapeString(ctx.FormValue("comment"))
 	obj.Sensitive = (ctx.FormValue("sensitive") != "")
-
 	obj = ParseOptions(ctx, obj)
 
 	var originalPost activitypub.ObjectBase
-	originalPost.Id = util.EscapeString(ctx.FormValue("inReplyTo"))
 
+	originalPost.Id = util.EscapeString(ctx.FormValue("inReplyTo"))
 	obj.InReplyTo = append(obj.InReplyTo, originalPost)
 
 	var activity activitypub.Activity
@@ -272,23 +286,23 @@ func ObjectFromForm(ctx *fiber.Ctx, obj activitypub.ObjectBase) (activitypub.Obj
 
 	if originalPost.Id != "" {
 		if local, _ := activity.IsLocal(); !local {
-			actor, err := webfinger.FingerActor(originalPost.Id)
+			actor, err := activitypub.FingerActor(originalPost.Id)
 			if err != nil {
-				return obj, err
+				return obj, util.MakeError(err, "ObjectFromForm")
 			}
 
 			if !util.IsInStringArray(obj.To, actor.Id) {
 				obj.To = append(obj.To, actor.Id)
 			}
 		} else if err != nil {
-			return obj, err
+			return obj, util.MakeError(err, "ObjectFromForm")
 		}
 	}
 
 	replyingTo, err := ParseCommentForReplies(ctx.FormValue("comment"), originalPost.Id)
 
 	if err != nil {
-		return obj, err
+		return obj, util.MakeError(err, "ObjectFromForm")
 	}
 
 	for _, e := range replyingTo {
@@ -309,16 +323,16 @@ func ObjectFromForm(ctx *fiber.Ctx, obj activitypub.ObjectBase) (activitypub.Obj
 			activity.To = append(activity.To, e.Id)
 
 			if local, err := activity.IsLocal(); err == nil && !local {
-				actor, err := webfinger.FingerActor(e.Id)
+				actor, err := activitypub.FingerActor(e.Id)
 				if err != nil {
-					return obj, err
+					return obj, util.MakeError(err, "ObjectFromForm")
 				}
 
 				if !util.IsInStringArray(obj.To, actor.Id) {
 					obj.To = append(obj.To, actor.Id)
 				}
 			} else if err != nil {
-				return obj, err
+				return obj, util.MakeError(err, "ObjectFromForm")
 			}
 		}
 	}
@@ -329,26 +343,22 @@ func ObjectFromForm(ctx *fiber.Ctx, obj activitypub.ObjectBase) (activitypub.Obj
 func ResizeAttachmentToPreview() error {
 	return activitypub.GetObjectsWithoutPreviewsCallback(func(id, href, mediatype, name string, size int, published time.Time) error {
 		re := regexp.MustCompile(`^\w+`)
-
 		_type := re.FindString(mediatype)
 
 		if _type == "image" {
-
 			re = regexp.MustCompile(`.+/`)
-
 			file := re.ReplaceAllString(mediatype, "")
-
 			nHref := util.GetUniqueFilename(file)
 
 			var nPreview activitypub.NestedObjectBase
 
 			re = regexp.MustCompile(`/\w+$`)
 			actor := re.ReplaceAllString(id, "")
-
 			nPreview.Type = "Preview"
 			uid, err := util.CreateUniqueID(actor)
+
 			if err != nil {
-				return err
+				return util.MakeError(err, "ResizeAttachmentToPreview")
 			}
 
 			nPreview.Id = fmt.Sprintf("%s/%s", actor, uid)
@@ -358,25 +368,23 @@ func ResizeAttachmentToPreview() error {
 			nPreview.Size = int64(size)
 			nPreview.Published = published
 			nPreview.Updated = published
-
 			re = regexp.MustCompile(`/public/.+`)
-
 			objFile := re.FindString(href)
 
 			if id != "" {
 				cmd := exec.Command("convert", "."+objFile, "-resize", "250x250>", "-strip", "."+nHref)
 
 				if err := cmd.Run(); err == nil {
-					fmt.Println(objFile + " -> " + nHref)
+					config.Log.Println(objFile + " -> " + nHref)
 					if err := nPreview.WritePreview(); err != nil {
-						return err
+						return util.MakeError(err, "ResizeAttachmentToPreview")
 					}
 					obj := activitypub.ObjectBase{Id: id}
 					if err := obj.UpdatePreview(nPreview.Id); err != nil {
-						return err
+						return util.MakeError(err, "ResizeAttachmentToPreview")
 					}
 				} else {
-					return err
+					return util.MakeError(err, "ResizeAttachmentToPreview")
 				}
 			}
 		}
@@ -394,6 +402,7 @@ func ParseAttachment(obj activitypub.ObjectBase, catalog bool) template.HTML {
 	}
 
 	var media string
+
 	if regexp.MustCompile(`image\/`).MatchString(obj.Attachment[0].MediaType) {
 		media = "<img "
 		media += "id=\"img\" "
@@ -465,14 +474,13 @@ func ParseAttachment(obj activitypub.ObjectBase, catalog bool) template.HTML {
 func ParseContent(board activitypub.Actor, op string, content string, thread activitypub.ObjectBase) (template.HTML, error) {
 	// TODO: should escape more than just < and >, should also escape &, ", and '
 	nContent := strings.ReplaceAll(content, `<`, "&lt;")
-
 	nContent, err := ParseLinkComments(board, op, nContent, thread)
+
 	if err != nil {
-		return "", err
+		return "", util.MakeError(err, "ParseContent")
 	}
 
 	nContent = ParseCommentQuotes(nContent)
-
 	nContent = strings.ReplaceAll(nContent, `/\&lt;`, ">")
 
 	return template.HTML(nContent), nil
@@ -484,10 +492,9 @@ func ParseLinkComments(board activitypub.Actor, op string, content string, threa
 
 	//add url to each matched reply
 	for i, _ := range match {
-		link := strings.Replace(match[i][0], ">>", "", 1)
 		isOP := ""
-
 		domain := match[i][2]
+		link := strings.Replace(match[i][0], ">>", "", 1)
 
 		if link == op {
 			isOP = " (OP)"
@@ -514,7 +521,7 @@ func ParseLinkComments(board activitypub.Actor, op string, content string, threa
 				obj := activitypub.ObjectBase{Id: parsedLink}
 				col, err := obj.GetCollectionFromPath()
 				if err != nil {
-					return "", err
+					return "", util.MakeError(err, "ParseLinkComments")
 				}
 
 				if len(col.OrderedItems) > 0 {
@@ -537,7 +544,7 @@ func ParseLinkComments(board activitypub.Actor, op string, content string, threa
 				link = parsedOP + "#" + util.ShortURL(parsedOP, parsedLink)
 			}
 
-			actor, err := webfinger.FingerActor(parsedLink)
+			actor, err := activitypub.FingerActor(parsedLink)
 			if err == nil && actor.Id != "" {
 				content = strings.Replace(content, match[i][0], "<a class=\"reply\" title=\""+quoteTitle+"\" href=\""+link+"\">&gt;&gt;"+util.ShortURL(board.Outbox, parsedLink)+isOP+" →</a>", -1)
 			}

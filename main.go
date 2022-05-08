@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"math/rand"
 	"time"
 
@@ -41,7 +40,7 @@ func main() {
 	cookieKey, err := util.GetCookieKey()
 
 	if err != nil {
-		log.Println(err)
+		config.Log.Println(err)
 	}
 
 	app.Use(encryptcookie.New(encryptcookie.Config{
@@ -107,38 +106,51 @@ func main() {
 }
 
 func Init() {
+	var actor activitypub.Actor
 	var err error
 
 	rand.Seed(time.Now().UnixNano())
 
-	util.CreatedNeededDirectories()
-
-	db.ConnectDB()
-
-	db.RunDatabaseSchema()
-
-	actor, _ := activitypub.GetActorFromDB(config.Domain)
-	webfinger.FollowingBoards, err = actor.GetFollowing()
-
-	if err != nil {
-		panic(err)
+	if err = util.CreatedNeededDirectories(); err != nil {
+		config.Log.Println(err)
 	}
 
-	webfinger.Boards, err = webfinger.GetBoardCollection()
-
-	if err != nil {
-		panic(err)
+	if err = db.Connect(); err != nil {
+		config.Log.Println(err)
 	}
 
-	config.Key = util.CreateKey(32)
+	if err = db.RunDatabaseSchema(); err != nil {
+		config.Log.Println(err)
+	}
 
-	go db.MakeCaptchas(100)
+	if actor, err = activitypub.GetActorFromDB(config.Domain); err != nil {
+		config.Log.Println(err)
+	}
 
-	go db.StartupArchive()
+	if webfinger.FollowingBoards, err = actor.GetFollowing(); err != nil {
+		config.Log.Println(err)
+	}
+
+	if webfinger.Boards, err = webfinger.GetBoardCollection(); err != nil {
+		config.Log.Println(err)
+	}
+
+	if config.Key, err = util.CreateKey(32); err != nil {
+		config.Log.Println(err)
+	}
+
+	if err = util.LoadThemes(); err != nil {
+		config.Log.Println(err)
+	}
+
+	if err = db.InitInstance(); err != nil {
+		config.Log.Println(err)
+	}
+
+	go webfinger.StartupArchive()
+
+	go util.MakeCaptchas(100)
 
 	go db.CheckInactive()
 
-	db.InitInstance()
-
-	util.LoadThemes()
 }

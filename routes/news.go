@@ -4,17 +4,17 @@ import (
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
+	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
 )
 
 func NewsGet(ctx *fiber.Ctx) error {
-	// TODO
 	timestamp := 0
 
 	actor, err := activitypub.GetActorFromDB(config.Domain)
 	if err != nil {
-		return err
+		return util.MakeError(err, "NewsGet")
 	}
 
 	var data PageData
@@ -23,15 +23,15 @@ func NewsGet(ctx *fiber.Ctx) error {
 	data.Board.Name = ""
 	data.Key = config.Key
 	data.Board.Domain = config.Domain
-	data.Board.ModCred, _ = db.GetPasswordFromSession(ctx)
+	data.Board.ModCred, _ = util.GetPasswordFromSession(ctx)
 	data.Board.Actor = actor
 	data.Board.Post.Actor = actor.Id
 	data.Board.Restricted = actor.Restricted
 	data.NewsItems = make([]db.NewsItem, 1)
 
-	data.NewsItems[0], err = db.GetNewsItemFromDB(timestamp)
+	data.NewsItems[0], err = db.GetNewsItem(timestamp)
 	if err != nil {
-		return err
+		return util.MakeError(err, "NewsGet")
 	}
 
 	data.Title = actor.PreferredUsername + ": " + data.NewsItems[0].Title
@@ -45,7 +45,7 @@ func NewsGet(ctx *fiber.Ctx) error {
 func AllNewsGet(ctx *fiber.Ctx) error {
 	actor, err := activitypub.GetActorFromDB(config.Domain)
 	if err != nil {
-		return err
+		return util.MakeError(err, "AllNewsGet")
 	}
 
 	var data PageData
@@ -55,14 +55,14 @@ func AllNewsGet(ctx *fiber.Ctx) error {
 	data.Board.Name = ""
 	data.Key = config.Key
 	data.Board.Domain = config.Domain
-	data.Board.ModCred, _ = db.GetPasswordFromSession(ctx)
+	data.Board.ModCred, _ = util.GetPasswordFromSession(ctx)
 	data.Board.Actor = actor
 	data.Board.Post.Actor = actor.Id
 	data.Board.Restricted = actor.Restricted
 
-	data.NewsItems, err = db.GetNewsFromDB(0)
+	data.NewsItems, err = db.GetNews(0)
 	if err != nil {
-		return err
+		return util.MakeError(err, "AllNewsGet")
 	}
 
 	data.Themes = &config.Themes

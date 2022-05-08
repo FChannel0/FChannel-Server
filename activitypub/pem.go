@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -72,7 +71,7 @@ func CreatePem(actor Actor) error {
 		return StorePemToDB(actor)
 	}
 
-	fmt.Println(`Created PEM keypair for the "` + actor.Name + `" board. Please keep in mind that
+	config.Log.Println(`Created PEM keypair for the "` + actor.Name + `" board. Please keep in mind that
 the PEM key is crucial in identifying yourself as the legitimate owner of the board,
 so DO NOT LOSE IT!!! If you lose it, YOU WILL LOSE ACCESS TO YOUR BOARD!`)
 
@@ -123,7 +122,7 @@ func CreatePublicKeyFromPrivate(actor *Actor, publicKeyPem string) error {
 			return util.MakeError(err, "CreatePublicKeyFromPrivate")
 		}
 	} else {
-		fmt.Println(`\nUnable to locate private key from public key generation. Now,
+		config.Log.Println(`\nUnable to locate private key from public key generation. Now,
 this means that you are now missing the proof that you are the
 owner of the "` + actor.Name + `" board. If you are the developer,
 then your job is just as easy as generating a new keypair, but

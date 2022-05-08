@@ -2,10 +2,7 @@ package activitypub
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"os/exec"
 	"regexp"
@@ -16,6 +13,35 @@ import (
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/util"
 )
+
+func (obj ObjectBase) CreateActivity(activityType string) (Activity, error) {
+	var newActivity Activity
+
+	actor, err := FingerActor(obj.Actor)
+	if err != nil {
+		return newActivity, util.MakeError(err, "CreateActivity")
+	}
+
+	newActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+	newActivity.Type = activityType
+	newActivity.Published = obj.Published
+	newActivity.Actor = &actor
+	newActivity.Object = &obj
+
+	for _, e := range obj.To {
+		if obj.Actor != e {
+			newActivity.To = append(newActivity.To, e)
+		}
+	}
+
+	for _, e := range obj.Cc {
+		if obj.Actor != e {
+			newActivity.Cc = append(newActivity.Cc, e)
+		}
+	}
+
+	return newActivity, nil
+}
 
 func (obj ObjectBase) CheckIfOP() (bool, error) {
 	var count int
@@ -61,6 +87,44 @@ func (obj ObjectBase) CreatePreview() *NestedObjectBase {
 	}
 
 	return &nPreview
+}
+
+func (obj ObjectBase) DeleteAndRepliesRequest() error {
+	activity, err := obj.CreateActivity("Delete")
+
+	if err != nil {
+		return util.MakeError(err, "DeleteAndRepliesRequest")
+	}
+
+	nObj, err := obj.GetCollectionFromPath()
+	if err != nil {
+		return util.MakeError(err, "DeleteAndRepliesRequest")
+	}
+
+	activity.Actor.Id = nObj.OrderedItems[0].Actor
+	activity.Object = &nObj.OrderedItems[0]
+	objActor, _ := GetActor(nObj.OrderedItems[0].Actor)
+	followers, err := objActor.GetFollow()
+
+	if err != nil {
+		return util.MakeError(err, "DeleteAndRepliesRequest")
+	}
+	for _, e := range followers {
+		activity.To = append(activity.To, e.Id)
+	}
+
+	following, err := objActor.GetFollowing()
+	if err != nil {
+		return util.MakeError(err, "DeleteAndRepliesRequest")
+	}
+
+	for _, e := range following {
+		activity.To = append(activity.To, e.Id)
+	}
+
+	err = activity.MakeRequestInbox()
+
+	return util.MakeError(err, "DeleteAndRepliesRequest")
 }
 
 //TODO break this off into seperate for Cache
@@ -167,49 +231,65 @@ func (obj ObjectBase) Delete() error {
 	return util.MakeError(err, "Delete")
 }
 
-func (obj ObjectBase) DeleteRepliedTo() error {
-	query := `delete from replies where id=$1`
-	_, err := config.DB.Exec(query, obj.Id)
-	return util.MakeError(err, "DeleteRepliedTo")
-}
-
 func (obj ObjectBase) DeleteInReplyTo() error {
 	query := `delete from replies where id in (select id from replies where inreplyto=$1)`
 	_, err := config.DB.Exec(query, obj.Id)
 	return util.MakeError(err, "DeleteInReplyTo")
 }
 
+func (obj ObjectBase) DeleteRepliedTo() error {
+	query := `delete from replies where id=$1`
+	_, err := config.DB.Exec(query, obj.Id)
+	return util.MakeError(err, "DeleteRepliedTo")
+}
+
+func (obj ObjectBase) DeleteRequest() error {
+	activity, err := obj.CreateActivity("Delete")
+
+	if err != nil {
+		return util.MakeError(err, "DeleteRequest")
+	}
+
+	nObj, err := obj.GetFromPath()
+
+	if err != nil {
+		return util.MakeError(err, "DeleteRequest")
+	}
+
+	actor, err := FingerActor(nObj.Actor)
+
+	if err != nil {
+		return util.MakeError(err, "DeleteRequest")
+	}
+	activity.Actor = &actor
+	objActor, _ := GetActor(nObj.Actor)
+	followers, err := objActor.GetFollow()
+	if err != nil {
+		return util.MakeError(err, "DeleteRequest")
+	}
+
+	for _, e := range followers {
+		activity.To = append(activity.To, e.Id)
+	}
+
+	following, err := objActor.GetFollowing()
+	if err != nil {
+		return util.MakeError(err, "DeleteRequest")
+	}
+	for _, e := range following {
+		activity.To = append(activity.To, e.Id)
+	}
+
+	err = activity.MakeRequestInbox()
+
+	return util.MakeError(err, "DeleteRequest")
+}
+
 func (obj ObjectBase) DeleteReported() error {
 	query := `delete from reported where id=$1`
 	_, err := config.DB.Exec(query, obj.Id)
+
 	return util.MakeError(err, "DeleteReported")
-}
-
-func (obj ObjectBase) GetCollection() (Collection, error) {
-	var nColl Collection
-
-	req, err := http.NewRequest("GET", obj.Id, nil)
-	if err != nil {
-		return nColl, util.MakeError(err, "GetCollection")
-	}
-
-	req.Header.Set("Accept", config.ActivityStreams)
-	resp, err := util.RouteProxy(req)
-	if err != nil {
-		return nColl, util.MakeError(err, "GetCollection")
-	}
-
-	if resp.StatusCode == 200 {
-		defer resp.Body.Close()
-		body, _ := ioutil.ReadAll(resp.Body)
-		if len(body) > 0 {
-			if err := json.Unmarshal(body, &nColl); err != nil {
-				return nColl, util.MakeError(err, "GetCollection")
-			}
-		}
-	}
-
-	return nColl, nil
 }
 
 func (obj ObjectBase) GetCollectionLocal() (Collection, error) {
@@ -644,6 +724,23 @@ func (obj ObjectBase) IsLocal() (bool, error) {
 	}
 
 	return true, nil
+}
+
+func (obj ObjectBase) IsReplyInThread(id string) (bool, error) {
+	reqActivity := Activity{Id: obj.InReplyTo[0].Id}
+	coll, _, err := reqActivity.CheckValid()
+
+	if err != nil {
+		return false, util.MakeError(err, "IsReplyInThread")
+	}
+
+	for _, e := range coll.OrderedItems[0].Replies.OrderedItems {
+		if e.Id == id {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 //TODO break this off into seperate for Cache
@@ -1151,6 +1248,50 @@ func (obj ObjectBase) WriteReply() error {
 	return nil
 }
 
+func (obj ObjectBase) WriteReplyCache() error {
+	for i, e := range obj.InReplyTo {
+		res, err := obj.InReplyTo[0].IsReplyInThread(e.Id)
+		if err != nil {
+			return util.MakeError(err, "WriteReplyCache")
+		}
+
+		if i == 0 || res {
+			query := `select id from replies where id=$1`
+
+			rows, err := config.DB.Query(query, obj.Id)
+			if err != nil {
+				return util.MakeError(err, "WriteReplyCache")
+			}
+			defer rows.Close()
+
+			var id string
+			rows.Next()
+			err = rows.Scan(&id)
+			if err != nil {
+				return util.MakeError(err, "WriteReplyCache")
+			} else if id != "" {
+				return nil // TODO: error?
+			}
+
+			query = `insert into cachereplies (id, inreplyto) values ($1, $2)`
+
+			_, err = config.DB.Exec(query, obj.Id, e.Id)
+			if err != nil {
+				return util.MakeError(err, "WriteReplyCache")
+			}
+		}
+	}
+
+	if len(obj.InReplyTo) < 1 {
+		query := `insert into cachereplies (id, inreplyto) values ($1, $2)`
+
+		_, err := config.DB.Exec(query, obj.Id, "")
+		return util.MakeError(err, "WriteReplyCache")
+	}
+
+	return nil
+}
+
 func (obj ObjectBase) WriteReplyLocal(replyto string) error {
 	var nID string
 
@@ -1179,7 +1320,7 @@ func (obj ObjectBase) WriteReplyLocal(replyto string) error {
 
 func (obj ObjectBase) WriteObjectToCache() (ObjectBase, error) {
 	if isBlacklisted, err := util.IsPostBlacklist(obj.Content); err != nil || isBlacklisted {
-		fmt.Println("\n\nBlacklist post blocked\n\n")
+		config.Log.Println("\n\nBlacklist post blocked\n\n")
 		return obj, util.MakeError(err, "WriteObjectToCache")
 	}
 
@@ -1243,7 +1384,7 @@ func (obj ObjectBase) WriteWithAttachment(attachment ObjectBase) {
 	_, e := config.DB.Exec(query, obj.Id, obj.Type, obj.Name, obj.Content, attachment.Id, obj.Preview.Id, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)
 
 	if e != nil {
-		fmt.Println("error inserting new activity with attachment")
+		config.Log.Println("error inserting new activity with attachment")
 		panic(e)
 	}
 }

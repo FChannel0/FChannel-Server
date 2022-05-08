@@ -20,7 +20,7 @@ func AdminVerify(ctx *fiber.Ctx) error {
 	identifier := ctx.FormValue("id")
 	code := ctx.FormValue("code")
 
-	var verify db.Verify
+	var verify util.Verify
 	verify.Identifier = identifier
 	verify.Code = code
 
@@ -29,7 +29,7 @@ func AdminVerify(ctx *fiber.Ctx) error {
 	req, err := http.NewRequest("POST", config.Domain+"/auth", bytes.NewBuffer(j))
 
 	if err != nil {
-		return err
+		return util.MakeError(err, "AdminVerify")
 	}
 
 	req.Header.Set("Content-Type", config.ActivityStreams)
@@ -37,7 +37,7 @@ func AdminVerify(ctx *fiber.Ctx) error {
 	resp, err := http.DefaultClient.Do(req)
 
 	if err != nil {
-		return err
+		return util.MakeError(err, "AdminVerify")
 	}
 
 	defer resp.Body.Close()
@@ -61,29 +61,29 @@ func AdminVerify(ctx *fiber.Ctx) error {
 
 // TODO remove this route it is mostly unneeded
 func AdminAuth(ctx *fiber.Ctx) error {
-	var verify db.Verify
+	var verify util.Verify
 
 	err := json.Unmarshal(ctx.Body(), &verify)
 
 	if err != nil {
-		return err
+		return util.MakeError(err, "AdminAuth")
 	}
 
-	v, _ := db.GetVerificationByCode(verify.Code)
+	v, _ := util.GetVerificationByCode(verify.Code)
 
 	if v.Identifier == verify.Identifier {
 		_, err := ctx.Write([]byte(v.Board))
-		return err
+		return util.MakeError(err, "AdminAuth")
 	}
 
 	ctx.Response().Header.SetStatusCode(http.StatusBadRequest)
 	_, err = ctx.Write([]byte(""))
 
-	return err
+	return util.MakeError(err, "AdminAuth")
 }
 
 func AdminIndex(ctx *fiber.Ctx) error {
-	id, _ := db.GetPasswordFromSession(ctx)
+	id, _ := util.GetPasswordFromSession(ctx)
 	actor, _ := webfinger.GetActorFromPath(ctx.Path(), "/"+config.Key+"/")
 
 	if actor.Id == "" {
@@ -94,14 +94,15 @@ func AdminIndex(ctx *fiber.Ctx) error {
 		return ctx.Render("verify", fiber.Map{})
 	}
 
-	actor, err := webfinger.GetActor(config.Domain)
+	actor, err := activitypub.GetActor(config.Domain)
 
 	if err != nil {
-		return err
+		return util.MakeError(err, "AdminIndex")
 	}
 
-	follow, _ := webfinger.GetActorCollection(actor.Following)
-	follower, _ := webfinger.GetActorCollection(actor.Followers)
+	reqActivity := activitypub.Activity{Id: actor.Following}
+	follow, _ := reqActivity.GetCollection()
+	follower, _ := reqActivity.GetCollection()
 
 	var following []string
 	var followers []string
@@ -120,14 +121,14 @@ func AdminIndex(ctx *fiber.Ctx) error {
 	adminData.Actor = actor.Id
 	adminData.Key = config.Key
 	adminData.Domain = config.Domain
-	adminData.Board.ModCred, _ = db.GetPasswordFromSession(ctx)
+	adminData.Board.ModCred, _ = util.GetPasswordFromSession(ctx)
 	adminData.Title = actor.Name + " Admin page"
 
 	adminData.Boards = webfinger.Boards
 
 	adminData.Board.Post.Actor = actor.Id
 
-	adminData.PostBlacklist, _ = util.GetRegexBlacklistDB()
+	adminData.PostBlacklist, _ = util.GetRegexBlacklist()
 
 	adminData.Themes = &config.Themes
 
@@ -147,8 +148,9 @@ func AdminFollow(ctx *fiber.Ctx) error {
 
 	//follow all of boards following
 	if following.MatchString(follow) {
-		followingActor, _ := webfinger.FingerActor(follow)
-		col, _ := webfinger.GetActorCollection(followingActor.Following)
+		followingActor, _ := activitypub.FingerActor(follow)
+		reqActivity := activitypub.Activity{Id: followingActor.Following}
+		col, _ := reqActivity.GetCollection()
 
 		var nObj activitypub.ObjectBase
 		nObj.Id = followingActor.Id
@@ -157,18 +159,20 @@ func AdminFollow(ctx *fiber.Ctx) error {
 
 		for _, e := range col.Items {
 			if isFollowing, _ := actor.IsAlreadyFollowing(e.Id); !isFollowing && e.Id != config.Domain && e.Id != actorId {
-				followActivity, _ := db.MakeFollowActivity(actorId, e.Id)
+				actor := activitypub.Actor{Id: actorId}
+				followActivity, _ := actor.MakeFollowActivity(e.Id)
 
-				if actor, _ := webfinger.FingerActor(e.Id); actor.Id != "" {
-					db.MakeActivityRequestOutbox(followActivity)
+				if actor, _ := activitypub.FingerActor(e.Id); actor.Id != "" {
+					followActivity.MakeRequestOutbox()
 				}
 			}
 		}
 
 		//follow all of boards followers
 	} else if followers.MatchString(follow) {
-		followersActor, _ := webfinger.FingerActor(follow)
-		col, _ := webfinger.GetActorCollection(followersActor.Followers)
+		followersActor, _ := activitypub.FingerActor(follow)
+		reqActivity := activitypub.Activity{Id: followersActor.Followers}
+		col, _ := reqActivity.GetCollection()
 
 		var nObj activitypub.ObjectBase
 		nObj.Id = followersActor.Id
@@ -177,25 +181,27 @@ func AdminFollow(ctx *fiber.Ctx) error {
 
 		for _, e := range col.Items {
 			if isFollowing, _ := actor.IsAlreadyFollowing(e.Id); !isFollowing && e.Id != config.Domain && e.Id != actorId {
-				followActivity, _ := db.MakeFollowActivity(actorId, e.Id)
-				if actor, _ := webfinger.FingerActor(e.Id); actor.Id != "" {
-					db.MakeActivityRequestOutbox(followActivity)
+				actor := activitypub.Actor{Id: actorId}
+				followActivity, _ := actor.MakeFollowActivity(e.Id)
+				if actor, _ := activitypub.FingerActor(e.Id); actor.Id != "" {
+					followActivity.MakeRequestOutbox()
 				}
 			}
 		}
 
 		//do a normal follow to a single board
 	} else {
-		followActivity, _ := db.MakeFollowActivity(actorId, follow)
+		actor := activitypub.Actor{Id: actorId}
+		followActivity, _ := actor.MakeFollowActivity(follow)
 
-		actor := activitypub.Actor{Id: followActivity.Object.Actor}
+		actor = activitypub.Actor{Id: followActivity.Object.Actor}
 		if isLocal, _ := actor.IsLocal(); !isLocal && followActivity.Actor.Id == config.Domain {
 			_, err := ctx.Write([]byte("main board can only follow local boards. Create a new board and then follow outside boards from it."))
-			return err
+			return util.MakeError(err, "AdminIndex")
 		}
 
-		if actor, _ := webfinger.FingerActor(follow); actor.Id != "" {
-			db.MakeActivityRequestOutbox(followActivity)
+		if actor, _ := activitypub.FingerActor(follow); actor.Id != "" {
+			followActivity.MakeRequestOutbox()
 		}
 	}
 
@@ -211,7 +217,7 @@ func AdminFollow(ctx *fiber.Ctx) error {
 func AdminAddBoard(ctx *fiber.Ctx) error {
 	actor, _ := activitypub.GetActorFromDB(config.Domain)
 
-	if hasValidation := db.HasValidation(ctx, actor); !hasValidation {
+	if hasValidation := actor.HasValidation(ctx); !hasValidation {
 		return nil
 	}
 
@@ -242,7 +248,7 @@ func AdminAddBoard(ctx *fiber.Ctx) error {
 	newActorActivity.Object.Summary = board.Summary
 	newActorActivity.Object.Sensitive = board.Restricted
 
-	db.MakeActivityRequestOutbox(newActorActivity)
+	newActorActivity.MakeRequestOutbox()
 	return ctx.Redirect("/"+config.Key, http.StatusSeeOther)
 }
 
@@ -261,9 +267,14 @@ func AdminNewsDelete(c *fiber.Ctx) error {
 func AdminActorIndex(ctx *fiber.Ctx) error {
 	actor, _ := webfinger.GetActorFromPath(ctx.Path(), "/"+config.Key+"/")
 
-	follow, _ := webfinger.GetActorCollection(actor.Following)
-	follower, _ := webfinger.GetActorCollection(actor.Followers)
-	reported, _ := activitypub.GetActorCollectionReq(actor.Id + "/reported")
+	reqActivity := activitypub.Activity{Id: actor.Following}
+	follow, _ := reqActivity.GetCollection()
+
+	reqActivity.Id = actor.Followers
+	follower, _ := reqActivity.GetCollection()
+
+	reqActivity.Id = actor.Id + "/reported"
+	reported, _ := activitypub.GetActorCollectionReq(reqActivity.Id)
 
 	var following []string
 	var followers []string
@@ -285,7 +296,7 @@ func AdminActorIndex(ctx *fiber.Ctx) error {
 		reports = append(reports, r)
 	}
 
-	localReports, _ := db.GetLocalReportDB(actor.Name)
+	localReports, _ := db.GetLocalReport(actor.Name)
 
 	for _, e := range localReports {
 		var r db.Report

@@ -5,7 +5,7 @@ import (
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
-	"github.com/FChannel0/FChannel-Server/db"
+	"github.com/FChannel0/FChannel-Server/post"
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
@@ -14,7 +14,7 @@ import (
 func Outbox(ctx *fiber.Ctx) error {
 	actor, err := webfinger.GetActorFromPath(ctx.Path(), "/")
 	if err != nil {
-		return err
+		return util.MakeError(err, "Outbox")
 	}
 
 	if activitypub.AcceptActivity(ctx.Get("Accept")) {
@@ -40,13 +40,13 @@ func OutboxGet(ctx *fiber.Ctx) error {
 	var page int
 	if postNum := ctx.Query("page"); postNum != "" {
 		if page, err = strconv.Atoi(postNum); err != nil {
-			return err
+			return util.MakeError(err, "OutboxGet")
 		}
 	}
 
 	collection, err := actor.WantToServePage(page)
 	if err != nil {
-		return err
+		return util.MakeError(err, "OutboxGet")
 	}
 
 	var offset = 15
@@ -68,7 +68,7 @@ func OutboxGet(ctx *fiber.Ctx) error {
 	data.Board.InReplyTo = ""
 	data.Board.To = actor.Outbox
 	data.Board.Actor = actor
-	data.Board.ModCred, _ = db.GetPasswordFromSession(ctx)
+	data.Board.ModCred, _ = util.GetPasswordFromSession(ctx)
 	data.Board.Domain = config.Domain
 	data.Board.Restricted = actor.Restricted
 	data.CurrentPage = page
@@ -76,12 +76,12 @@ func OutboxGet(ctx *fiber.Ctx) error {
 
 	data.Board.Post.Actor = actor.Id
 
-	capt, err := db.GetRandomCaptcha()
+	capt, err := util.GetRandomCaptcha()
 	if err != nil {
-		return err
+		return util.MakeError(err, "OutboxGet")
 	}
 	data.Board.Captcha = config.Domain + "/" + capt
-	data.Board.CaptchaCode = util.GetCaptchaCode(data.Board.Captcha)
+	data.Board.CaptchaCode = post.GetCaptchaCode(data.Board.Captcha)
 
 	data.Title = "/" + actor.Name + "/ - " + actor.PreferredUsername
 

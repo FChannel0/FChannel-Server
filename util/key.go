@@ -3,6 +3,7 @@ package util
 import (
 	"crypto/sha512"
 	"encoding/hex"
+	"errors"
 	"math/rand"
 	"os"
 	"strings"
@@ -13,14 +14,14 @@ import (
 
 const domain = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-func CreateKey(len int) string {
+func CreateKey(len int) (string, error) {
 	// TODO: provided that CreateTripCode still uses sha512, the max len can be 128 at most.
 	if len > 128 {
-		panic("len is greater than 128") // awful way to do it
+		return "", MakeError(errors.New("len is greater than 128"), "CreateKey")
 	}
 
 	str := CreateTripCode(RandomID(len))
-	return str[:len]
+	return str[:len], nil
 }
 
 func CreateTripCode(input string) string {
@@ -29,23 +30,13 @@ func CreateTripCode(input string) string {
 	return hex.EncodeToString(out[:])
 }
 
-func RandomID(size int) string {
-	rng := size
-	newID := strings.Builder{}
-	for i := 0; i < rng; i++ {
-		newID.WriteByte(domain[rand.Intn(len(domain))])
-	}
-
-	return newID.String()
-}
-
 func GetCookieKey() (string, error) {
 	if config.CookieKey == "" {
 		var file *os.File
 		var err error
 
 		if file, err = os.OpenFile("config/config-init", os.O_APPEND|os.O_WRONLY, 0644); err != nil {
-			return "", err
+			return "", MakeError(err, "GetCookieKey")
 		}
 
 		defer file.Close()
@@ -55,4 +46,15 @@ func GetCookieKey() (string, error) {
 	}
 
 	return config.CookieKey, nil
+}
+
+func RandomID(size int) string {
+	rng := size
+	newID := strings.Builder{}
+
+	for i := 0; i < rng; i++ {
+		newID.WriteByte(domain[rand.Intn(len(domain))])
+	}
+
+	return newID.String()
 }

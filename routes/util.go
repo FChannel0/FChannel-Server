@@ -28,19 +28,19 @@ func getThemeCookie(c *fiber.Ctx) string {
 	return "default"
 }
 
-func wantToServeCatalog(actorName string) (activitypub.Collection, bool, error) {
+func WantToServeCatalog(actorName string) (activitypub.Collection, bool, error) {
 	var collection activitypub.Collection
 	serve := false
 
 	actor, err := activitypub.GetActorByNameFromDB(actorName)
 	if err != nil {
-		return collection, false, err
+		return collection, false, util.MakeError(err, "WantToServeCatalog")
 	}
 
 	if actor.Id != "" {
 		collection, err = actor.GetCatalogCollection()
 		if err != nil {
-			return collection, false, err
+			return collection, false, util.MakeError(err, "WantToServeCatalog")
 		}
 
 		collection.Actor = actor
@@ -50,19 +50,19 @@ func wantToServeCatalog(actorName string) (activitypub.Collection, bool, error) 
 	return collection, serve, nil
 }
 
-func wantToServeArchive(actorName string) (activitypub.Collection, bool, error) {
+func WantToServeArchive(actorName string) (activitypub.Collection, bool, error) {
 	var collection activitypub.Collection
 	serve := false
 
 	actor, err := activitypub.GetActorByNameFromDB(actorName)
 	if err != nil {
-		return collection, false, err
+		return collection, false, util.MakeError(err, "WantToServeArchive")
 	}
 
 	if actor.Id != "" {
 		collection, err = actor.GetCollectionType("Archive")
 		if err != nil {
-			return collection, false, err
+			return collection, false, util.MakeError(err, "WantToServeArchive")
 		}
 
 		collection.Actor = actor
@@ -77,18 +77,18 @@ func GetActorPost(ctx *fiber.Ctx, path string) error {
 	collection, err := obj.GetCollectionFromPath()
 
 	if err != nil {
-		return err
+		return util.MakeError(err, "GetActorPost")
 	}
 
 	if len(collection.OrderedItems) > 0 {
 		enc, err := json.MarshalIndent(collection, "", "\t")
 		if err != nil {
-			return err
+			return util.MakeError(err, "GetActorPost")
 		}
 
 		ctx.Response().Header.Set("Content-Type", "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"")
 		_, err = ctx.Write(enc)
-		return err
+		return util.MakeError(err, "GetActorPost")
 	}
 
 	return nil
@@ -98,9 +98,9 @@ func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
 	contentType := util.GetContentType(ctx.Get("content-type"))
 
 	if contentType == "multipart/form-data" || contentType == "application/x-www-form-urlencoded" {
-		hasCaptcha, err := db.BoardHasAuthType(actor.Name, "captcha")
+		hasCaptcha, err := util.BoardHasAuthType(actor.Name, "captcha")
 		if err != nil {
-			return err
+			return util.MakeError(err, "ParseOutboxRequest")
 		}
 
 		valid, err := post.CheckCaptcha(ctx.FormValue("captcha"))
@@ -112,15 +112,15 @@ func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
 				if header.Size > (7 << 20) {
 					ctx.Response().Header.SetStatusCode(403)
 					_, err := ctx.Write([]byte("7MB max file size"))
-					return err
+					return util.MakeError(err, "ParseOutboxRequest")
 				} else if isBanned, err := post.IsMediaBanned(f); err == nil && isBanned {
 					//Todo add logging
-					fmt.Println("media banned")
+					config.Log.Println("media banned")
 					ctx.Response().Header.SetStatusCode(403)
 					_, err := ctx.Write([]byte("media banned"))
-					return err
+					return util.MakeError(err, "ParseOutboxRequest")
 				} else if err != nil {
-					return err
+					return util.MakeError(err, "ParseOutboxRequest")
 				}
 
 				contentType, _ := util.GetFileContentType(f)
@@ -128,40 +128,40 @@ func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
 				if !post.SupportedMIMEType(contentType) {
 					ctx.Response().Header.SetStatusCode(403)
 					_, err := ctx.Write([]byte("file type not supported"))
-					return err
+					return util.MakeError(err, "ParseOutboxRequest")
 				}
 			}
 
 			var nObj = activitypub.CreateObject("Note")
 			nObj, err := post.ObjectFromForm(ctx, nObj)
 			if err != nil {
-				return err
+				return util.MakeError(err, "ParseOutboxRequest")
 			}
 
 			nObj.Actor = config.Domain + "/" + actor.Name
 
 			nObj, err = nObj.Write()
 			if err != nil {
-				return err
+				return util.MakeError(err, "ParseOutboxRequest")
 			}
 
 			if len(nObj.To) == 0 {
-				if err := db.ArchivePosts(actor); err != nil {
-					return err
+				if err := actor.ArchivePosts(); err != nil {
+					return util.MakeError(err, "ParseOutboxRequest")
 				}
 			}
 
-			activity, err := webfinger.CreateActivity("Create", nObj)
+			activity, err := nObj.CreateActivity("Create")
 			if err != nil {
-				return err
+				return util.MakeError(err, "ParseOutboxRequest")
 			}
 
-			activity, err = webfinger.AddFollowersToActivity(activity)
+			activity, err = activity.AddFollowersTo()
 			if err != nil {
-				return err
+				return util.MakeError(err, "ParseOutboxRequest")
 			}
 
-			go db.MakeActivityRequest(activity)
+			go activity.MakeRequestInbox()
 
 			var id string
 			op := len(nObj.InReplyTo) - 1
@@ -175,23 +175,23 @@ func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
 
 			ctx.Response().Header.Set("Status", "200")
 			_, err = ctx.Write([]byte(id))
-			return err
+			return util.MakeError(err, "ParseOutboxRequest")
 		}
 
 		ctx.Response().Header.Set("Status", "403")
 		_, err = ctx.Write([]byte("captcha could not auth"))
-		return err
+		return util.MakeError(err, "")
 	} else { // json request
 		activity, err := activitypub.GetActivityFromJson(ctx)
 		if err != nil {
-			return err
+			return util.MakeError(err, "ParseOutboxRequest")
 		}
 
 		if res, err := activity.IsLocal(); err == nil && res {
-			if res := db.VerifyHeaderSignature(ctx, *activity.Actor); err == nil && !res {
+			if res := activity.Actor.VerifyHeaderSignature(ctx); err == nil && !res {
 				ctx.Response().Header.Set("Status", "403")
 				_, err = ctx.Write([]byte(""))
-				return err
+				return util.MakeError(err, "ParseOutboxRequest")
 			}
 
 			switch activity.Type {
@@ -209,30 +209,30 @@ func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
 
 				var rActivity activitypub.Activity
 				if validActor && validLocalActor {
-					rActivity = db.AcceptFollow(activity)
-					rActivity, err = db.SetActorFollowingDB(rActivity)
+					rActivity = activity.AcceptFollow()
+					rActivity, err = rActivity.SetActorFollowing()
 					if err != nil {
-						return err
+						return util.MakeError(err, "ParseOutboxRequest")
 					}
-					if err := db.MakeActivityRequest(activity); err != nil {
-						return err
+					if err := activity.MakeRequestInbox(); err != nil {
+						return util.MakeError(err, "ParseOutboxRequest")
 					}
 				}
 
 				actor, _ := activitypub.GetActorFromDB(config.Domain)
 				webfinger.FollowingBoards, err = actor.GetFollowing()
 				if err != nil {
-					return err
+					return util.MakeError(err, "ParseOutboxRequest")
 				}
 
 				webfinger.Boards, err = webfinger.GetBoardCollection()
 				if err != nil {
-					return err
+					return util.MakeError(err, "ParseOutboxRequest")
 				}
 				break
 
 			case "Delete":
-				fmt.Println("This is a delete")
+				config.Log.Println("This is a delete")
 				ctx.Response().Header.Set("Status", "403")
 				_, err = ctx.Write([]byte("could not process activity"))
 				break
@@ -248,9 +248,9 @@ func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
 				summary := activity.Object.Summary
 				restricted := activity.Object.Sensitive
 
-				actor, err := db.CreateNewBoardDB(*activitypub.CreateNewActor(name, prefname, summary, config.AuthReq, restricted))
+				actor, err := db.CreateNewBoard(*activitypub.CreateNewActor(name, prefname, summary, config.AuthReq, restricted))
 				if err != nil {
-					return err
+					return util.MakeError(err, "ParseOutboxRequest")
 				}
 
 				if actor.Id != "" {
@@ -273,7 +273,7 @@ func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
 
 					webfinger.FollowingBoards = board
 					webfinger.Boards, err = webfinger.GetBoardCollection()
-					return err
+					return util.MakeError(err, "ParseOutboxRequest")
 				}
 
 				ctx.Response().Header.Set("Status", "403")
@@ -285,12 +285,12 @@ func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
 				_, err = ctx.Write([]byte("could not process activity"))
 			}
 		} else if err != nil {
-			return err
+			return util.MakeError(err, "ParseOutboxRequest")
 		} else {
-			fmt.Println("is NOT activity")
+			config.Log.Println("is NOT activity")
 			ctx.Response().Header.Set("Status", "403")
 			_, err = ctx.Write([]byte("could not process activity"))
-			return err
+			return util.MakeError(err, "ParseOutboxRequest")
 		}
 	}
 
@@ -338,7 +338,7 @@ func TemplateFunctions(engine *html.Engine) {
 	engine.AddFunc("isOnion", util.IsOnion)
 
 	engine.AddFunc("parseReplyLink", func(actorId string, op string, id string, content string) template.HTML {
-		actor, _ := webfinger.FingerActor(actorId)
+		actor, _ := activitypub.FingerActor(actorId)
 		title := strings.ReplaceAll(post.ParseLinkTitle(actor.Id+"/", op, content), `/\&lt;`, ">")
 		link := "<a href=\"/" + actor.Name + "/" + util.ShortURL(actor.Outbox, op) + "#" + util.ShortURL(actor.Outbox, id) + "\" title=\"" + title + "\" class=\"replyLink\">&gt;&gt;" + util.ShortURL(actor.Outbox, id) + "</a>"
 		return template.HTML(link)
