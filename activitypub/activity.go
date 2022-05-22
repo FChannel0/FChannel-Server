@@ -218,47 +218,42 @@ func (activity Activity) Report(reason string) (bool, error) {
 func (activity Activity) SetActorFollower() (Activity, error) {
 	var query string
 
-	alreadyFollow, err := activity.Actor.IsAlreadyFollower(activity.Object.Actor)
+	alreadyFollower, err := activity.Actor.IsAlreadyFollower(activity.Object.Actor)
 
 	if err != nil {
 		return activity, util.MakeError(err, "SetFollower")
 	}
 
-	activity.Type = "Reject"
 	if activity.Actor.Id == activity.Object.Actor {
+		activity.Type = "Reject"
 		return activity, nil
 	}
 
-	if alreadyFollow {
+	if alreadyFollower {
 		query = `delete from follower where id=$1 and follower=$2`
-		activity.Summary = activity.Object.Actor + " Unfollow " + activity.Actor.Id
-
 		if _, err := config.DB.Exec(query, activity.Actor.Id, activity.Object.Actor); err != nil {
 			return activity, util.MakeError(err, "SetFollower")
 		}
 
 		activity.Type = "Accept"
+		activity.Summary = activity.Object.Actor + " Unfollow " + activity.Actor.Id
 		return activity, util.MakeError(err, "SetFollower")
 	}
 
 	query = `insert into follower (id, follower) values ($1, $2)`
-	activity.Summary = activity.Object.Actor + " Follow " + activity.Actor.Id
-
 	if _, err := config.DB.Exec(query, activity.Actor.Id, activity.Object.Actor); err != nil {
 		return activity, util.MakeError(err, "SetFollower")
 	}
 
 	activity.Type = "Accept"
+	activity.Summary = activity.Object.Actor + " Follow " + activity.Actor.Id
+
 	return activity, nil
 }
 
 func (activity Activity) SetActorFollowing() (Activity, error) {
-	var query string
-
-	alreadyFollowing := false
-	alreadyFollower := false
 	objActor, _ := GetActor(activity.Object.Actor)
-	following, err := objActor.GetFollowing()
+	alreadyFollowing, err := objActor.IsAlreadyFollowing(activity.Actor.Id)
 
 	if err != nil {
 		return activity, util.MakeError(err, "SetActorFollowing")
@@ -277,11 +272,7 @@ func (activity Activity) SetActorFollowing() (Activity, error) {
 		return activity, util.MakeError(err, "SetActorFollowing")
 	}
 
-	for _, e := range following {
-		if e.Id == activity.Actor.Id {
-			alreadyFollowing = true
-		}
-	}
+	alreadyFollower := false
 
 	for _, e := range remoteActorFollowerCol.Items {
 		if e.Id == activity.Object.Actor {
@@ -289,44 +280,45 @@ func (activity Activity) SetActorFollowing() (Activity, error) {
 		}
 	}
 
-	activity.Type = "Reject"
-
 	if activity.Actor.Id == activity.Object.Actor {
+		activity.Type = "Reject"
 		return activity, nil
 	}
 
-	if alreadyFollowing && alreadyFollower {
-		query = `delete from following where id=$1 and following=$2`
-		activity.Summary = activity.Object.Actor + " Unfollowing " + activity.Actor.Id
+	var query string
 
+	if alreadyFollowing && alreadyFollower {
 		if res, err := activity.Actor.IsLocal(); err == nil && !res {
 			go activity.Actor.DeleteCache()
-		} else {
+		} else if err != nil {
 			return activity, util.MakeError(err, "SetActorFollowing")
 		}
 
+		query = `delete from following where id=$1 and following=$2`
 		if _, err := config.DB.Exec(query, activity.Object.Actor, activity.Actor.Id); err != nil {
 			return activity, util.MakeError(err, "SetActorFollowing")
 		}
 
 		activity.Type = "Accept"
+		activity.Summary = activity.Object.Actor + " Unfollowing " + activity.Actor.Id
 
 		return activity, nil
 	}
 
 	if !alreadyFollowing && !alreadyFollower {
-
-		query = `insert into following (id, following) values ($1, $2)`
-		activity.Summary = activity.Object.Actor + " Following " + activity.Actor.Id
-
 		if res, err := activity.Actor.IsLocal(); err == nil && !res {
 			go activity.Actor.WriteCache()
+		} else if err != nil {
+			return activity, util.MakeError(err, "SetActorFollowing")
 		}
+
+		query = `insert into following (id, following) values ($1, $2)`
 		if _, err := config.DB.Exec(query, activity.Object.Actor, activity.Actor.Id); err != nil {
 			return activity, util.MakeError(err, "SetActorFollowing")
 		}
 
 		activity.Type = "Accept"
+		activity.Summary = activity.Object.Actor + " Following " + activity.Actor.Id
 
 		return activity, nil
 	}
@@ -354,9 +346,11 @@ func (activity Activity) MakeFollowingReq() (bool, error) {
 	}
 
 	defer resp.Body.Close()
+
 	body, _ := ioutil.ReadAll(resp.Body)
 
 	var respActivity Activity
+
 	err = json.Unmarshal(body, &respActivity)
 
 	return respActivity.Type == "Accept", util.MakeError(err, "MakeFollowingReq")
@@ -422,7 +416,6 @@ func (activity Activity) MakeRequestOutbox() error {
 	}
 
 	req, err := http.NewRequest("POST", activity.Actor.Outbox, bytes.NewBuffer(j))
-
 	if err != nil {
 		return util.MakeError(err, "MakeRequestOutbox")
 	}

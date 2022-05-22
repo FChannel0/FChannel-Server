@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
-	"regexp"
 	"time"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
@@ -138,77 +137,30 @@ func AdminIndex(ctx *fiber.Ctx) error {
 }
 
 func AdminFollow(ctx *fiber.Ctx) error {
-	actor, _ := webfinger.GetActorFromPath(ctx.Path(), "/"+config.Key+"/")
-
-	following := regexp.MustCompile(`(.+)\/following`)
-	followers := regexp.MustCompile(`(.+)\/followers`)
-
 	follow := ctx.FormValue("follow")
 	actorId := ctx.FormValue("actor")
 
-	//follow all of boards following
-	if following.MatchString(follow) {
-		followingActor, _ := activitypub.FingerActor(follow)
-		reqActivity := activitypub.Activity{Id: followingActor.Following}
-		col, _ := reqActivity.GetCollection()
+	actor := activitypub.Actor{Id: actorId}
+	followActivity, _ := actor.MakeFollowActivity(follow)
 
-		var nObj activitypub.ObjectBase
-		nObj.Id = followingActor.Id
+	objActor := activitypub.Actor{Id: followActivity.Object.Actor}
 
-		col.Items = append(col.Items, nObj)
+	if isLocal, _ := objActor.IsLocal(); !isLocal && followActivity.Actor.Id == config.Domain {
+		_, err := ctx.Write([]byte("main board can only follow local boards. Create a new board and then follow outside boards from it."))
+		return util.MakeError(err, "AdminIndex")
+	}
 
-		for _, e := range col.Items {
-			if isFollowing, _ := actor.IsAlreadyFollowing(e.Id); !isFollowing && e.Id != config.Domain && e.Id != actorId {
-				actor := activitypub.Actor{Id: actorId}
-				followActivity, _ := actor.MakeFollowActivity(e.Id)
-
-				if actor, _ := activitypub.FingerActor(e.Id); actor.Id != "" {
-					followActivity.MakeRequestOutbox()
-				}
-			}
-		}
-
-		//follow all of boards followers
-	} else if followers.MatchString(follow) {
-		followersActor, _ := activitypub.FingerActor(follow)
-		reqActivity := activitypub.Activity{Id: followersActor.Followers}
-		col, _ := reqActivity.GetCollection()
-
-		var nObj activitypub.ObjectBase
-		nObj.Id = followersActor.Id
-
-		col.Items = append(col.Items, nObj)
-
-		for _, e := range col.Items {
-			if isFollowing, _ := actor.IsAlreadyFollowing(e.Id); !isFollowing && e.Id != config.Domain && e.Id != actorId {
-				actor := activitypub.Actor{Id: actorId}
-				followActivity, _ := actor.MakeFollowActivity(e.Id)
-				if actor, _ := activitypub.FingerActor(e.Id); actor.Id != "" {
-					followActivity.MakeRequestOutbox()
-				}
-			}
-		}
-
-		//do a normal follow to a single board
-	} else {
-		actor := activitypub.Actor{Id: actorId}
-		followActivity, _ := actor.MakeFollowActivity(follow)
-
-		actor = activitypub.Actor{Id: followActivity.Object.Actor}
-		if isLocal, _ := actor.IsLocal(); !isLocal && followActivity.Actor.Id == config.Domain {
-			_, err := ctx.Write([]byte("main board can only follow local boards. Create a new board and then follow outside boards from it."))
-			return util.MakeError(err, "AdminIndex")
-		}
-
-		if actor, _ := activitypub.FingerActor(follow); actor.Id != "" {
-			followActivity.MakeRequestOutbox()
+	if actor, _ := activitypub.FingerActor(follow); actor.Id != "" {
+		if err := followActivity.MakeRequestOutbox(); err != nil {
+			return util.MakeError(err, "AdminFollow")
 		}
 	}
 
 	var redirect string
+	actor, _ = webfinger.GetActorFromPath(ctx.Path(), "/"+config.Key+"/")
 
 	if actor.Name != "main" {
-		redirect = "/" + actor.Name
+		redirect = actor.Name
 	}
 
 	return ctx.Redirect("/"+config.Key+"/"+redirect, http.StatusSeeOther)

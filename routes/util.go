@@ -201,19 +201,19 @@ func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
 				break
 
 			case "Follow":
-				var validActor bool
-				var validLocalActor bool
-
-				validActor = (activity.Object.Actor != "")
-				validLocalActor = (activity.Actor.Id == actor.Id)
+				validActor := (activity.Object.Actor != "")
+				validLocalActor := (activity.Actor.Id == actor.Id)
 
 				var rActivity activitypub.Activity
+
 				if validActor && validLocalActor {
 					rActivity = activity.AcceptFollow()
 					rActivity, err = rActivity.SetActorFollowing()
+
 					if err != nil {
 						return util.MakeError(err, "ParseOutboxRequest")
 					}
+
 					if err := activity.MakeRequestInbox(); err != nil {
 						return util.MakeError(err, "ParseOutboxRequest")
 					}
@@ -221,11 +221,13 @@ func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
 
 				actor, _ := activitypub.GetActorFromDB(config.Domain)
 				webfinger.FollowingBoards, err = actor.GetFollowing()
+
 				if err != nil {
 					return util.MakeError(err, "ParseOutboxRequest")
 				}
 
 				webfinger.Boards, err = webfinger.GetBoardCollection()
+
 				if err != nil {
 					return util.MakeError(err, "ParseOutboxRequest")
 				}

@@ -105,9 +105,10 @@ func ActorInbox(ctx *fiber.Ctx) error {
 
 	case "Follow":
 		for _, e := range activity.To {
-			if res, err := activitypub.GetActorFromDB(e); err == nil && res.Id != "" {
+			if _, err := activitypub.GetActorFromDB(e); err == nil {
 				response := activity.AcceptFollow()
 				response, err := response.SetActorFollower()
+
 				if err != nil {
 					return util.MakeError(err, "ActorInbox")
 				}
@@ -116,34 +117,26 @@ func ActorInbox(ctx *fiber.Ctx) error {
 					return util.MakeError(err, "ActorInbox")
 				}
 
-				alreadyFollow := false
-				alreadyFollowing := false
-				autoSub, err := response.Actor.GetAutoSubscribe()
+				alreadyFollowing, err := response.Actor.IsAlreadyFollowing(response.Object.Id)
+
 				if err != nil {
 					return util.MakeError(err, "ActorInbox")
 				}
 
-				following, err := response.Actor.GetFollowing()
-				if err != nil {
+				objActor, err := activitypub.FingerActor(response.Object.Actor)
+
+				if err != nil || objActor.Id == "" {
 					return util.MakeError(err, "ActorInbox")
 				}
 
-				for _, e := range following {
-					if e.Id == response.Object.Id {
-						alreadyFollow = true
-					}
-				}
-
-				actor, err := activitypub.FingerActor(response.Object.Actor)
-				if err != nil {
-					return util.MakeError(err, "ActorInbox")
-				}
-
-				reqActivity := activitypub.Activity{Id: actor.Following}
+				reqActivity := activitypub.Activity{Id: objActor.Following}
 				remoteActorFollowingCol, err := reqActivity.GetCollection()
+
 				if err != nil {
 					return util.MakeError(err, "ActorInbox")
 				}
+
+				alreadyFollow := false
 
 				for _, e := range remoteActorFollowingCol.Items {
 					if e.Id == response.Actor.Id {
@@ -151,17 +144,20 @@ func ActorInbox(ctx *fiber.Ctx) error {
 					}
 				}
 
+				autoSub, err := response.Actor.GetAutoSubscribe()
+
+				if err != nil {
+					return util.MakeError(err, "ActorInbox")
+				}
+
 				if autoSub && !alreadyFollow && alreadyFollowing {
 					followActivity, err := response.Actor.MakeFollowActivity(response.Object.Actor)
+
 					if err != nil {
 						return util.MakeError(err, "ActorInbox")
 					}
 
-					if res, err := activitypub.FingerActor(response.Object.Actor); err == nil && res.Id != "" {
-						if err := followActivity.MakeRequestOutbox(); err != nil {
-							return util.MakeError(err, "ActorInbox")
-						}
-					} else if err != nil {
+					if err := followActivity.MakeRequestOutbox(); err != nil {
 						return util.MakeError(err, "ActorInbox")
 					}
 				}

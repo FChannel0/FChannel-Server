@@ -24,7 +24,7 @@ func Webfinger(c *fiber.Ctx) error {
 
 	if len(actorDomain) < 2 {
 		c.Status(fiber.StatusBadRequest)
-		return c.Send([]byte("accpets only subject form of acct:board@instance"))
+		return c.Send([]byte("accepts only subject form of acct:board@instance"))
 	}
 
 	if actorDomain[0] == "main" {

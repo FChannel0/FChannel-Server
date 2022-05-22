@@ -104,7 +104,7 @@ func (obj ObjectBase) DeleteAndRepliesRequest() error {
 	activity.Actor.Id = nObj.OrderedItems[0].Actor
 	activity.Object = &nObj.OrderedItems[0]
 	objActor, _ := GetActor(nObj.OrderedItems[0].Actor)
-	followers, err := objActor.GetFollow()
+	followers, err := objActor.GetFollower()
 
 	if err != nil {
 		return util.MakeError(err, "DeleteAndRepliesRequest")
@@ -263,7 +263,7 @@ func (obj ObjectBase) DeleteRequest() error {
 	}
 	activity.Actor = &actor
 	objActor, _ := GetActor(nObj.Actor)
-	followers, err := objActor.GetFollow()
+	followers, err := objActor.GetFollower()
 	if err != nil {
 		return util.MakeError(err, "DeleteRequest")
 	}

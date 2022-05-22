@@ -356,7 +356,7 @@ func GetActorFromDB(id string) (Actor, error) {
 
 	if nActor.Id != "" && nActor.PublicKey.PublicKeyPem == "" {
 		if err := CreatePublicKeyFromPrivate(&nActor, publicKeyPem); err != nil {
-			return nActor, util.MakeError(err, "")
+			return nActor, util.MakeError(err, "GetActorFromDB")
 		}
 	}
 

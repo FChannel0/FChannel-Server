@@ -32,6 +32,10 @@ func (actor Actor) AddFollower(follower string) error {
 }
 
 func (actor Actor) ActivitySign(signature string) (string, error) {
+	if actor.PublicKey.Id == "" {
+		actor, _ = GetActorFromDB(actor.Id)
+	}
+
 	var file string
 
 	query := `select file from publicKeyPem where id=$1 `
@@ -101,7 +105,7 @@ func (actor Actor) AutoFollow() error {
 		return util.MakeError(err, "AutoFollow")
 	}
 
-	follower, err := nActor.GetFollow()
+	follower, err := nActor.GetFollower()
 
 	if err != nil {
 		return util.MakeError(err, "AutoFollow")
@@ -494,7 +498,7 @@ func (actor Actor) GetCollectionTypeLimit(nType string, limit int) (Collection, 
 	return nColl, nil
 }
 
-func (actor Actor) GetFollow() ([]ObjectBase, error) {
+func (actor Actor) GetFollower() ([]ObjectBase, error) {
 	var followerCollection []ObjectBase
 
 	query := `select follower from follower where id=$1`
@@ -596,7 +600,7 @@ func (actor Actor) GetFollowersResp(ctx *fiber.Ctx) error {
 		return util.MakeError(err, "GetFollowersResp")
 	}
 
-	following.Items, err = actor.GetFollow()
+	following.Items, err = actor.GetFollower()
 
 	if err != nil {
 		return util.MakeError(err, "GetFollowersResp")
@@ -798,7 +802,7 @@ func (actor Actor) IsAlreadyFollowing(follow string) (bool, error) {
 }
 
 func (actor Actor) IsAlreadyFollower(follow string) (bool, error) {
-	followers, err := actor.GetFollow()
+	followers, err := actor.GetFollower()
 
 	if err != nil {
 		return false, util.MakeError(err, "IsAlreadyFollower")
@@ -898,7 +902,7 @@ func (actor Actor) SendToFollowers(activity Activity) error {
 	}
 
 	activity.Actor = &nActor
-	followers, err := nActor.GetFollow()
+	followers, err := nActor.GetFollower()
 
 	if err != nil {
 		return util.MakeError(err, "SendToFollowers")
@@ -949,10 +953,13 @@ func (actor Actor) Verify(signature string, verify string) error {
 	sig, _ := base64.StdEncoding.DecodeString(signature)
 
 	if actor.PublicKey.PublicKeyPem == "" {
-		_actor, err := FingerActor(actor.Id)
+		// TODO: this should be Finger but its not getting PublicKeyPem atm
+		_actor, err := GetActorFromDB(actor.Id)
+
 		if err != nil {
 			return util.MakeError(err, "Verify")
 		}
+
 		actor = _actor
 	}
 

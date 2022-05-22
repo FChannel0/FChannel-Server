@@ -62,11 +62,11 @@ func main() {
 	app.Post("/verify", routes.AdminVerify)
 	app.Post("/auth", routes.AdminAuth)
 	app.All("/"+config.Key+"/", routes.AdminIndex)
-	app.Post("/"+config.Key+"/follow", routes.AdminFollow)
+	app.Get("/"+config.Key+"/follow", routes.AdminFollow)
 	app.Post("/"+config.Key+"/addboard", routes.AdminAddBoard)
 	app.Get("/"+config.Key+"/postnews", routes.AdminPostNews)
 	app.Get("/"+config.Key+"/newsdelete", routes.AdminNewsDelete)
-	app.Post("/"+config.Key+"/:actor/follow", routes.AdminActorIndex)
+	app.All("/"+config.Key+"/:actor/follow", routes.AdminFollow)
 	app.Get("/"+config.Key+"/:actor", routes.AdminActorIndex)
 	app.Get("/news", routes.NewsGet)
 
@@ -88,7 +88,7 @@ func main() {
 	// Board actor
 	app.Get("/:actor/catalog", routes.CatalogGet)
 	app.Post("/:actor/inbox", routes.ActorInbox)
-	app.Post("/:actor/outbox", routes.ActorOutbox)
+	app.All("/:actor/outbox", routes.ActorOutbox)
 	app.Get("/:actor/following", routes.ActorFollowing)
 	app.All("/:actor/followers", routes.ActorFollowers)
 	app.Get("/:actor/reported", routes.ActorReported)
