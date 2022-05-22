@@ -7,7 +7,8 @@ import (
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
-	"github.com/FChannel0/FChannel-Server/routes"
+	"github.com/FChannel0/FChannel-Server/route"
+	"github.com/FChannel0/FChannel-Server/route/routes"
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
@@ -28,7 +29,7 @@ func main() {
 	template := html.New("./views", ".html")
 	template.Debug(true)
 
-	routes.TemplateFunctions(template)
+	route.TemplateFunctions(template)
 
 	app := fiber.New(fiber.Config{
 		AppName: "FChannel",
@@ -68,6 +69,8 @@ func main() {
 	app.Get("/"+config.Key+"/newsdelete", routes.AdminNewsDelete)
 	app.All("/"+config.Key+"/:actor/follow", routes.AdminFollow)
 	app.Get("/"+config.Key+"/:actor", routes.AdminActorIndex)
+
+	// News routes
 	app.Get("/news", routes.NewsGet)
 
 	// Board managment
@@ -81,24 +84,25 @@ func main() {
 	app.Get("/poparchive", routes.BoardPopArchive)
 	app.Get("/autosubscribe", routes.BoardAutoSubscribe)
 	app.Get("/blacklist", routes.BoardBlacklist)
-	app.Get("/report", routes.BoardBlacklist)
+	app.Get("/report", routes.BoardReport)
+
+	// Webfinger routes
 	app.Get("/.well-known/webfinger", routes.Webfinger)
+
+	// API routes
 	app.Get("/api/media", routes.Media)
 
-	// Board actor
-	app.Get("/:actor/catalog", routes.CatalogGet)
+	// Board actor routes
+	app.Get("/:actor/catalog", routes.ActorCatalogGet)
 	app.Post("/:actor/inbox", routes.ActorInbox)
 	app.All("/:actor/outbox", routes.ActorOutbox)
 	app.Get("/:actor/following", routes.ActorFollowing)
 	app.All("/:actor/followers", routes.ActorFollowers)
 	app.Get("/:actor/reported", routes.ActorReported)
 	app.Get("/:actor/archive", routes.ActorArchive)
-	app.Get("/:actor", routes.OutboxGet)
+	app.Get("/:actor", routes.ActorOutboxGet)
 	app.Post("/:actor", routes.ActorPost)
-	app.Get("/:actor/:post", routes.PostGet)
-
-	//404 handler
-	app.Use(routes.NotFound)
+	app.Get("/:actor/:post", routes.ActorPostGet)
 
 	db.PrintAdminAuth()
 

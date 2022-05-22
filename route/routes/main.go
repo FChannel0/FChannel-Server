@@ -4,6 +4,7 @@ import (
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
+	"github.com/FChannel0/FChannel-Server/route"
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
@@ -21,7 +22,7 @@ func Index(ctx *fiber.Ctx) error {
 		return nil
 	}
 
-	var data PageData
+	var data route.PageData
 
 	reqActivity := activitypub.Activity{Id: "https://fchan.xyz/followers"}
 	col, err := reqActivity.GetCollection()
@@ -61,9 +62,39 @@ func Index(ctx *fiber.Ctx) error {
 	data.Meta.Title = data.Title
 
 	data.Themes = &config.Themes
-	data.ThemeCookie = getThemeCookie(ctx)
+	data.ThemeCookie = route.GetThemeCookie(ctx)
 
 	return ctx.Render("index", fiber.Map{
 		"page": data,
 	}, "layouts/main")
+}
+
+func Inbox(ctx *fiber.Ctx) error {
+	// TODO main actor Inbox route
+	return ctx.SendString("main inbox")
+}
+
+func Outbox(ctx *fiber.Ctx) error {
+	actor, err := webfinger.GetActorFromPath(ctx.Path(), "/")
+
+	if err != nil {
+		return util.MakeError(err, "Outbox")
+	}
+
+	if activitypub.AcceptActivity(ctx.Get("Accept")) {
+		actor.GetOutbox(ctx)
+		return nil
+	}
+
+	return route.ParseOutboxRequest(ctx, actor)
+}
+
+func Following(ctx *fiber.Ctx) error {
+	actor, _ := activitypub.GetActorFromDB(config.Domain)
+	return actor.GetFollowingResp(ctx)
+}
+
+func Followers(ctx *fiber.Ctx) error {
+	actor, _ := activitypub.GetActorFromDB(config.Domain)
+	return actor.GetFollowersResp(ctx)
 }

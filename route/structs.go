@@ -1,4 +1,4 @@
-package routes
+package route
 
 import (
 	"github.com/FChannel0/FChannel-Server/activitypub"

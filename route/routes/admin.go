@@ -10,6 +10,7 @@ import (
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
+	"github.com/FChannel0/FChannel-Server/route"
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/FChannel0/FChannel-Server/webfinger"
 	"github.com/gofiber/fiber/v2"
@@ -114,7 +115,7 @@ func AdminIndex(ctx *fiber.Ctx) error {
 		followers = append(followers, e.Id)
 	}
 
-	var adminData AdminPage
+	var adminData route.AdminPage
 	adminData.Following = following
 	adminData.Followers = followers
 	adminData.Actor = actor.Id
@@ -258,7 +259,7 @@ func AdminActorIndex(ctx *fiber.Ctx) error {
 		reports = append(reports, r)
 	}
 
-	var data AdminPage
+	var data route.AdminPage
 	data.Following = following
 	data.Followers = followers
 	data.Reported = reports

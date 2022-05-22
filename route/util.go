@@ -1,4 +1,4 @@
-package routes
+package route
 
 import (
 	"encoding/json"
@@ -18,7 +18,7 @@ import (
 	"github.com/gofiber/template/html"
 )
 
-func getThemeCookie(c *fiber.Ctx) string {
+func GetThemeCookie(c *fiber.Ctx) string {
 	cookie := c.Cookies("theme")
 	if cookie != "" {
 		cookies := strings.SplitN(cookie, "=", 2)
