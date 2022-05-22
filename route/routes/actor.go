@@ -21,6 +21,7 @@ import (
 
 func ActorInbox(ctx *fiber.Ctx) error {
 	activity, err := activitypub.GetActivityFromJson(ctx)
+
 	if err != nil {
 		return util.MakeError(err, "ActorInbox")
 	}
@@ -380,8 +381,8 @@ func ActorPost(ctx *fiber.Ctx) error {
 }
 
 func ActorPostGet(ctx *fiber.Ctx) error {
-
 	actor, err := activitypub.GetActorByNameFromDB(ctx.Params("actor"))
+
 	if err != nil {
 		return nil
 	}
@@ -428,8 +429,9 @@ func ActorPostGet(ctx *fiber.Ctx) error {
 	} else {
 		obj := activitypub.ObjectBase{Id: inReplyTo}
 		collection, err := obj.GetCollectionFromPath()
+
 		if err != nil {
-			return util.MakeError(err, "PostGet")
+			return ctx.Status(404).Render("404", fiber.Map{})
 		}
 
 		if collection.Actor.Id != "" {
@@ -560,7 +562,7 @@ func ActorOutboxGet(ctx *fiber.Ctx) error {
 	actor, err := activitypub.GetActorByNameFromDB(ctx.Params("actor"))
 
 	if err != nil {
-		return nil
+		return ctx.Status(404).Render("404", fiber.Map{})
 	}
 
 	if activitypub.AcceptActivity(ctx.Get("Accept")) {

@@ -15,8 +15,6 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/encryptcookie"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/template/html"
-
-	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -156,5 +154,4 @@ func Init() {
 	go util.MakeCaptchas(100)
 
 	go db.CheckInactive()
-
 }

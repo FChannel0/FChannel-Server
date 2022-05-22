@@ -44,10 +44,10 @@ func (obj ObjectBase) CreateActivity(activityType string) (Activity, error) {
 }
 
 func (obj ObjectBase) CheckIfOP() (bool, error) {
-	var count int
+	var id string
 
 	query := `select id from replies where inreplyto='' and id=$1 `
-	if err := config.DB.QueryRow(query, obj.Id).Scan(&count); err != nil {
+	if err := config.DB.QueryRow(query, obj.Id).Scan(&id); err != nil {
 		return false, nil
 	}
 
@@ -144,13 +144,13 @@ func (obj ObjectBase) DeleteAttachmentFromFile() error {
 
 	query := `select href from activitystream where id in (select attachment from activitystream where id=$1)`
 	if err := config.DB.QueryRow(query, obj.Id).Scan(&href); err != nil {
-		return util.MakeError(err, "DeleteAttachmentFromFile")
+		return nil
 	}
 
 	href = strings.Replace(href, config.Domain+"/", "", 1)
 	if href != "static/notfound.png" {
 		if _, err := os.Stat(href); err != nil {
-			return util.MakeError(err, "DeleteAttachmentFromFile")
+			return nil
 		}
 		return os.Remove(href)
 	}
@@ -177,13 +177,13 @@ func (obj ObjectBase) DeletePreviewFromFile() error {
 
 	query := `select href from activitystream where id in (select preview from activitystream where id=$1)`
 	if err := config.DB.QueryRow(query, obj.Id).Scan(&href); err != nil {
-		return util.MakeError(err, "DeletePreviewFromFile")
+		return nil
 	}
 
 	href = strings.Replace(href, config.Domain+"/", "", 1)
 	if href != "static/notfound.png" {
 		if _, err := os.Stat(href); err != nil {
-			return util.MakeError(err, "DeletePreviewFromFile")
+			return nil
 		}
 		return os.Remove(href)
 	}
@@ -261,9 +261,11 @@ func (obj ObjectBase) DeleteRequest() error {
 	if err != nil {
 		return util.MakeError(err, "DeleteRequest")
 	}
+
 	activity.Actor = &actor
 	objActor, _ := GetActor(nObj.Actor)
 	followers, err := objActor.GetFollower()
+
 	if err != nil {
 		return util.MakeError(err, "DeleteRequest")
 	}
@@ -418,9 +420,11 @@ func (obj ObjectBase) GetCollectionFromPath() (Collection, error) {
 
 	post.Actor = actor.Id
 
-	post.Replies, post.Replies.TotalItems, post.Replies.TotalImgs, err = post.GetReplies()
+	if post.InReplyTo, err = post.GetInReplyTo(); err != nil {
+		return nColl, util.MakeError(err, "GetCollectionFromPath")
+	}
 
-	if err != nil {
+	if post.Replies, post.Replies.TotalItems, post.Replies.TotalImgs, err = post.GetReplies(); err != nil {
 		return nColl, util.MakeError(err, "GetCollectionFromPath")
 	}
 
@@ -505,7 +509,7 @@ func (obj ObjectBase) GetRepliesCount() (int, int, error) {
 	query := `select count(x.id) over(), sum(case when RTRIM(x.attachment) = '' then 0 else 1 end) over() from (select id, attachment from activitystream where id in (select id from replies where inreplyto=$1) and type='Note' union select id, attachment from cacheactivitystream where id in (select id from replies where inreplyto=$1) and type='Note') as x`
 
 	if err := config.DB.QueryRow(query, obj.Id).Scan(&countId, &countImg); err != nil {
-		return 0, 0, util.MakeError(err, "GetRepliesCount")
+		return 0, 0, nil
 	}
 
 	return countId, countImg, nil
@@ -887,7 +891,7 @@ func (obj ObjectBase) TombstoneAttachmentReplies() error {
 
 	query := `select id from activitystream where id in (select id from replies where inreplyto=$1)`
 	if err := config.DB.QueryRow(query, obj.Id).Scan(&attachment.Id); err != nil {
-		return util.MakeError(err, "TombstoneAttachmentReplies")
+		return nil
 	}
 
 	if err := attachment.DeleteAttachmentFromFile(); err != nil {
@@ -918,8 +922,8 @@ func (obj ObjectBase) TombstonePreviewReplies() error {
 	var attachment ObjectBase
 
 	query := `select id from activitystream where id in (select id from replies where inreplyto=$1)`
-	if err := config.DB.QueryRow(query, obj.Id).Scan(&attachment); err != nil {
-		return util.MakeError(err, "TombstonePreviewReplies")
+	if err := config.DB.QueryRow(query, obj.Id).Scan(&attachment.Id); err != nil {
+		return nil
 	}
 
 	if err := attachment.DeletePreviewFromFile(); err != nil {
@@ -1005,7 +1009,7 @@ func (obj ObjectBase) TombstoneReplies() error {
 		return util.MakeError(err, "TombstoneReplies")
 	}
 
-	return nil
+	return obj.Tombstone()
 }
 
 func (obj ObjectBase) _TombstoneReplies() error {
