@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
@@ -22,9 +23,7 @@ func BoardDelete(ctx *fiber.Ctx) error {
 	_, auth := util.GetPasswordFromSession(ctx)
 
 	if postID == "" || auth == "" {
-		ctx.Response().Header.SetStatusCode(http.StatusBadRequest)
-
-		_, err := ctx.Write([]byte("id or auth empty"))
+		err = errors.New("missing postID or auth")
 		return util.MakeError(err, "BoardDelete")
 	}
 
@@ -47,6 +46,8 @@ func BoardDelete(ctx *fiber.Ctx) error {
 	} else {
 		if len(col.OrderedItems[0].InReplyTo) > 0 {
 			OP = col.OrderedItems[0].InReplyTo[0].Id
+		} else {
+			OP = postID
 		}
 
 		actor.Id = col.OrderedItems[0].Actor
@@ -89,9 +90,9 @@ func BoardDelete(ctx *fiber.Ctx) error {
 	}
 
 	if !isOP {
-		if !local {
+		if !local && OP != "" {
 			return ctx.Redirect("/"+board+"/"+util.RemoteShort(OP), http.StatusSeeOther)
-		} else {
+		} else if OP != "" {
 			return ctx.Redirect(OP, http.StatusSeeOther)
 		}
 	}
@@ -100,7 +101,71 @@ func BoardDelete(ctx *fiber.Ctx) error {
 }
 
 func BoardDeleteAttach(ctx *fiber.Ctx) error {
-	return ctx.SendString("board delete attach")
+	var err error
+
+	postID := ctx.Query("id")
+	board := ctx.Query("board")
+
+	_, auth := util.GetPasswordFromSession(ctx)
+
+	if postID == "" || auth == "" {
+		err = errors.New("missing postID or auth")
+		return util.MakeError(err, "BoardDeleteAttach")
+	}
+
+	var col activitypub.Collection
+	activity := activitypub.Activity{Id: postID}
+
+	if col, err = activity.GetCollection(); err != nil {
+		return util.MakeError(err, "BoardDeleteAttach")
+	}
+
+	var OP string
+	var actor activitypub.Actor
+
+	if len(col.OrderedItems) == 0 {
+		actor, err = activitypub.GetActorByNameFromDB(board)
+
+		if err != nil {
+			return util.MakeError(err, "BoardDeleteAttach")
+		}
+	} else {
+		if len(col.OrderedItems[0].InReplyTo) > 0 {
+			OP = col.OrderedItems[0].InReplyTo[0].Id
+		} else {
+			OP = postID
+		}
+
+		actor.Id = col.OrderedItems[0].Actor
+	}
+
+	obj := activitypub.ObjectBase{Id: postID}
+
+	if err := obj.DeleteAttachmentFromFile(); err != nil {
+		return util.MakeError(err, "BoardDeleteAttach")
+	}
+
+	if err := obj.TombstoneAttachment(); err != nil {
+		return util.MakeError(err, "BoardDeleteAttach")
+	}
+
+	if err := obj.DeletePreviewFromFile(); err != nil {
+		return util.MakeError(err, "BoardDeleteAttach")
+	}
+
+	if err := obj.TombstonePreview(); err != nil {
+		return util.MakeError(err, "BoardDeleteAttach")
+	}
+
+	if ctx.Query("manage") == "t" {
+		return ctx.Redirect("/"+config.Key+"/"+board, http.StatusSeeOther)
+	} else if local, _ := obj.IsLocal(); !local && OP != "" {
+		return ctx.Redirect("/"+board+"/"+util.RemoteShort(OP), http.StatusSeeOther)
+	} else if OP != "" {
+		return ctx.Redirect(OP, http.StatusSeeOther)
+	}
+
+	return ctx.Redirect("/"+board, http.StatusSeeOther)
 }
 
 func BoardMarkSensitive(ctx *fiber.Ctx) error {
@@ -112,9 +177,7 @@ func BoardMarkSensitive(ctx *fiber.Ctx) error {
 	_, auth := util.GetPasswordFromSession(ctx)
 
 	if postID == "" || auth == "" {
-		ctx.Response().Header.SetStatusCode(http.StatusBadRequest)
-
-		_, err := ctx.Write([]byte("id or auth empty"))
+		err = errors.New("missing postID or auth")
 		return util.MakeError(err, "BoardDelete")
 	}
 
@@ -137,6 +200,8 @@ func BoardMarkSensitive(ctx *fiber.Ctx) error {
 	} else {
 		if len(col.OrderedItems[0].InReplyTo) > 0 {
 			OP = col.OrderedItems[0].InReplyTo[0].Id
+		} else {
+			OP = postID
 		}
 
 		actor.Id = col.OrderedItems[0].Actor
