@@ -76,12 +76,11 @@ func main() {
 	app.Get("/delete", routes.BoardDelete)
 	app.Get("/deleteattach", routes.BoardDeleteAttach)
 	app.Get("/marksensitive", routes.BoardMarkSensitive)
-	app.Get("/remove", routes.BoardRemove)
 	app.Get("/addtoindex", routes.BoardAddToIndex)
 	app.Get("/poparchive", routes.BoardPopArchive)
 	app.Get("/autosubscribe", routes.BoardAutoSubscribe)
 	app.Get("/blacklist", routes.BoardBlacklist)
-	app.Get("/report", routes.BoardReport)
+	app.All("/report", routes.BoardReport)
 
 	// Webfinger routes
 	app.Get("/.well-known/webfinger", routes.Webfinger)

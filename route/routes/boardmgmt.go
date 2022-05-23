@@ -8,6 +8,7 @@ import (
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
+	"github.com/FChannel0/FChannel-Server/db"
 	"github.com/FChannel0/FChannel-Server/post"
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/gofiber/fiber/v2"
@@ -351,5 +352,80 @@ func BoardBlacklist(ctx *fiber.Ctx) error {
 }
 
 func BoardReport(ctx *fiber.Ctx) error {
-	return ctx.SendString("board report")
+	id := ctx.FormValue("id")
+	board := ctx.FormValue("board")
+	reason := ctx.FormValue("comment")
+	close := ctx.FormValue("close")
+
+	actor, err := activitypub.GetActorByNameFromDB(board)
+
+	if err != nil {
+		return util.MakeError(err, "BoardReport")
+	}
+	_, auth := util.GetPasswordFromSession(ctx)
+
+	var captcha = ctx.FormValue("captchaCode") + ":" + ctx.FormValue("captcha")
+
+	if len(reason) > 100 {
+		return ctx.Status(403).Render("403", fiber.Map{
+			"message": "Report comment limit 100 characters",
+		})
+	}
+
+	if ok, _ := post.CheckCaptcha(captcha); !ok && close != "1" {
+		return ctx.Status(403).Render("403", fiber.Map{
+			"message": "Invalid captcha",
+		})
+	}
+
+	var obj = activitypub.ObjectBase{Id: id}
+
+	if close == "1" {
+		if auth, err := util.HasAuth(auth, actor.Id); !auth {
+			config.Log.Println(err)
+			return ctx.Status(404).Render("404", fiber.Map{
+				"message": "Something broke",
+			})
+		}
+
+		if local, _ := obj.IsLocal(); !local {
+			if err := db.CloseLocalReport(obj.Id, board); err != nil {
+				config.Log.Println(err)
+				return ctx.Status(404).Render("404", fiber.Map{
+					"message": "Something broke",
+				})
+			}
+
+			return ctx.Redirect("/"+config.Key+"/"+board, http.StatusSeeOther)
+		}
+
+		if err := obj.DeleteReported(); err != nil {
+			config.Log.Println(err)
+			return ctx.Status(404).Render("404", fiber.Map{
+				"message": "Something broke",
+			})
+		}
+
+		return ctx.Redirect("/"+config.Key+"/"+board, http.StatusSeeOther)
+	}
+
+	if local, _ := obj.IsLocal(); !local {
+		if err := db.CreateLocalReport(id, board, reason); err != nil {
+			config.Log.Println(err)
+			return ctx.Status(404).Render("404", fiber.Map{
+				"message": "Something broke",
+			})
+		}
+
+		return ctx.Redirect("/"+board+"/"+util.RemoteShort(obj.Id), http.StatusSeeOther)
+	}
+
+	if err := db.CreateLocalReport(obj.Id, board, reason); err != nil {
+		config.Log.Println(err)
+		return ctx.Status(404).Render("404", fiber.Map{
+			"message": "Something broke",
+		})
+	}
+
+	return ctx.Redirect(id, http.StatusSeeOther)
 }
