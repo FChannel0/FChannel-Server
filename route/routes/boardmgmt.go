@@ -3,15 +3,118 @@ package routes
 import (
 	"errors"
 	"net/http"
+	"os"
+	"regexp"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
+	"github.com/FChannel0/FChannel-Server/post"
 	"github.com/FChannel0/FChannel-Server/util"
 	"github.com/gofiber/fiber/v2"
 )
 
 func BoardBanMedia(ctx *fiber.Ctx) error {
-	return ctx.SendString("board ban media")
+	var err error
+
+	postID := ctx.Query("id")
+	board := ctx.Query("board")
+
+	_, auth := util.GetPasswordFromSession(ctx)
+
+	if postID == "" || auth == "" {
+		err = errors.New("missing postID or auth")
+		return util.MakeError(err, "BoardBanMedia")
+	}
+
+	var col activitypub.Collection
+	activity := activitypub.Activity{Id: postID}
+
+	if col, err = activity.GetCollection(); err != nil {
+		return util.MakeError(err, "BoardBanMedia")
+	}
+
+	if len(col.OrderedItems) == 0 {
+		err = errors.New("no collection")
+		return util.MakeError(err, "BoardBanMedia")
+	}
+
+	if len(col.OrderedItems[0].Attachment) == 0 {
+		err = errors.New("no attachment")
+		return util.MakeError(err, "BoardBanMedia")
+	}
+
+	var actor activitypub.Actor
+	actor.Id = col.OrderedItems[0].Actor
+
+	if has, _ := util.HasAuth(auth, actor.Id); !has {
+		err = errors.New("actor does not have auth")
+		return util.MakeError(err, "BoardBanMedia")
+	}
+
+	re := regexp.MustCompile(config.Domain)
+	file := re.ReplaceAllString(col.OrderedItems[0].Attachment[0].Href, "")
+
+	f, err := os.Open("." + file)
+
+	if err != nil {
+		return util.MakeError(err, "BoardBanMedia")
+	}
+
+	defer f.Close()
+
+	bytes := make([]byte, 2048)
+
+	if _, err = f.Read(bytes); err != nil {
+		return util.MakeError(err, "BoardBanMedia")
+	}
+
+	if banned, err := post.IsMediaBanned(f); err == nil && !banned {
+		query := `insert into bannedmedia (hash) values ($1)`
+		if _, err := config.DB.Exec(query, util.HashBytes(bytes)); err != nil {
+			return util.MakeError(err, "BoardBanMedia")
+		}
+	}
+
+	var isOP bool
+	var local bool
+	var obj activitypub.ObjectBase
+	obj.Id = postID
+	obj.Actor = actor.Id
+
+	if isOP, _ = obj.CheckIfOP(); !isOP {
+		if err := obj.Tombstone(); err != nil {
+			return util.MakeError(err, "BoardBanMedia")
+		}
+	} else {
+		if err := obj.TombstoneReplies(); err != nil {
+			return util.MakeError(err, "BoardBanMedia")
+		}
+	}
+
+	if local, _ = obj.IsLocal(); local {
+		if err := obj.DeleteRequest(); err != nil {
+			return util.MakeError(err, "BoardBanMedia")
+		}
+	}
+
+	if err := actor.UnArchiveLast(); err != nil {
+		return util.MakeError(err, "BoardBanMedia")
+	}
+
+	var OP string
+	if len(col.OrderedItems[0].InReplyTo) > 0 {
+		OP = col.OrderedItems[0].InReplyTo[0].Id
+	}
+
+	if !isOP {
+		if !local && OP != "" {
+			return ctx.Redirect("/"+board+"/"+util.RemoteShort(OP), http.StatusSeeOther)
+		} else if OP != "" {
+			return ctx.Redirect(OP, http.StatusSeeOther)
+		}
+	}
+
+	return ctx.Redirect("/"+board, http.StatusSeeOther)
 }
 
 func BoardDelete(ctx *fiber.Ctx) error {
@@ -54,9 +157,7 @@ func BoardDelete(ctx *fiber.Ctx) error {
 	}
 
 	if has, _ := util.HasAuth(auth, actor.Id); !has {
-		ctx.Response().Header.SetStatusCode(http.StatusBadRequest)
-
-		_, err := ctx.Write([]byte("does not have auth"))
+		err = errors.New("actor does not have auth")
 		return util.MakeError(err, "BoardDelete")
 	}
 
@@ -75,7 +176,7 @@ func BoardDelete(ctx *fiber.Ctx) error {
 
 	var local bool
 
-	if local, _ = obj.IsLocal(); !local {
+	if local, _ = obj.IsLocal(); local {
 		if err := obj.DeleteRequest(); err != nil {
 			return util.MakeError(err, "BoardDelete")
 		}
@@ -178,14 +279,14 @@ func BoardMarkSensitive(ctx *fiber.Ctx) error {
 
 	if postID == "" || auth == "" {
 		err = errors.New("missing postID or auth")
-		return util.MakeError(err, "BoardDelete")
+		return util.MakeError(err, "BoardMarkSensitive")
 	}
 
 	var col activitypub.Collection
 	activity := activitypub.Activity{Id: postID}
 
 	if col, err = activity.GetCollection(); err != nil {
-		return util.MakeError(err, "BoardDelete")
+		return util.MakeError(err, "BoardMarkSensitive")
 	}
 
 	var OP string
@@ -195,7 +296,7 @@ func BoardMarkSensitive(ctx *fiber.Ctx) error {
 		actor, err = activitypub.GetActorByNameFromDB(board)
 
 		if err != nil {
-			return util.MakeError(err, "BoardDelete")
+			return util.MakeError(err, "BoardMarkSensitive")
 		}
 	} else {
 		if len(col.OrderedItems[0].InReplyTo) > 0 {
@@ -208,16 +309,14 @@ func BoardMarkSensitive(ctx *fiber.Ctx) error {
 	}
 
 	if has, _ := util.HasAuth(auth, actor.Id); !has {
-		ctx.Response().Header.SetStatusCode(http.StatusBadRequest)
-
-		_, err := ctx.Write([]byte("does not have auth"))
-		return util.MakeError(err, "BoardDelete")
+		err = errors.New("actor does not have auth")
+		return util.MakeError(err, "BoardMarkSensitive")
 	}
 
 	obj := activitypub.ObjectBase{Id: postID}
 
 	if err = obj.MarkSensitive(true); err != nil {
-		return util.MakeError(err, "BoardDelete")
+		return util.MakeError(err, "BoardMarkSensitive")
 	}
 
 	if isOP, _ := obj.CheckIfOP(); !isOP && OP != "" {
@@ -233,10 +332,6 @@ func BoardMarkSensitive(ctx *fiber.Ctx) error {
 
 func BoardRemove(ctx *fiber.Ctx) error {
 	return ctx.SendString("board remove")
-}
-
-func BoardRemoveAttach(ctx *fiber.Ctx) error {
-	return ctx.SendString("board remove attach")
 }
 
 func BoardAddToIndex(ctx *fiber.Ctx) error {

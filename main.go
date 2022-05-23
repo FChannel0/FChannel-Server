@@ -77,7 +77,6 @@ func main() {
 	app.Get("/deleteattach", routes.BoardDeleteAttach)
 	app.Get("/marksensitive", routes.BoardMarkSensitive)
 	app.Get("/remove", routes.BoardRemove)
-	app.Get("/removeattach", routes.BoardRemoveAttach)
 	app.Get("/addtoindex", routes.BoardAddToIndex)
 	app.Get("/poparchive", routes.BoardPopArchive)
 	app.Get("/autosubscribe", routes.BoardAutoSubscribe)

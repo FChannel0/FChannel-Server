@@ -114,10 +114,9 @@ func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
 					_, err := ctx.Write([]byte("7MB max file size"))
 					return util.MakeError(err, "ParseOutboxRequest")
 				} else if isBanned, err := post.IsMediaBanned(f); err == nil && isBanned {
-					//Todo add logging
 					config.Log.Println("media banned")
 					ctx.Response().Header.SetStatusCode(403)
-					_, err := ctx.Write([]byte("media banned"))
+					_, err := ctx.Write([]byte(""))
 					return util.MakeError(err, "ParseOutboxRequest")
 				} else if err != nil {
 					return util.MakeError(err, "ParseOutboxRequest")
