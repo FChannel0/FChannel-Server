@@ -331,22 +331,27 @@ func BoardMarkSensitive(ctx *fiber.Ctx) error {
 	return ctx.Redirect("/"+board, http.StatusSeeOther)
 }
 
+// TODO routes/BoardRemove
 func BoardRemove(ctx *fiber.Ctx) error {
 	return ctx.SendString("board remove")
 }
 
+// TODO routes/BoardAddToIndex
 func BoardAddToIndex(ctx *fiber.Ctx) error {
 	return ctx.SendString("board add to index")
 }
 
+// TODO routes/BoardPopArchive
 func BoardPopArchive(ctx *fiber.Ctx) error {
 	return ctx.SendString("board pop archive")
 }
 
+// TODO routes/BoardAutoSubscribe
 func BoardAutoSubscribe(ctx *fiber.Ctx) error {
 	return ctx.SendString("board auto subscribe")
 }
 
+// TODO routes/BoardBlacklist
 func BoardBlacklist(ctx *fiber.Ctx) error {
 	return ctx.SendString("board blacklist")
 }

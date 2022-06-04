@@ -10,12 +10,12 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func Media(c *fiber.Ctx) error {
-	if c.Query("hash") != "" {
-		return RouteImages(c, c.Query("hash"))
+func Media(ctx *fiber.Ctx) error {
+	if ctx.Query("hash") != "" {
+		return RouteImages(ctx, ctx.Query("hash"))
 	}
 
-	return c.SendStatus(404)
+	return ctx.SendStatus(404)
 }
 
 func RouteImages(ctx *fiber.Ctx, media string) error {

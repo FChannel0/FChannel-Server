@@ -43,10 +43,10 @@ func NewsGet(ctx *fiber.Ctx) error {
 	return ctx.Render("news", fiber.Map{"page": data}, "layouts/main")
 }
 
-func AllNewsGet(ctx *fiber.Ctx) error {
+func NewsGetAll(ctx *fiber.Ctx) error {
 	actor, err := activitypub.GetActorFromDB(config.Domain)
 	if err != nil {
-		return util.MakeError(err, "AllNewsGet")
+		return util.MakeError(err, "NewsGetAll")
 	}
 
 	var data route.PageData
@@ -63,11 +63,21 @@ func AllNewsGet(ctx *fiber.Ctx) error {
 
 	data.NewsItems, err = db.GetNews(0)
 	if err != nil {
-		return util.MakeError(err, "AllNewsGet")
+		return util.MakeError(err, "NewsGetAll")
 	}
 
 	data.Themes = &config.Themes
 	data.ThemeCookie = route.GetThemeCookie(ctx)
 
 	return ctx.Render("anews", fiber.Map{"page": data}, "layouts/main")
+}
+
+// TODO routes/NewsPost
+func NewsPost(c *fiber.Ctx) error {
+	return c.SendString("admin post news")
+}
+
+// TODO routes/NewsDelete
+func NewsDelete(c *fiber.Ctx) error {
+	return c.SendString("admin news delete")
 }

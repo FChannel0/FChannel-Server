@@ -1,7 +1,7 @@
 {{ if ne .ReturnTo "catalog" }}
 <li>[<a href="/{{ .Board.Name }}/catalog">Catalog</a>]</li>
 {{ end }}
-{{ if and (ne .ReturnTo "archive")  (showArchive .Board.Actor) }}
+{{ if and (ne .ReturnTo "archive") (ne .PostType "reply") (showArchive .Board.Actor) }}
 <li>[<a href="/{{ .Board.Name }}/archive">Archive</a>]</li>
 {{ end }}
 <li>[<a href="javascript:location.reload()">Refresh</a>]</li>

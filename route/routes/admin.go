@@ -205,18 +205,6 @@ func AdminAddBoard(ctx *fiber.Ctx) error {
 	return ctx.Redirect("/"+config.Key, http.StatusSeeOther)
 }
 
-func AdminPostNews(c *fiber.Ctx) error {
-	// STUB
-
-	return c.SendString("admin post news")
-}
-
-func AdminNewsDelete(c *fiber.Ctx) error {
-	// STUB
-
-	return c.SendString("admin news delete")
-}
-
 func AdminActorIndex(ctx *fiber.Ctx) error {
 	actor, _ := webfinger.GetActorFromPath(ctx.Path(), "/"+config.Key+"/")
 
