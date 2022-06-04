@@ -5,9 +5,14 @@ import (
 	"github.com/FChannel0/FChannel-Server/util"
 )
 
-type Report struct {
+type Reports struct {
 	ID     string
 	Count  int
+	Reason []string
+}
+
+type Report struct {
+	ID     string
 	Reason string
 }
 
@@ -72,10 +77,10 @@ func GetLocalDelete() ([]Removed, error) {
 	return deleted, nil
 }
 
-func GetLocalReport(board string) ([]Report, error) {
-	var reported []Report
+func GetLocalReport(board string) (map[string]Reports, error) {
+	var reported = make(map[string]Reports)
 
-	query := `select id, count, reason from reported where board=$1`
+	query := `select id, reason from reported where board=$1`
 	rows, err := config.DB.Query(query, board)
 
 	if err != nil {
@@ -86,11 +91,22 @@ func GetLocalReport(board string) ([]Report, error) {
 	for rows.Next() {
 		var r Report
 
-		if err := rows.Scan(&r.ID, &r.Count, &r.Reason); err != nil {
+		if err := rows.Scan(&r.ID, &r.Reason); err != nil {
 			return reported, util.MakeError(err, "GetLocalReportDB")
 		}
 
-		reported = append(reported, r)
+		if report, has := reported[r.ID]; has {
+			report.Count += 1
+			report.Reason = append(report.Reason, r.Reason)
+			reported[r.ID] = report
+			continue
+		}
+
+		reported[r.ID] = Reports{
+			ID:     r.ID,
+			Count:  1,
+			Reason: []string{r.Reason},
+		}
 	}
 
 	return reported, nil

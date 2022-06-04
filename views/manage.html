@@ -45,7 +45,16 @@
   <ul style="display: inline-block; padding: 0; margin: 0; list-style-type: none;">
     {{ $domain := .page.Domain }}
     {{ range .page.Reported }}
-    <li><a id="rpost" post="{{ .ID }}" href=""></a> - <b>{{ .Count }}</b><span> "{{ .Reason }}" </span> [<a href="/delete?id={{ .ID }}&board={{ $board.Name }}&manage=t">Remove Post</a>] [<a href="/deleteattach?id={{ .ID }}&board={{ $board.Name }}&manage=t">Remove Attachment</a>] [<a href="/report?id={{ .ID }}&close=1&board={{ $board.Name }}">Close</a>]</li>
+    <li>
+      <a id="rpost" post="{{ .ID }}" href="{{ $board.Actor.Id }}/{{ shortURL $board.Actor.Outbox .ID }}">{{ shortURL $board.Actor.Outbox .ID }}</a> - <b>{{ .Count }}</b> [<a href="/delete?id={{ .ID }}&board={{ $board.Name }}&manage=t">Remove Post</a>] [<a href="/deleteattach?id={{ .ID }}&board={{ $board.Name }}&manage=t">Remove Attachment</a>] [<a href="/report?id={{ .ID }}&close=1&board={{ $board.Name }}">Close</a>]
+      <ul>
+        {{ range .Reason }}
+        <li>
+          <span>"{{ . }}" </span>
+        </li>
+        {{ end }}
+      </ul>
+    </li>
     {{ end }}
   </ul>
 </div>

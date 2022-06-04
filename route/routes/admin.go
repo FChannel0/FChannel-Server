@@ -226,12 +226,8 @@ func AdminActorIndex(ctx *fiber.Ctx) error {
 	reqActivity.Id = actor.Followers
 	follower, _ := reqActivity.GetCollection()
 
-	reqActivity.Id = actor.Id + "/reported"
-	reported, _ := activitypub.GetActorCollectionReq(reqActivity.Id)
-
 	var following []string
 	var followers []string
-	var reports []db.Report
 
 	for _, e := range follow.Items {
 		following = append(following, e.Id)
@@ -241,28 +237,10 @@ func AdminActorIndex(ctx *fiber.Ctx) error {
 		followers = append(followers, e.Id)
 	}
 
-	for _, e := range reported.Items {
-		var r db.Report
-		r.Count = int(e.Size)
-		r.ID = e.Id
-		r.Reason = e.Content
-		reports = append(reports, r)
-	}
-
-	localReports, _ := db.GetLocalReport(actor.Name)
-
-	for _, e := range localReports {
-		var r db.Report
-		r.Count = e.Count
-		r.ID = e.ID
-		r.Reason = e.Reason
-		reports = append(reports, r)
-	}
-
 	var data route.AdminPage
 	data.Following = following
 	data.Followers = followers
-	data.Reported = reports
+	data.Reported, _ = db.GetLocalReport(actor.Name)
 	data.Domain = config.Domain
 	data.IsLocal, _ = actor.IsLocal()
 
