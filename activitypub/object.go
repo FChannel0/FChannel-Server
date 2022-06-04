@@ -54,6 +54,18 @@ func (obj ObjectBase) CheckIfOP() (bool, error) {
 	return true, nil
 }
 
+func (obj ObjectBase) GetOP() (string, error) {
+	var id string
+
+	query := `select id from replies where inreplyto='' and id in (select inreplyto from replies where id=$1)`
+
+	if err := config.DB.QueryRow(query, obj.Id).Scan(&id); err != nil {
+		return obj.Id, nil
+	}
+
+	return id, nil
+}
+
 func (obj ObjectBase) CreatePreview() *NestedObjectBase {
 	var nPreview NestedObjectBase
 

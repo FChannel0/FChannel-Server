@@ -373,4 +373,17 @@ func TemplateFunctions(engine *html.Engine) {
 
 		return returnString
 	})
+
+	engine.AddFunc("parseLink", func(board activitypub.Actor, link string) string {
+		var obj = activitypub.ObjectBase{
+			Id: link,
+		}
+
+		var OP string
+		if OP, _ = obj.GetOP(); OP == obj.Id {
+			return board.Name + "/" + util.ShortURL(board.Outbox, obj.Id)
+		}
+
+		return board.Name + "/" + util.ShortURL(board.Outbox, OP) + "#" + util.ShortURL(board.Outbox, link)
+	})
 }

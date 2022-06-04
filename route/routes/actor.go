@@ -398,6 +398,12 @@ func ActorPostGet(ctx *fiber.Ctx) error {
 
 	inReplyTo := actor.Id + "/" + postId
 
+	// check if actually OP if not redirect to op to get full thread
+	var obj = activitypub.ObjectBase{Id: inReplyTo}
+	if OP, _ := obj.GetOP(); OP != obj.Id {
+		return ctx.Redirect(config.Domain+"/"+actor.Name+"/"+util.ShortURL(actor.Outbox, OP)+"#"+util.ShortURL(actor.Outbox, inReplyTo), http.StatusMovedPermanently)
+	}
+
 	var data route.PageData
 
 	re = regexp.MustCompile("f(\\w|[!@#$%^&*<>])+-(\\w|[!@#$%^&*<>])+")
