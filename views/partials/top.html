@@ -3,9 +3,9 @@
   <p style="text-align: center;">{{ .Board.Summary }}</p>
   {{ $len := len .Posts }}
   {{ if eq $len 0 }}
-  {{ if .Board.InReplyTo }}
+  {{ if eq .PostType "reply" }}
   <h3 id="newpostbtn"  state="0" style="display: none; margin-bottom:100px;">[<a href="javascript:startNewPost()">Post a Reply</a>]</h3>
-  {{ else  }}
+  {{ else if eq .PostType "new" }}
   <h3 id="newpostbtn"  state="0" style="display: none; margin-bottom:100px;">[<a href="javascript:startNewPost()">Start a New Thread</a>]</h3>
   {{ end }} <!-- end if inreplyto-->
   <div id="newpost">

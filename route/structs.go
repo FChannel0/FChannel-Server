@@ -24,6 +24,7 @@ type PageData struct {
 	NewsItems         []db.NewsItem
 	BoardRemainer     []int
 	Meta              Meta
+	PostType          string
 
 	Themes      *[]string
 	ThemeCookie string

@@ -213,18 +213,6 @@ func ActorFollowers(ctx *fiber.Ctx) error {
 	return actor.GetFollowersResp(ctx)
 }
 
-func ActorReported(c *fiber.Ctx) error {
-	// STUB
-
-	return c.SendString("actor reported")
-}
-
-func ActorArchive(c *fiber.Ctx) error {
-	// STUB
-
-	return c.SendString("actor archive")
-}
-
 func ActorPost(ctx *fiber.Ctx) error {
 	header, _ := ctx.FormFile("file")
 
@@ -450,10 +438,6 @@ func ActorPostGet(ctx *fiber.Ctx) error {
 		}
 	}
 
-	if len(data.Posts) > 0 {
-		data.PostId = util.ShortURL(data.Board.To, data.Posts[0].Id)
-	}
-
 	data.Board.Name = actor.Name
 	data.Board.PrefName = actor.PreferredUsername
 	data.Board.To = actor.Outbox
@@ -463,6 +447,11 @@ func ActorPostGet(ctx *fiber.Ctx) error {
 	data.Board.Domain = config.Domain
 	data.Board.Restricted = actor.Restricted
 	data.ReturnTo = "feed"
+	data.PostType = "reply"
+
+	if len(data.Posts) > 0 {
+		data.PostId = util.ShortURL(data.Board.To, data.Posts[0].Id)
+	}
 
 	capt, err := util.GetRandomCaptcha()
 	if err != nil {
@@ -496,28 +485,19 @@ func ActorPostGet(ctx *fiber.Ctx) error {
 	}, "layouts/main")
 }
 
-func ActorCatalogGet(ctx *fiber.Ctx) error {
+func ActorCatalog(ctx *fiber.Ctx) error {
 	actorName := ctx.Params("actor")
 	actor, err := activitypub.GetActorByNameFromDB(actorName)
+
 	if err != nil {
-		return util.MakeError(err, "CatalogGet")
+		return util.MakeError(err, "ActorCatalog")
 	}
 
 	collection, err := actor.GetCatalogCollection()
 
-	// TODO: implement this in template functions
-	//	"showArchive": func() bool {
-	//	col, err := db.GetActorCollectionDBTypeLimit(collection.Actor.Id, "Archive", 1)
-	//	if err != nil {
-	//		// TODO: figure out what to do here
-	//		panic(err)
-	//	}
-	//
-	//	if len(col.OrderedItems) > 0 {
-	//		return true
-	//	}
-	//	return false
-	//},
+	if err != nil {
+		return util.MakeError(err, "ActorCatalog")
+	}
 
 	var data route.PageData
 	data.Board.Name = actor.Name
@@ -531,6 +511,7 @@ func ActorCatalogGet(ctx *fiber.Ctx) error {
 	data.Board.Restricted = actor.Restricted
 	data.Key = config.Key
 	data.ReturnTo = "catalog"
+	data.PostType = "new"
 
 	data.Board.Post.Actor = actor.Id
 
@@ -612,6 +593,7 @@ func ActorOutboxGet(ctx *fiber.Ctx) error {
 	data.Board.Restricted = actor.Restricted
 	data.CurrentPage = page
 	data.ReturnTo = "feed"
+	data.PostType = "new"
 
 	data.Board.Post.Actor = actor.Id
 
@@ -644,9 +626,19 @@ func ActorOutboxGet(ctx *fiber.Ctx) error {
 	}, "layouts/main")
 }
 
-func ActorArchiveGet(ctx *fiber.Ctx) error {
-	collection := ctx.Locals("collection").(activitypub.Collection)
-	actor := collection.Actor
+func ActorArchive(ctx *fiber.Ctx) error {
+	actorName := ctx.Params("actor")
+	actor, err := activitypub.GetActorByNameFromDB(actorName)
+
+	if err != nil {
+		return util.MakeError(err, "ActorArchive")
+	}
+
+	collection, err := actor.GetCollectionType("Archive")
+
+	if err != nil {
+		return util.MakeError(err, "ActorArchive")
+	}
 
 	var returnData route.PageData
 	returnData.Board.Name = actor.Name
@@ -663,12 +655,11 @@ func ActorArchiveGet(ctx *fiber.Ctx) error {
 
 	returnData.Board.Post.Actor = actor.Id
 
-	var err error
 	returnData.Instance, err = activitypub.GetActorFromDB(config.Domain)
 
 	capt, err := util.GetRandomCaptcha()
 	if err != nil {
-		return util.MakeError(err, "ArchiveGet")
+		return util.MakeError(err, "ActorArchive")
 	}
 	returnData.Board.Captcha = config.Domain + "/" + capt
 	returnData.Board.CaptchaCode = post.GetCaptchaCode(returnData.Board.Captcha)
@@ -678,6 +669,10 @@ func ActorArchiveGet(ctx *fiber.Ctx) error {
 	returnData.Boards = webfinger.Boards
 
 	returnData.Posts = collection.OrderedItems
+
+	returnData.Meta.Description = returnData.Board.Summary
+	returnData.Meta.Url = returnData.Board.Actor.Id
+	returnData.Meta.Title = returnData.Title
 
 	returnData.Themes = &config.Themes
 	returnData.ThemeCookie = route.GetThemeCookie(ctx)

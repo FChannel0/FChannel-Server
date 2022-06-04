@@ -386,4 +386,14 @@ func TemplateFunctions(engine *html.Engine) {
 
 		return board.Name + "/" + util.ShortURL(board.Outbox, OP) + "#" + util.ShortURL(board.Outbox, link)
 	})
+
+	engine.AddFunc("showArchive", func(actor activitypub.Actor) bool {
+		col, err := actor.GetCollectionTypeLimit("Archive", 1)
+
+		if err != nil || len(col.OrderedItems) == 0 {
+			return false
+		}
+
+		return true
+	})
 }

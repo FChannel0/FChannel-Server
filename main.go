@@ -89,12 +89,11 @@ func main() {
 	app.Get("/api/media", routes.Media)
 
 	// Board actor routes
-	app.Get("/:actor/catalog", routes.ActorCatalogGet)
+	app.Get("/:actor/catalog", routes.ActorCatalog)
 	app.Post("/:actor/inbox", routes.ActorInbox)
 	app.All("/:actor/outbox", routes.ActorOutbox)
 	app.Get("/:actor/following", routes.ActorFollowing)
 	app.All("/:actor/followers", routes.ActorFollowers)
-	app.Get("/:actor/reported", routes.ActorReported)
 	app.Get("/:actor/archive", routes.ActorArchive)
 	app.Get("/:actor", routes.ActorOutboxGet)
 	app.Post("/:actor", routes.ActorPost)

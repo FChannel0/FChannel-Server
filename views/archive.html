@@ -1,0 +1,60 @@
+{{ template "partials/top" .page }}
+
+{{ $board := .page.Board }}
+
+<hr>
+<ul id="navlinks">
+  <li>[<a href="/{{ $board.Name }}">Return</a>]</li>
+  {{ template "partials/post_nav" .page }}
+  <li>[<a href="#bottom" id="top">Bottom</a>]</li>
+</ul>
+<hr>
+
+{{ if .page.Posts }}
+<table align="center" style="table-layout:fixed; width:90%;">
+  <tr>
+    {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}
+    <th style="width: 45px;"></th>
+    {{ end }}
+    <th style="width: 110px">No.</th>
+    <th>Excerpt</th>
+    <th style="width: 60px;"></th>
+  </tr>
+  {{ range $i, $e := .page.Posts }}
+  {{ if mod $i 2 }}
+  <tr class="box-alt">
+    {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}
+    <td>[<a href="/poparchive?id={{ $e.Id }}&board={{ $board.Name }}">Pop</a>]</td>
+    {{ end }}
+    <td>{{ shortURL $board.Actor.Outbox $e.Id }}</td>
+    <td style="overflow: hidden; word-wrap: break-word; text-overflow: ellipsis;">{{ shortExcerpt $e }}</td>
+    <td style="text-align: center;">[<a href="/{{ $board.Actor.Name }}/{{ shortURL $board.Actor.Outbox $e.Id }}">View</a>]</td>
+  </tr>
+  {{ else }}
+  <tr class="box">
+    {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}
+    <td>[<a href="/poparchive?id={{ $e.Id }}">Pop</a>]</td>
+    {{ end }}
+    <td>{{ shortURL $board.Actor.Outbox $e.Id }}</td>
+    <td style="overflow: hidden; word-wrap: break-word; text-overflow: ellipsis;">{{ shortExcerpt $e }}</td>
+    <td style="text-align: center;">[<a href="/{{ $board.Actor.Name }}/{{ shortURL $board.Actor.Outbox $e.Id }}">View</a>]</td>
+  </tr>
+  {{ end }}
+  {{ end }}
+</table>
+{{ end }}
+
+<hr>
+
+<ul id="navlinks">
+  <li>[<a href="/{{ $board.Name }}">Return</a>]</li>
+  {{ template "partials/post_nav" .page }}
+  <li>[<a href="#top" id="bottom">Top</a>]</li>
+</ul>
+
+<hr>
+
+{{ template "partials/bottom" .page }}
+{{ template "partials/footer" .page }}
+{{ template "partials/general_scripts" .page }}
+{{ template "partials/post_scripts" .page }}
