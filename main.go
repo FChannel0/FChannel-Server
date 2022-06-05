@@ -122,6 +122,10 @@ func Init() {
 		config.Log.Println(err)
 	}
 
+	if err = db.InitInstance(); err != nil {
+		config.Log.Println(err)
+	}
+
 	if actor, err = activitypub.GetActorFromDB(config.Domain); err != nil {
 		config.Log.Println(err)
 	}
@@ -139,10 +143,6 @@ func Init() {
 	}
 
 	if err = util.LoadThemes(); err != nil {
-		config.Log.Println(err)
-	}
-
-	if err = db.InitInstance(); err != nil {
 		config.Log.Println(err)
 	}
 

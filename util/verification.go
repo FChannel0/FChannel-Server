@@ -71,17 +71,13 @@ func (verify Verify) CreateBoardMod() error {
 
 	query := `select code from verification where identifier=$1 and type=$2`
 	if err := config.DB.QueryRow(query, verify.Board, verify.Type).Scan(&code); err != nil {
-		return nil
+		return MakeError(err, "CreateBoardMod")
 	}
 
 	var ident string
 
 	query = `select identifier from boardaccess where identifier=$1 and board=$2`
 	if err := config.DB.QueryRow(query, verify.Identifier, verify.Board).Scan(&ident); err != nil {
-		return nil
-	}
-
-	if ident != verify.Identifier {
 		query := `insert into crossverification (verificationcode, code) values ($1, $2)`
 		if _, err := config.DB.Exec(query, code, pass); err != nil {
 			return MakeError(err, "CreateBoardMod")
@@ -91,9 +87,9 @@ func (verify Verify) CreateBoardMod() error {
 		if _, err = config.DB.Exec(query, verify.Identifier, pass, verify.Board, verify.Type); err != nil {
 			return MakeError(err, "CreateBoardMod")
 		}
-
-		config.Log.Printf("Board access - Board: %s, Identifier: %s, Code: %s\n", verify.Board, verify.Identifier, pass)
 	}
+
+	config.Log.Printf("Board access - Board: %s, Identifier: %s, Code: %s\n", verify.Board, verify.Identifier, pass)
 
 	return nil
 }
