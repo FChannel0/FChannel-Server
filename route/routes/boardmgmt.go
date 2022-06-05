@@ -342,9 +342,27 @@ func BoardAddToIndex(ctx *fiber.Ctx) error {
 	return ctx.SendString("board add to index")
 }
 
-// TODO routes/BoardPopArchive
 func BoardPopArchive(ctx *fiber.Ctx) error {
-	return ctx.SendString("board pop archive")
+	actor, err := activitypub.GetActorFromDB(config.Domain)
+
+	if err != nil {
+		return util.MakeError(err, "BoardPopArchive")
+	}
+
+	if has := actor.HasValidation(ctx); !has {
+		return ctx.Status(404).Render("404", fiber.Map{})
+	}
+
+	id := ctx.Query("id")
+	board := ctx.Query("board")
+
+	var obj = activitypub.ObjectBase{Id: id}
+
+	if err := obj.SetRepliesType("Note"); err != nil {
+		return util.MakeError(err, "BoardPopArchive")
+	}
+
+	return ctx.Redirect("/"+board+"/archive", http.StatusSeeOther)
 }
 
 func BoardAutoSubscribe(ctx *fiber.Ctx) error {
