@@ -347,9 +347,34 @@ func BoardPopArchive(ctx *fiber.Ctx) error {
 	return ctx.SendString("board pop archive")
 }
 
-// TODO routes/BoardAutoSubscribe
 func BoardAutoSubscribe(ctx *fiber.Ctx) error {
-	return ctx.SendString("board auto subscribe")
+	actor, err := activitypub.GetActorFromDB(config.Domain)
+
+	if err != nil {
+		return util.MakeError(err, "BoardAutoSubscribe")
+	}
+
+	if has := actor.HasValidation(ctx); !has {
+		return util.MakeError(err, "BoardAutoSubscribe")
+	}
+
+	board := ctx.Query("board")
+
+	if actor, err = activitypub.GetActorByNameFromDB(board); err != nil {
+		return util.MakeError(err, "BoardAutoSubscribe")
+	}
+
+	if err := actor.SetAutoSubscribe(); err != nil {
+		return util.MakeError(err, "BoardAutoSubscribe")
+	}
+
+	if autoSub, _ := actor.GetAutoSubscribe(); autoSub {
+		if err := actor.AutoFollow(); err != nil {
+			return util.MakeError(err, "BoardAutoSubscribe")
+		}
+	}
+
+	return ctx.Redirect("/"+config.Key+"/"+board, http.StatusSeeOther)
 }
 
 func BoardBlacklist(ctx *fiber.Ctx) error {

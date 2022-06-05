@@ -881,17 +881,17 @@ func (actor Actor) ReportedResp(ctx *fiber.Ctx) error {
 	return util.MakeError(err, "GetReported")
 }
 
-func (actor Actor) SetActorAutoSubscribeDB() error {
+func (actor Actor) SetAutoSubscribe() error {
 	current, err := actor.GetAutoSubscribe()
 
 	if err != nil {
-		return util.MakeError(err, "SetActorAutoSubscribeDB")
+		return util.MakeError(err, "SetAutoSubscribe")
 	}
 
 	query := `update actor set autosubscribe=$1 where id=$2`
 	_, err = config.DB.Exec(query, !current, actor.Id)
 
-	return util.MakeError(err, "SetActorAutoSubscribeDB")
+	return util.MakeError(err, "SetAutoSubscribe")
 }
 
 func (actor Actor) SendToFollowers(activity Activity) error {
