@@ -82,6 +82,10 @@ func NewsGetAll(ctx *fiber.Ctx) error {
 		return util.MakeError(err, "NewsGetAll")
 	}
 
+	if len(data.NewsItems) == 0 {
+		return ctx.Redirect("/", http.StatusSeeOther)
+	}
+
 	data.Meta.Description = data.PreferredUsername + " is a federated image board based on ActivityPub. The current version of the code running on the server is still a work-in-progress product, expect a bumpy ride for the time being. Get the server code here: https://git.fchannel.org."
 	data.Meta.Url = data.Board.Actor.Id
 	data.Meta.Title = data.Title
