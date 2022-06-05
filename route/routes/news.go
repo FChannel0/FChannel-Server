@@ -1,6 +1,10 @@
 package routes
 
 import (
+	"html/template"
+	"net/http"
+	"strconv"
+
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/db"
@@ -11,9 +15,16 @@ import (
 )
 
 func NewsGet(ctx *fiber.Ctx) error {
-	timestamp := 0
+	timestamp := ctx.Path()[6:]
+	ts, err := strconv.Atoi(timestamp)
+
+	if err != nil {
+		ctx.Status(http.StatusForbidden)
+		return ctx.Render("404", fiber.Map{})
+	}
 
 	actor, err := activitypub.GetActorFromDB(config.Domain)
+
 	if err != nil {
 		return util.MakeError(err, "NewsGet")
 	}
@@ -30,12 +41,16 @@ func NewsGet(ctx *fiber.Ctx) error {
 	data.Board.Restricted = actor.Restricted
 	data.NewsItems = make([]db.NewsItem, 1)
 
-	data.NewsItems[0], err = db.GetNewsItem(timestamp)
+	data.NewsItems[0], err = db.GetNewsItem(ts)
 	if err != nil {
 		return util.MakeError(err, "NewsGet")
 	}
 
 	data.Title = actor.PreferredUsername + ": " + data.NewsItems[0].Title
+
+	data.Meta.Description = data.PreferredUsername + " is a federated image board based on ActivityPub. The current version of the code running on the server is still a work-in-progress product, expect a bumpy ride for the time being. Get the server code here: https://git.fchannel.org."
+	data.Meta.Url = data.Board.Actor.Id
+	data.Meta.Title = data.Title
 
 	data.Themes = &config.Themes
 	data.ThemeCookie = route.GetThemeCookie(ctx)
@@ -62,9 +77,14 @@ func NewsGetAll(ctx *fiber.Ctx) error {
 	data.Board.Restricted = actor.Restricted
 
 	data.NewsItems, err = db.GetNews(0)
+
 	if err != nil {
 		return util.MakeError(err, "NewsGetAll")
 	}
+
+	data.Meta.Description = data.PreferredUsername + " is a federated image board based on ActivityPub. The current version of the code running on the server is still a work-in-progress product, expect a bumpy ride for the time being. Get the server code here: https://git.fchannel.org."
+	data.Meta.Url = data.Board.Actor.Id
+	data.Meta.Title = data.Title
 
 	data.Themes = &config.Themes
 	data.ThemeCookie = route.GetThemeCookie(ctx)
@@ -72,12 +92,48 @@ func NewsGetAll(ctx *fiber.Ctx) error {
 	return ctx.Render("anews", fiber.Map{"page": data}, "layouts/main")
 }
 
-// TODO routes/NewsPost
-func NewsPost(c *fiber.Ctx) error {
-	return c.SendString("admin post news")
+func NewsPost(ctx *fiber.Ctx) error {
+	actor, err := activitypub.GetActorFromDB(config.Domain)
+
+	if err != nil {
+		return util.MakeError(err, "NewPost")
+	}
+
+	if has := actor.HasValidation(ctx); !has {
+		return nil
+	}
+
+	var newsitem db.NewsItem
+
+	newsitem.Title = ctx.FormValue("title")
+	newsitem.Content = template.HTML(ctx.FormValue("summary"))
+
+	if err := db.WriteNews(newsitem); err != nil {
+		return util.MakeError(err, "NewPost")
+	}
+
+	return ctx.Redirect("/", http.StatusSeeOther)
 }
 
-// TODO routes/NewsDelete
-func NewsDelete(c *fiber.Ctx) error {
-	return c.SendString("admin news delete")
+func NewsDelete(ctx *fiber.Ctx) error {
+	actor, err := activitypub.GetActorFromDB(config.Domain)
+
+	if has := actor.HasValidation(ctx); !has {
+		return nil
+	}
+
+	timestamp := ctx.Path()[13+len(config.Key):]
+
+	tsint, err := strconv.Atoi(timestamp)
+
+	if err != nil {
+		ctx.Status(http.StatusForbidden)
+		return ctx.Render("404", fiber.Map{})
+	}
+
+	if err := db.DeleteNewsItem(tsint); err != nil {
+		return util.MakeError(err, "NewsDelete")
+	}
+
+	return ctx.Redirect("/news/", http.StatusSeeOther)
 }

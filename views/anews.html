@@ -1,0 +1,15 @@
+<div style="text-align: center; max-width: 800px; margin: 0 auto;">
+  <h1>{{ .page.Title }}</h1>
+
+  <div class="newsbox" style="margin-top:50px;padding-top:0;">
+    {{ $page := .page }}
+    {{ range $i, $e := .page.NewsItems }}
+    <div class="newsbox-news">
+      <h3><a href="/news/{{.Time}}">{{unixtoreadable $e.Time}} - {{$e.Title}}</a>{{ if $page.Board.ModCred }} <a href="/{{ $page.Key }}/newsdelete/{{ $e.Time }}">[Delete] </a>{{end}}</h3>
+      <br>
+
+      <p>{{$e.Content}}</p>
+    </div>
+    {{ end }}
+  </div>
+</div>

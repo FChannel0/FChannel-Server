@@ -28,9 +28,10 @@
   {{ if .page.NewsItems }}
   <div class="newsbox" style="margin-top:50px;">
     <h2><a href="/news">{{ .page.PreferredUsername }} News</a></h2>
+    {{ $page := .page }}
     {{ range $i, $e := .page.NewsItems }}
     <div class="newsbox-news">
-      <h3><a href="/news/{{.Time}}">{{unixtoreadable $e.Time}} - {{$e.Title}}</a>{{ if $.Board.ModCred }} <a href="/{{ $.Key }}/newsdelete/{{ $e.Time }}">[Delete] </a>{{end}}</h3>
+      <h3><a href="/news/{{.Time}}">{{unixtoreadable $e.Time}} - {{$e.Title}}</a>{{ if $page.Board.ModCred }} <a href="/{{ $page.Key }}/newsdelete/{{ $e.Time }}">[Delete] </a>{{end}}</h3>
       <br>
 
       <p>{{$e.Content}}</p>

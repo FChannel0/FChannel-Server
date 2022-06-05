@@ -47,7 +47,7 @@
 
 <div class="box2" style="margin-bottom: 25px; padding: 12px;">
   <h3>Create News</h3>
-  <form id="news" action="/{{ .page.Key }}/postnews" method="post" enctype="application/x-www-form-urlencoded">
+  <form id="news" action="/{{ .page.Key }}/newspost" method="post" enctype="application/x-www-form-urlencoded">
     <label>Title:</label><br>
     <input type="text" name="title" placeholder="New Board" required><input type="submit" value="Post"><br>
     <label>Content:</label><br>

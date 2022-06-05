@@ -1,0 +1,7 @@
+<div class="newsbox" style="text-align: left; max-width: 800px; margin: 0 auto;margin-top: 50px;padding-top:0;">
+  {{ range .page.NewsItems }}
+  <div class="newsbox-news">
+  <p><h1>{{unixtoreadable .Time}} - {{.Title}}</h1><br>{{.Content}}</p>
+  </div>
+  {{ end }}
+</div>

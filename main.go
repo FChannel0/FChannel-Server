@@ -63,13 +63,14 @@ func main() {
 	app.All("/"+config.Key+"/", routes.AdminIndex)
 	app.Get("/"+config.Key+"/follow", routes.AdminFollow)
 	app.Post("/"+config.Key+"/addboard", routes.AdminAddBoard)
-	app.Get("/"+config.Key+"/newspost", routes.NewsPost)
-	app.Get("/"+config.Key+"/newsdelete", routes.NewsDelete)
+	app.Post("/"+config.Key+"/newspost", routes.NewsPost)
+	app.Get("/"+config.Key+"/newsdelete/:ts", routes.NewsDelete)
 	app.All("/"+config.Key+"/:actor/follow", routes.AdminFollow)
 	app.Get("/"+config.Key+"/:actor", routes.AdminActorIndex)
 
 	// News routes
-	app.Get("/news", routes.NewsGet)
+	app.Get("/news/:ts", routes.NewsGet)
+	app.Get("/news", routes.NewsGetAll)
 
 	// Board managment
 	app.Get("/banmedia", routes.BoardBanMedia)
