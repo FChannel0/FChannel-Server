@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
@@ -351,9 +352,46 @@ func BoardAutoSubscribe(ctx *fiber.Ctx) error {
 	return ctx.SendString("board auto subscribe")
 }
 
-// TODO routes/BoardBlacklist
 func BoardBlacklist(ctx *fiber.Ctx) error {
-	return ctx.SendString("board blacklist")
+	actor, err := activitypub.GetActorFromDB(config.Domain)
+
+	if err != nil {
+		return util.MakeError(err, "BoardBlacklist")
+	}
+
+	if has := actor.HasValidation(ctx); !has {
+		return ctx.Status(404).Render("404", fiber.Map{})
+	}
+
+	if ctx.Method() == "GET" {
+		if id := ctx.Query("remove"); id != "" {
+			i, _ := strconv.Atoi(id)
+			if err := util.DeleteRegexBlacklist(i); err != nil {
+				return util.MakeError(err, "BoardBlacklist")
+			}
+		}
+	} else {
+		regex := ctx.FormValue("regex")
+		testCase := ctx.FormValue("testCase")
+
+		if regex == "" {
+			return ctx.Redirect("/", http.StatusSeeOther)
+		}
+
+		re := regexp.MustCompile(regex)
+
+		if testCase == "" {
+			if err := util.WriteRegexBlacklist(regex); err != nil {
+				return util.MakeError(err, "BoardBlacklist")
+			}
+		} else if re.MatchString(testCase) {
+			if err := util.WriteRegexBlacklist(regex); err != nil {
+				return util.MakeError(err, "BoardBlacklist")
+			}
+		}
+	}
+
+	return ctx.Redirect("/"+config.Key+"#regex", http.StatusSeeOther)
 }
 
 func BoardReport(ctx *fiber.Ctx) error {

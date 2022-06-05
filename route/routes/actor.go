@@ -2,7 +2,6 @@ package routes
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -235,7 +234,7 @@ func ActorPost(ctx *fiber.Ctx) error {
 	}
 
 	if is, _ := util.IsPostBlacklist(ctx.FormValue("comment")); is {
-		errors.New("\n\nBlacklist post blocked\n\n")
+		config.Log.Println("Blacklist post blocked")
 		return ctx.Redirect("/", 301)
 	}
 
@@ -274,12 +273,12 @@ func ActorPost(ctx *fiber.Ctx) error {
 		fw, err := we.CreateFormFile("file", header.Filename)
 
 		if err != nil {
-			errors.New("error with form file create")
+			return util.MakeError(err, "ActorPost")
 		}
 		_, err = io.Copy(fw, file)
 
 		if err != nil {
-			errors.New("error with form file copy")
+			return util.MakeError(err, "ActorPost")
 		}
 	}
 
@@ -291,24 +290,24 @@ func ActorPost(ctx *fiber.Ctx) error {
 		if key == "captcha" {
 			err := we.WriteField(key, ctx.FormValue("captchaCode")+":"+ctx.FormValue("captcha"))
 			if err != nil {
-				errors.New("error with writing captcha field")
+				return util.MakeError(err, "ActorPost")
 			}
 		} else if key == "name" {
 			name, tripcode, _ := post.CreateNameTripCode(ctx)
 
 			err := we.WriteField(key, name)
 			if err != nil {
-				errors.New("error with writing name field")
+				return util.MakeError(err, "ActorPost")
 			}
 
 			err = we.WriteField("tripcode", tripcode)
 			if err != nil {
-				errors.New("error with writing tripcode field")
+				return util.MakeError(err, "ActorPost")
 			}
 		} else {
 			err := we.WriteField(key, r0[0])
 			if err != nil {
-				errors.New("error with writing field")
+				return util.MakeError(err, "ActorPost")
 			}
 		}
 	}
@@ -316,7 +315,7 @@ func ActorPost(ctx *fiber.Ctx) error {
 	if ctx.FormValue("inReplyTo") == "" && reply != "" {
 		err := we.WriteField("inReplyTo", reply)
 		if err != nil {
-			errors.New("error with writing inReplyTo field")
+			return util.MakeError(err, "ActorPost")
 		}
 	}
 
@@ -327,7 +326,7 @@ func ActorPost(ctx *fiber.Ctx) error {
 	req, err := http.NewRequest("POST", sendTo, &b)
 
 	if err != nil {
-		errors.New("error with post form req")
+		return util.MakeError(err, "ActorPost")
 	}
 
 	req.Header.Set("Content-Type", we.FormDataContentType())
@@ -335,7 +334,7 @@ func ActorPost(ctx *fiber.Ctx) error {
 	resp, err := util.RouteProxy(req)
 
 	if err != nil {
-		errors.New("error with post form resp")
+		return util.MakeError(err, "ActorPost")
 	}
 
 	defer resp.Body.Close()

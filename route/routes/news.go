@@ -19,8 +19,7 @@ func NewsGet(ctx *fiber.Ctx) error {
 	ts, err := strconv.Atoi(timestamp)
 
 	if err != nil {
-		ctx.Status(http.StatusForbidden)
-		return ctx.Render("404", fiber.Map{})
+		return ctx.Status(404).Render("404", fiber.Map{})
 	}
 
 	actor, err := activitypub.GetActorFromDB(config.Domain)
@@ -131,8 +130,7 @@ func NewsDelete(ctx *fiber.Ctx) error {
 	tsint, err := strconv.Atoi(timestamp)
 
 	if err != nil {
-		ctx.Status(http.StatusForbidden)
-		return ctx.Render("404", fiber.Map{})
+		return ctx.Status(404).Render("404", fiber.Map{})
 	}
 
 	if err := db.DeleteNewsItem(tsint); err != nil {

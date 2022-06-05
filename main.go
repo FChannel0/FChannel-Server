@@ -80,7 +80,7 @@ func main() {
 	app.Get("/addtoindex", routes.BoardAddToIndex)
 	app.Get("/poparchive", routes.BoardPopArchive)
 	app.Get("/autosubscribe", routes.BoardAutoSubscribe)
-	app.Get("/blacklist", routes.BoardBlacklist)
+	app.All("/blacklist", routes.BoardBlacklist)
 	app.All("/report", routes.BoardReport)
 
 	// Webfinger routes
