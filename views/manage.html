@@ -7,6 +7,9 @@
     <li style="display: inline-block;">[<a href="#followers"> Subscribers </a>]</li>
     {{ end }}
     <li style="display: inline-block;">[<a href="#reported"> Reported </a>]</li>
+    {{ if eq .page.Board.ModCred "admin" }}
+    <li style="display: inline-block;">[<a href="#jannies"> Janitor Managment </a>]</li>
+    {{ end }}
   </ul>
 </div>
 [<a href="/{{ .page.Board.Name }}">Return</a>]
@@ -58,6 +61,22 @@
     {{ end }}
   </ul>
 </div>
+
+{{ if eq .page.Board.ModCred "admin" }}
+<div id="jannies" class="box2" style="margin-bottom: 25px; padding: 12px;">
+  <h4 style="margin: 0; margin-bottom: 5px;">Janitor Managment</h4>
+  <form id="janny-form" action="/{{ .page.Key }}/{{ .page.Board.Name }}/addjanny" method="post" enctype="application/x-www-form-urlencoded" style="margin-top: 5px;">
+    <input id="label" name="label" style="margin-bottom: 5px;" size="35" placeholder="Label i.e Janny Alias"></input>
+    <input type="submit" value="Add Janitor"><br>
+    <input type="hidden" name="actor" value="{{ $board.Actor.Id }}">
+  </form>
+  <ul style="display: inline-block; padding: 0; margin: 0; list-style-type: none;">
+    {{ range .jannies }}
+    <li>{{ .Label }} - <b>Login:</b> {{ .Identifier }} <b>Code:</b> {{ .Code }} <a href="/{{ $key }}/{{ $board.Name }}/deletejanny?code={{ .Code }}">[Revoke]</a></li>
+    {{ end }}
+  </ul>
+</div>
+{{ end }}
 
 {{ template "partials/footer" .page }}
 {{ template "partials/general_scripts" .page }}

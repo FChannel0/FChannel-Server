@@ -54,7 +54,7 @@
         {{ end }}
       </ul>
       {{ if .page.Board.ModCred }}
-      {{ if eq .page.Board.ModCred .page.Board.Domain .page.Board.Actor.Id }}
+      {{ if or (eq .page.Board.ModCred .page.Board.Domain) (eq .page.Board.ModCred .page.Board.Actor.Id) }}
       <span id="manageboard">[<a href="/{{ .page.Key }}/{{ .page.Board.Name }}">Manage Board</a>]</span>
       {{ end }}
       {{ end }}

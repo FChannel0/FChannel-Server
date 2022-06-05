@@ -839,11 +839,9 @@ func (actor Actor) ReportedResp(ctx *fiber.Ctx) error {
 		return util.MakeError(err, "GetReported")
 	}
 
-	if hasAuth, err := util.HasAuth(verification[1], actor.Id); !hasAuth {
+	if hasAuth, _ := util.HasAuth(verification[1], actor.Id); !hasAuth {
 		ctx.Response().Header.SetStatusCode(http.StatusBadRequest)
 		_, err := ctx.Write([]byte(""))
-		return util.MakeError(err, "GetReported")
-	} else if err != nil {
 		return util.MakeError(err, "GetReported")
 	}
 
@@ -1098,4 +1096,72 @@ func (actor Actor) WantToServePage(page int) (Collection, error) {
 	collection.Actor = actor
 
 	return collection, nil
+}
+
+func (actor Actor) CreateVerification(verify util.Verify) error {
+	var err error
+
+	if verify.Code, err = util.CreateKey(50); err != nil {
+		return util.MakeError(err, "CreateVerification")
+	}
+
+	if err := verify.Create(); err != nil {
+		return util.MakeError(err, "CreateVerification")
+	}
+
+	verify.Board = actor.Id
+	verify.Identifier = verify.Type
+
+	if err := verify.CreateBoardMod(); err != nil {
+		return util.MakeError(err, "CreateVerification")
+	}
+
+	return nil
+}
+
+func (actor Actor) DeleteVerification(verify util.Verify) error {
+	query := `delete from boardaccess where code=$1`
+	if _, err := config.DB.Exec(query, verify.Code); err != nil {
+		return util.MakeError(err, "DeleteVerification")
+	}
+
+	var code string
+	query = `select verificationcode from crossverification where code=$1`
+	if err := config.DB.QueryRow(query, verify.Code).Scan(&code); err != nil {
+		return util.MakeError(err, "DeleteVerification")
+	}
+
+	query = `delete from crossverification where code=$1`
+	if _, err := config.DB.Exec(query, verify.Code); err != nil {
+		return util.MakeError(err, "DeleteVerification")
+	}
+
+	query = `delete from verification where code=$1`
+	if _, err := config.DB.Exec(query, code); err != nil {
+		return util.MakeError(err, "DeleteVerification")
+	}
+
+	return nil
+}
+
+func (actor Actor) GetJanitors() ([]util.Verify, error) {
+	var list []util.Verify
+
+	query := `select identifier, code, board, type, label from boardaccess where board=$1 and type='janitor'`
+	rows, err := config.DB.Query(query, actor.Id)
+
+	if err != nil {
+		return list, util.MakeError(err, "GetJanitors")
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		var verify util.Verify
+
+		rows.Scan(&verify.Identifier, &verify.Code, &verify.Board, &verify.Type, &verify.Label)
+
+		list = append(list, verify)
+	}
+
+	return list, nil
 }

@@ -243,3 +243,5 @@ CREATE TABLE IF NOT EXISTS inactive(
 instance varchar(100) primary key,
 timestamp TIMESTAMP default NOW()
 );
+
+ALTER TABLE boardaccess ADD COLUMN IF NOT EXISTS label varchar(50) default 'Anon';

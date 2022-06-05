@@ -3,6 +3,7 @@ package routes
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -206,7 +207,21 @@ func AdminAddBoard(ctx *fiber.Ctx) error {
 }
 
 func AdminActorIndex(ctx *fiber.Ctx) error {
+	var data route.AdminPage
+
+	id, pass := util.GetPasswordFromSession(ctx)
 	actor, _ := webfinger.GetActorFromPath(ctx.Path(), "/"+config.Key+"/")
+
+	if actor.Id == "" {
+		actor, _ = activitypub.GetActorByNameFromDB(config.Domain)
+	}
+
+	var hasAuth bool
+	hasAuth, data.Board.ModCred = util.HasAuth(pass, actor.Id)
+
+	if !hasAuth || (id != actor.Id && id != config.Domain) {
+		return ctx.Render("verify", fiber.Map{})
+	}
 
 	reqActivity := activitypub.Activity{Id: actor.Following}
 	follow, _ := reqActivity.GetCollection()
@@ -225,7 +240,6 @@ func AdminActorIndex(ctx *fiber.Ctx) error {
 		followers = append(followers, e.Id)
 	}
 
-	var data route.AdminPage
 	data.Following = following
 	data.Followers = followers
 	data.Reported, _ = db.GetLocalReport(actor.Name)
@@ -243,6 +257,12 @@ func AdminActorIndex(ctx *fiber.Ctx) error {
 
 	data.AutoSubscribe, _ = actor.GetAutoSubscribe()
 
+	jannies, err := actor.GetJanitors()
+
+	if err != nil {
+		return util.MakeError(err, "AdminActorIndex")
+	}
+
 	data.Themes = &config.Themes
 
 	data.RecentPosts, _ = actor.GetRecentPosts()
@@ -252,6 +272,71 @@ func AdminActorIndex(ctx *fiber.Ctx) error {
 	}
 
 	return ctx.Render("manage", fiber.Map{
-		"page": data,
+		"page":    data,
+		"jannies": jannies,
 	})
+}
+
+func AdminAddJanny(ctx *fiber.Ctx) error {
+	id, pass := util.GetPasswordFromSession(ctx)
+	actor, _ := webfinger.GetActorFromPath(ctx.Path(), "/"+config.Key+"/")
+
+	if actor.Id == "" {
+		actor, _ = activitypub.GetActorByNameFromDB(config.Domain)
+	}
+
+	hasAuth, _type := util.HasAuth(pass, actor.Id)
+
+	if !hasAuth || _type != "admin" || (id != actor.Id && id != config.Domain) {
+		return util.MakeError(errors.New("Error"), "AdminJanny")
+	}
+
+	var verify util.Verify
+	verify.Type = "janitor"
+	verify.Identifier = actor.Id
+	verify.Label = ctx.FormValue("label")
+
+	if err := actor.CreateVerification(verify); err != nil {
+		return util.MakeError(err, "CreateNewBoardDB")
+	}
+
+	var redirect string
+	actor, _ = webfinger.GetActorFromPath(ctx.Path(), "/"+config.Key+"/")
+
+	if actor.Name != "main" {
+		redirect = actor.Name
+	}
+
+	return ctx.Redirect("/"+config.Key+"/"+redirect, http.StatusSeeOther)
+}
+
+func AdminDeleteJanny(ctx *fiber.Ctx) error {
+	id, pass := util.GetPasswordFromSession(ctx)
+	actor, _ := webfinger.GetActorFromPath(ctx.Path(), "/"+config.Key+"/")
+
+	if actor.Id == "" {
+		actor, _ = activitypub.GetActorByNameFromDB(config.Domain)
+	}
+
+	hasAuth, _type := util.HasAuth(pass, actor.Id)
+
+	if !hasAuth || _type != "admin" || (id != actor.Id && id != config.Domain) {
+		return util.MakeError(errors.New("Error"), "AdminJanny")
+	}
+
+	var verify util.Verify
+	verify.Code = ctx.Query("code")
+
+	if err := actor.DeleteVerification(verify); err != nil {
+		return util.MakeError(err, "AdminDeleteJanny")
+	}
+
+	var redirect string
+	actor, _ = webfinger.GetActorFromPath(ctx.Path(), "/"+config.Key+"/")
+
+	if actor.Name != "main" {
+		redirect = actor.Name
+	}
+
+	return ctx.Redirect("/"+config.Key+"/"+redirect, http.StatusSeeOther)
 }

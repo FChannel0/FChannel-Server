@@ -20,6 +20,7 @@ type Verify struct {
 	Code       string
 	Created    string
 	Board      string
+	Label      string
 }
 
 type VerifyCooldown struct {
@@ -43,15 +44,12 @@ func (verify Verify) Create() error {
 }
 
 func (verify Verify) CreateBoardAccess() error {
-	hasAccess, err := verify.HasBoardAccess()
-
-	if err != nil {
-		return MakeError(err, "CreateBoardAccess")
-	}
-
-	if !hasAccess {
-		query := `insert into boardaccess (identifier, board) values($1, $2)`
-		_, err := config.DB.Exec(query, verify.Identifier, verify.Board)
+	if hasAccess, _ := verify.HasBoardAccess(); !hasAccess {
+		if verify.Label == "" {
+			verify.Label = "Anon"
+		}
+		query := `insert into boardaccess (identifier, board, label) values($1, $2, $3)`
+		_, err := config.DB.Exec(query, verify.Identifier, verify.Board, verify.Label)
 
 		return MakeError(err, "CreateBoardAccess")
 	}
@@ -69,27 +67,29 @@ func (verify Verify) CreateBoardMod() error {
 
 	var code string
 
-	query := `select code from verification where identifier=$1 and type=$2`
+	query := `select code from verification where identifier=$1 and type=$2 and code not in (select verificationcode from crossverification)`
 	if err := config.DB.QueryRow(query, verify.Board, verify.Type).Scan(&code); err != nil {
 		return MakeError(err, "CreateBoardMod")
 	}
 
 	var ident string
 
-	query = `select identifier from boardaccess where identifier=$1 and board=$2`
+	query = `select identifier from boardaccess where identifier=$1 and board=$2 and code not in (select code from crossverification)`
 	if err := config.DB.QueryRow(query, verify.Identifier, verify.Board).Scan(&ident); err != nil {
 		query := `insert into crossverification (verificationcode, code) values ($1, $2)`
 		if _, err := config.DB.Exec(query, code, pass); err != nil {
 			return MakeError(err, "CreateBoardMod")
 		}
 
-		query = `insert into boardaccess (identifier, code, board, type) values ($1, $2, $3, $4)`
-		if _, err = config.DB.Exec(query, verify.Identifier, pass, verify.Board, verify.Type); err != nil {
+		if verify.Label == "" {
+			verify.Label = "Anon"
+		}
+
+		query = `insert into boardaccess (identifier, code, board, type, label) values ($1, $2, $3, $4, $5)`
+		if _, err = config.DB.Exec(query, verify.Identifier, pass, verify.Board, verify.Type, verify.Label); err != nil {
 			return MakeError(err, "CreateBoardMod")
 		}
 	}
-
-	config.Log.Printf("Board access - Board: %s, Identifier: %s, Code: %s\n", verify.Board, verify.Identifier, pass)
 
 	return nil
 }
@@ -137,15 +137,15 @@ func (verify Verify) GetCode() (Verify, error) {
 	return nVerify, nil
 }
 
-func (verify Verify) HasBoardAccess() (bool, error) {
-	var count int
+func (verify Verify) HasBoardAccess() (bool, string) {
+	var _type string
 
-	query := `select count(*) from boardaccess where identifier=$1 and board=$2`
-	if err := config.DB.QueryRow(query, verify.Identifier, verify.Board).Scan(&count); err != nil {
-		return false, nil
+	query := `select type from boardaccess where identifier=$1 and board=$2`
+	if err := config.DB.QueryRow(query, verify.Identifier, verify.Board).Scan(&_type); err != nil {
+		return false, ""
 	}
 
-	return true, nil
+	return true, _type
 }
 
 func (verify Verify) SendVerification() error {
@@ -315,23 +315,11 @@ func DeleteCaptchaCode(verify string) error {
 }
 
 func GetVerificationByCode(code string) (Verify, error) {
-	// TODO: this only needs to select one row.
-
 	var verify Verify
 
 	query := `select type, identifier, code, board from boardaccess where code=$1`
-
-	rows, err := config.DB.Query(query, code)
-	if err != nil {
+	if err := config.DB.QueryRow(query, code).Scan(&verify.Type, &verify.Identifier, &verify.Code, &verify.Board); err != nil {
 		return verify, MakeError(err, "GetVerificationByCode")
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-		if err := rows.Scan(&verify.Type, &verify.Identifier, &verify.Code, &verify.Board); err != nil {
-			return verify, MakeError(err, "GetVerificationByCode")
-		}
 	}
 
 	return verify, nil
@@ -377,19 +365,18 @@ func HasAuthCooldown(auth string) (bool, error) {
 	return false, nil
 }
 
-func HasAuth(code string, board string) (bool, error) {
+func HasAuth(code string, board string) (bool, string) {
 	verify, err := GetVerificationByCode(code)
+
 	if err != nil {
-		return false, MakeError(err, "HasAuth")
+		return false, ""
 	}
 
-	if res, err := verify.HasBoardAccess(); err == nil && (verify.Board == config.Domain || (res && verify.Board == board)) {
-		return true, nil
-	} else {
-		return false, MakeError(err, "HasAuth")
+	if res, _type := verify.HasBoardAccess(); verify.Board == config.Domain || (res && verify.Board == board) {
+		return true, _type
 	}
 
-	return false, nil
+	return false, ""
 }
 
 func IsEmailSetup() bool {

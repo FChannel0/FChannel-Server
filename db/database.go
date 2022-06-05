@@ -85,45 +85,24 @@ func CreateNewBoard(actor activitypub.Actor) (activitypub.Actor, error) {
 			}
 		}
 
-		var verify util.Verify
+		{
+			var verify util.Verify
+			verify.Type = "admin"
+			verify.Identifier = actor.Id
 
-		verify.Type = "admin"
-		verify.Identifier = actor.Id
-
-		if verify.Code, err = util.CreateKey(50); err != nil {
-			return activitypub.Actor{}, util.MakeError(err, "CreateNewBoardDB")
+			if err := actor.CreateVerification(verify); err != nil {
+				return activitypub.Actor{}, util.MakeError(err, "CreateNewBoardDB")
+			}
 		}
 
-		if err := verify.Create(); err != nil {
-			return activitypub.Actor{}, util.MakeError(err, "CreateNewBoardDB")
-		}
+		{
+			var verify util.Verify
+			verify.Type = "janitor"
+			verify.Identifier = actor.Id
 
-		verify.Type = "janitor"
-		verify.Identifier = actor.Id
-
-		if verify.Code, err = util.CreateKey(50); err != nil {
-			return activitypub.Actor{}, util.MakeError(err, "CreateNewBoardDB")
-		}
-
-		if err := verify.Create(); err != nil {
-			return activitypub.Actor{}, util.MakeError(err, "CreateNewBoardDB")
-		}
-
-		var nverify util.Verify
-		nverify.Board = actor.Id
-		nverify.Identifier = "admin"
-		nverify.Type = "admin"
-
-		if err := nverify.CreateBoardMod(); err != nil {
-			return activitypub.Actor{}, util.MakeError(err, "CreateNewBoardDB")
-		}
-
-		nverify.Board = actor.Id
-		nverify.Identifier = "janitor"
-		nverify.Type = "janitor"
-
-		if err := nverify.CreateBoardMod(); err != nil {
-			return activitypub.Actor{}, util.MakeError(err, "CreateNewBoardDB")
+			if err := actor.CreateVerification(verify); err != nil {
+				return activitypub.Actor{}, util.MakeError(err, "CreateNewBoardDB")
+			}
 		}
 
 		activitypub.CreatePem(actor)
