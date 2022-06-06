@@ -85,19 +85,9 @@ func CreateNewBoard(actor activitypub.Actor) (activitypub.Actor, error) {
 			}
 		}
 
-		{
+		if actor.Id == config.Domain {
 			var verify util.Verify
 			verify.Type = "admin"
-			verify.Identifier = actor.Id
-
-			if err := actor.CreateVerification(verify); err != nil {
-				return activitypub.Actor{}, util.MakeError(err, "CreateNewBoardDB")
-			}
-		}
-
-		{
-			var verify util.Verify
-			verify.Type = "janitor"
 			verify.Identifier = actor.Id
 
 			if err := actor.CreateVerification(verify); err != nil {

@@ -122,18 +122,20 @@ func FingerRequest(actor string, instance string) (*http.Response, error) {
 	if len(finger.Links) > 0 {
 		for _, e := range finger.Links {
 			if e.Type == "application/activity+json" {
-				req, err := http.NewRequest("GET", e.Href, nil)
+				req, err = http.NewRequest("GET", e.Href, nil)
 
 				if err != nil {
 					return resp, util.MakeError(err, "FingerRequest")
 				}
 
-				req.Header.Set("Accept", config.ActivityStreams)
-				resp, _ := util.RouteProxy(req)
-
-				return resp, nil
+				break
 			}
 		}
+	}
+
+	req.Header.Set("Accept", config.ActivityStreams)
+	if resp, err = util.RouteProxy(req); err != nil {
+		return resp, util.MakeError(err, "FingerRequest")
 	}
 
 	return resp, nil

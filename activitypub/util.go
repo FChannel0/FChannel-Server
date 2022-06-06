@@ -282,6 +282,12 @@ func GetActorByNameFromDB(name string) (Actor, error) {
 		return nActor, util.MakeError(err, "GetActorByNameFromDB")
 	}
 
+	nActor.PublicKey, err = GetActorPemFromDB(publicKeyPem)
+
+	if err != nil {
+		return nActor, util.MakeError(err, "GetActorFromDB")
+	}
+
 	if nActor.Id != "" && nActor.PublicKey.PublicKeyPem == "" {
 		if err := CreatePublicKeyFromPrivate(&nActor, publicKeyPem); err != nil {
 			return nActor, util.MakeError(err, "GetActorByNameFromDB")
@@ -345,7 +351,7 @@ func GetActorFromDB(id string) (Actor, error) {
 	err := config.DB.QueryRow(query, id).Scan(&nActor.Type, &nActor.Id, &nActor.Name, &nActor.PreferredUsername, &nActor.Inbox, &nActor.Outbox, &nActor.Following, &nActor.Followers, &nActor.Restricted, &nActor.Summary, &publicKeyPem)
 
 	if err != nil {
-		return nActor, util.MakeError(err, "GetActorFromDB")
+		return nActor, nil
 	}
 
 	nActor.PublicKey, err = GetActorPemFromDB(publicKeyPem)

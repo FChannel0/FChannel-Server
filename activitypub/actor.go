@@ -951,8 +951,7 @@ func (actor Actor) Verify(signature string, verify string) error {
 	sig, _ := base64.StdEncoding.DecodeString(signature)
 
 	if actor.PublicKey.PublicKeyPem == "" {
-		// TODO: this should be Finger but its not getting PublicKeyPem atm
-		_actor, err := GetActorFromDB(actor.Id)
+		_actor, err := FingerActor(actor.Id)
 
 		if err != nil {
 			return util.MakeError(err, "Verify")
@@ -962,7 +961,12 @@ func (actor Actor) Verify(signature string, verify string) error {
 	}
 
 	block, _ := pem.Decode([]byte(actor.PublicKey.PublicKeyPem))
-	pub, _ := x509.ParsePKIXPublicKey(block.Bytes)
+
+	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+
+	if err != nil {
+		return util.MakeError(err, "Verify")
+	}
 
 	hashed := sha256.New()
 	hashed.Write([]byte(verify))
