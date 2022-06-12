@@ -290,6 +290,7 @@ func (obj ObjectBase) DeleteRequest() error {
 	if err != nil {
 		return util.MakeError(err, "DeleteRequest")
 	}
+
 	for _, e := range following {
 		activity.To = append(activity.To, e.Id)
 	}
@@ -427,7 +428,7 @@ func (obj ObjectBase) GetCollectionFromPath() (Collection, error) {
 
 	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where id like $1 and (type='Note' or type='Archive') union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where id like $1 and (type='Note' or type='Archive')) as x order by x.updated`
 	if err = config.DB.QueryRow(query, obj.Id).Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &post.Attachment[0].Id, &post.Preview.Id, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
-		return nColl, util.MakeError(err, "GetCollectionFromPath")
+		return nColl, nil
 	}
 
 	post.Actor = actor.Id
@@ -474,9 +475,6 @@ func (obj ObjectBase) GetFromPath() (ObjectBase, error) {
 	if err != nil {
 		return post, util.MakeError(err, "GetFromPath")
 	}
-
-	var nActor Actor
-	post.Actor = nActor.Id
 
 	var postCnt int
 	var imgCnt int
@@ -977,13 +975,11 @@ func (obj ObjectBase) _Tombstone() error {
 	datetime := time.Now().UTC().Format(time.RFC3339)
 
 	query := `update activitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='', deleted=$1 where id=$2`
-
 	if _, err := config.DB.Exec(query, datetime, obj.Id); err != nil {
 		return util.MakeError(err, "_Tombstone")
 	}
 
 	query = `update cacheactivitystream set type='Tombstone', name='', content='', attributedto='deleted', tripcode='',  deleted=$1 where id=$2`
-
 	_, err := config.DB.Exec(query, datetime, obj.Id)
 	return util.MakeError(err, "_Tombstone")
 }

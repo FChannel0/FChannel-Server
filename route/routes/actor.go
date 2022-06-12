@@ -81,7 +81,7 @@ func ActorInbox(ctx *fiber.Ctx) error {
 		for _, e := range activity.To {
 			actor, err := activitypub.GetActorFromDB(e)
 			if err != nil {
-				return util.MakeError(err, "")
+				return util.MakeError(err, "ActorInbox")
 			}
 
 			if actor.Id != "" && actor.Id != config.Domain {
@@ -96,6 +96,7 @@ func ActorInbox(ctx *fiber.Ctx) error {
 				if err := activity.Object.Tombstone(); err != nil {
 					return util.MakeError(err, "ActorInbox")
 				}
+
 				if err := actor.UnArchiveLast(); err != nil {
 					return util.MakeError(err, "ActorInbox")
 				}
