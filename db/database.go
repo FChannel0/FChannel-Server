@@ -110,7 +110,7 @@ func CreateNewBoard(actor activitypub.Actor) (activitypub.Actor, error) {
 			nActivity.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 			nActivity.Type = "Follow"
 			nActivity.Actor = &nActor
-			nActivity.Object = &nObject
+			nActivity.Object = nObject
 			mActor, err := activitypub.GetActorFromDB(actor.Id)
 
 			if err != nil {

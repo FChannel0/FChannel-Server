@@ -93,17 +93,17 @@ type PublicKeyPem struct {
 
 type Activity struct {
 	AtContext
-	Type      string      `json:"type,omitempty"`
-	Id        string      `json:"id,omitempty"`
-	Actor     *Actor      `json:"actor,omitempty"`
-	Name      string      `json:"name,omitempty"`
-	Summary   string      `json:"summary,omitempty"`
-	Auth      string      `json:"auth,omitempty"`
-	To        []string    `json:"to,omitempty"`
-	Bto       []string    `json:"bto,omitempty"`
-	Cc        []string    `json:"cc,omitempty"`
-	Published time.Time   `json:"published,omitempty"`
-	Object    *ObjectBase `json:"object,omitempty"`
+	Type      string     `json:"type,omitempty"`
+	Id        string     `json:"id,omitempty"`
+	Actor     *Actor     `json:"actor,omitempty"`
+	Name      string     `json:"name,omitempty"`
+	Summary   string     `json:"summary,omitempty"`
+	Auth      string     `json:"auth,omitempty"`
+	To        []string   `json:"to,omitempty"`
+	Bto       []string   `json:"bto,omitempty"`
+	Cc        []string   `json:"cc,omitempty"`
+	Published time.Time  `json:"published,omitempty"`
+	Object    ObjectBase `json:"object,omitempty"`
 }
 
 type ObjectBase struct {

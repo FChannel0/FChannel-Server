@@ -186,7 +186,7 @@ func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
 			return util.MakeError(err, "ParseOutboxRequest")
 		}
 
-		if res, err := activity.IsLocal(); err == nil && res {
+		if res, _ := activity.IsLocal(); res {
 			if res := activity.Actor.VerifyHeaderSignature(ctx); err == nil && !res {
 				ctx.Response().Header.Set("Status", "403")
 				_, err = ctx.Write([]byte(""))

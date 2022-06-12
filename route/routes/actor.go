@@ -43,8 +43,8 @@ func ActorInbox(ctx *fiber.Ctx) error {
 	case "Create":
 		for _, e := range activity.To {
 			actor := activitypub.Actor{Id: e}
-			if res, err := actor.IsLocal(); err == nil && res {
-				if res, err := activity.Actor.IsLocal(); err == nil && res {
+			if local, _ := actor.IsLocal(); local {
+				if local, _ := activity.Actor.IsLocal(); !local {
 					reqActivity := activitypub.Activity{Id: activity.Object.Id}
 					col, err := reqActivity.GetCollection()
 					if err != nil {
@@ -55,7 +55,7 @@ func ActorInbox(ctx *fiber.Ctx) error {
 						break
 					}
 
-					if err := activity.Object.WriteCache(); err != nil {
+					if _, err := activity.Object.WriteCache(); err != nil {
 						return util.MakeError(err, "ActorInbox")
 					}
 
@@ -69,8 +69,6 @@ func ActorInbox(ctx *fiber.Ctx) error {
 					}
 
 					//SendToFollowers(e, activity)
-				} else if err != nil {
-					return util.MakeError(err, "ActorInbox")
 				}
 			} else if err != nil {
 				return util.MakeError(err, "ActorInbox")

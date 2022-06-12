@@ -23,7 +23,7 @@ func (activity Activity) AcceptFollow() Activity {
 	accept.Actor = &nActor
 	accept.Actor.Id = activity.Object.Actor
 	var nObj ObjectBase
-	accept.Object = &nObj
+	accept.Object = nObj
 	accept.Object.Actor = activity.Actor.Id
 	var nNested NestedObjectBase
 	accept.Object.Object = &nNested
@@ -181,7 +181,7 @@ func (activity Activity) Reject() Activity {
 	accept.AtContext.Context = activity.AtContext.Context
 	accept.Type = "Reject"
 	var nObj ObjectBase
-	accept.Object = &nObj
+	accept.Object = nObj
 	var nActor Actor
 	accept.Actor = &nActor
 	accept.Actor.Id = activity.Object.Actor
@@ -196,8 +196,8 @@ func (activity Activity) Reject() Activity {
 }
 
 func (activity Activity) Report(reason string) (bool, error) {
-	if isLocal, err := activity.Object.IsLocal(); !isLocal || err != nil {
-		return false, util.MakeError(err, "Report")
+	if isLocal, _ := activity.Object.IsLocal(); !isLocal {
+		return false, nil
 	}
 
 	reqActivity := Activity{Id: activity.Object.Id}
@@ -288,7 +288,7 @@ func (activity Activity) SetActorFollowing() (Activity, error) {
 	var query string
 
 	if alreadyFollowing && alreadyFollower {
-		if res, err := activity.Actor.IsLocal(); err == nil && !res {
+		if res, _ := activity.Actor.IsLocal(); !res {
 			go activity.Actor.DeleteCache()
 		} else if err != nil {
 			return activity, util.MakeError(err, "SetActorFollowing")
@@ -306,10 +306,8 @@ func (activity Activity) SetActorFollowing() (Activity, error) {
 	}
 
 	if !alreadyFollowing && !alreadyFollower {
-		if res, err := activity.Actor.IsLocal(); err == nil && !res {
+		if res, _ := activity.Actor.IsLocal(); !res {
 			go activity.Actor.WriteCache()
-		} else if err != nil {
-			return activity, util.MakeError(err, "SetActorFollowing")
 		}
 
 		query = `insert into following (id, following) values ($1, $2)`

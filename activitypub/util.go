@@ -159,7 +159,7 @@ func GetActivityFromJson(ctx *fiber.Ctx) (Activity, error) {
 		}
 
 		nActivity.Name = respActivity.Name
-		nActivity.Object = &jObj
+		nActivity.Object = jObj
 	} else if err != nil {
 		return nActivity, util.MakeError(err, "GetActivityFromJson")
 	}
@@ -351,7 +351,7 @@ func GetActorFromDB(id string) (Actor, error) {
 	err := config.DB.QueryRow(query, id).Scan(&nActor.Type, &nActor.Id, &nActor.Name, &nActor.PreferredUsername, &nActor.Inbox, &nActor.Outbox, &nActor.Following, &nActor.Followers, &nActor.Restricted, &nActor.Summary, &publicKeyPem)
 
 	if err != nil {
-		return nActor, nil
+		return nActor, util.MakeError(err, "GetActorFromDB")
 	}
 
 	nActor.PublicKey, err = GetActorPemFromDB(publicKeyPem)

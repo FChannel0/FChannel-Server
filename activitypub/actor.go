@@ -818,8 +818,8 @@ func (actor Actor) IsAlreadyFollower(follow string) (bool, error) {
 }
 
 func (actor Actor) IsLocal() (bool, error) {
-	actor, err := GetActorFromDB(actor.Id)
-	return actor.Id != "", util.MakeError(err, "IsLocal")
+	actor, _ = GetActorFromDB(actor.Id)
+	return actor.Id != "", nil
 }
 
 func (actor Actor) IsValid() (Actor, bool, error) {
@@ -1048,7 +1048,7 @@ func (actor Actor) WriteCache() error {
 	}
 
 	for _, e := range collection.OrderedItems {
-		if err := e.WriteCache(); err != nil {
+		if _, err := e.WriteCache(); err != nil {
 			return util.MakeError(err, "WriteCache")
 		}
 	}
@@ -1077,7 +1077,7 @@ func (actor Actor) MakeFollowActivity(follow string) (Activity, error) {
 	}
 
 	followActivity.Actor = &nactor
-	followActivity.Object = &obj
+	followActivity.Object = obj
 
 	followActivity.Object.Actor = follow
 	followActivity.To = append(followActivity.To, follow)

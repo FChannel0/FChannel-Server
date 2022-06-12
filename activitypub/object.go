@@ -26,7 +26,7 @@ func (obj ObjectBase) CreateActivity(activityType string) (Activity, error) {
 	newActivity.Type = activityType
 	newActivity.Published = obj.Published
 	newActivity.Actor = &actor
-	newActivity.Object = &obj
+	newActivity.Object = obj
 
 	for _, e := range obj.To {
 		if obj.Actor != e {
@@ -114,7 +114,7 @@ func (obj ObjectBase) DeleteAndRepliesRequest() error {
 	}
 
 	activity.Actor.Id = nObj.OrderedItems[0].Actor
-	activity.Object = &nObj.OrderedItems[0]
+	activity.Object = nObj.OrderedItems[0]
 	objActor, _ := GetActor(nObj.OrderedItems[0].Actor)
 	followers, err := objActor.GetFollower()
 
@@ -736,7 +736,7 @@ func (obj ObjectBase) IsLocal() (bool, error) {
 
 	query := `select id from activitystream where id=$1`
 	if err := config.DB.QueryRow(query, obj.Id).Scan(&nID); err != nil {
-		return false, util.MakeError(err, "GetType")
+		return false, nil
 	}
 
 	return true, nil
@@ -1138,7 +1138,7 @@ func (obj ObjectBase) WriteAttachmentCache() error {
 	return nil
 }
 
-func (obj ObjectBase) WriteCache() error {
+func (obj ObjectBase) _WriteCache() error {
 	var id string
 
 	obj.Name = util.EscapeString(obj.Name)
@@ -1153,7 +1153,7 @@ func (obj ObjectBase) WriteCache() error {
 
 		query = `insert into cacheactivitystream (id, type, name, content, published, updated, attributedto, actor, tripcode, sensitive) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 		_, err = config.DB.Exec(query, obj.Id, obj.Type, obj.Name, obj.Content, obj.Published, obj.Updated, obj.AttributedTo, obj.Actor, obj.TripCode, obj.Sensitive)
-		return util.MakeError(err, "WriteCache")
+		return util.MakeError(err, "_WriteCache")
 	}
 
 	return nil
@@ -1264,79 +1264,9 @@ func (obj ObjectBase) WriteReply() error {
 	return nil
 }
 
-func (obj ObjectBase) WriteReplyCache() error {
-	for i, e := range obj.InReplyTo {
-		res, err := obj.InReplyTo[0].IsReplyInThread(e.Id)
-		if err != nil {
-			return util.MakeError(err, "WriteReplyCache")
-		}
-
-		if i == 0 || res {
-			query := `select id from replies where id=$1`
-
-			rows, err := config.DB.Query(query, obj.Id)
-			if err != nil {
-				return util.MakeError(err, "WriteReplyCache")
-			}
-			defer rows.Close()
-
-			var id string
-			rows.Next()
-			err = rows.Scan(&id)
-			if err != nil {
-				return util.MakeError(err, "WriteReplyCache")
-			} else if id != "" {
-				return nil // TODO: error?
-			}
-
-			query = `insert into cachereplies (id, inreplyto) values ($1, $2)`
-
-			_, err = config.DB.Exec(query, obj.Id, e.Id)
-			if err != nil {
-				return util.MakeError(err, "WriteReplyCache")
-			}
-		}
-	}
-
-	if len(obj.InReplyTo) < 1 {
-		query := `insert into cachereplies (id, inreplyto) values ($1, $2)`
-
-		_, err := config.DB.Exec(query, obj.Id, "")
-		return util.MakeError(err, "WriteReplyCache")
-	}
-
-	return nil
-}
-
-func (obj ObjectBase) WriteReplyLocal(replyto string) error {
-	var nID string
-
-	query := `select id from replies where id=$1 and inreplyto=$2`
-	if err := config.DB.QueryRow(query, obj.Id, replyto).Scan(&nID); err != nil {
-		query := `insert into replies (id, inreplyto) values ($1, $2)`
-		if _, err := config.DB.Exec(query, obj.Id, replyto); err != nil {
-			return util.MakeError(err, "WriteReplyLocal")
-		}
-	}
-
-	var val string
-
-	query = `select inreplyto from replies where id=$1`
-	if err := config.DB.QueryRow(query, replyto).Scan(&val); err != nil {
-		updated := time.Now().UTC().Format(time.RFC3339)
-		query := `update activitystream set updated=$1 where id=$2`
-
-		if _, err := config.DB.Exec(query, updated, replyto); err != nil {
-			return util.MakeError(err, "WriteReplyLocal")
-		}
-	}
-
-	return nil
-}
-
-func (obj ObjectBase) WriteObjectToCache() (ObjectBase, error) {
+func (obj ObjectBase) WriteCache() (ObjectBase, error) {
 	if isBlacklisted, err := util.IsPostBlacklist(obj.Content); err != nil || isBlacklisted {
-		config.Log.Println("\n\nBlacklist post blocked\n\n")
+		config.Log.Println("Blacklist post blocked")
 		return obj, util.MakeError(err, "WriteObjectToCache")
 	}
 
@@ -1350,14 +1280,14 @@ func (obj ObjectBase) WriteObjectToCache() (ObjectBase, error) {
 			obj.WriteCacheWithAttachment(obj.Attachment[i])
 		}
 	} else {
-		obj.WriteCache()
+		obj._WriteCache()
 	}
 
 	obj.WriteReply()
 
 	if obj.Replies.OrderedItems != nil {
 		for _, e := range obj.Replies.OrderedItems {
-			e.WriteCache()
+			e._WriteCache()
 		}
 	}
 

@@ -195,7 +195,7 @@ func AdminAddBoard(ctx *fiber.Ctx) error {
 
 	var nobj activitypub.ObjectBase
 	newActorActivity.Actor = &actor
-	newActorActivity.Object = &nobj
+	newActorActivity.Object = nobj
 
 	newActorActivity.Object.Alias = board.Name
 	newActorActivity.Object.Name = board.PreferredUsername

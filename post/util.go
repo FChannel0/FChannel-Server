@@ -322,7 +322,7 @@ func ObjectFromForm(ctx *fiber.Ctx, obj activitypub.ObjectBase) (activitypub.Obj
 
 			activity.To = append(activity.To, e.Id)
 
-			if local, err := activity.IsLocal(); err == nil && !local {
+			if local, _ := activity.IsLocal(); !local {
 				actor, err := activitypub.FingerActor(e.Id)
 				if err != nil {
 					return obj, util.MakeError(err, "ObjectFromForm")
@@ -331,8 +331,6 @@ func ObjectFromForm(ctx *fiber.Ctx, obj activitypub.ObjectBase) (activitypub.Obj
 				if !util.IsInStringArray(obj.To, actor.Id) {
 					obj.To = append(obj.To, actor.Id)
 				}
-			} else if err != nil {
-				return obj, util.MakeError(err, "ObjectFromForm")
 			}
 		}
 	}
