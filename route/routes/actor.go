@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
@@ -238,7 +239,7 @@ func ActorPost(ctx *fiber.Ctx) error {
 	}
 
 	if ctx.FormValue("inReplyTo") == "" || file == nil {
-		if ctx.FormValue("comment") == "" && ctx.FormValue("subject") == "" {
+		if strings.TrimSpace(ctx.FormValue("comment")) == "" && ctx.FormValue("subject") == "" {
 			return ctx.Render("403", fiber.Map{
 				"message": "Comment or Subject required",
 			})
@@ -248,6 +249,12 @@ func ActorPost(ctx *fiber.Ctx) error {
 	if len(ctx.FormValue("comment")) > 2000 {
 		return ctx.Render("403", fiber.Map{
 			"message": "Comment limit 2000 characters",
+		})
+	}
+
+	if strings.Count(ctx.FormValue("comment"), "\r\n") > 50 || strings.Count(ctx.FormValue("comment"), "\n") > 50 || strings.Count(ctx.FormValue("comment"), "\r") > 50 {
+		return ctx.Render("403", fiber.Map{
+			"message": "Too many new lines - try again.",
 		})
 	}
 

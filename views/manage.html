@@ -80,14 +80,3 @@
 
 {{ template "partials/footer" .page }}
 {{ template "partials/general_scripts" .page }}
-
-<script>
-  var reported = document.querySelectorAll('#rpost');
-  var reportedArray = [].slice.call(reported);
-
-  reportedArray.forEach(function(r, i){
-      var id = r.getAttribute("post")
-      r.innerText = "/" + {{ .page.Board.Name }} + "/" + shortURL("{{ .page.Board.Actor.Id }}", id)
-      r.href = {{ .page.Domain }} + "/" + {{ .page.Board.Name }} + "/" + shortURL("{{ .page.Board.Actor.Id }}", id)
-  })
-</script>

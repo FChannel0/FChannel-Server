@@ -469,7 +469,7 @@ func ParseAttachment(obj activitypub.ObjectBase, catalog bool) template.HTML {
 	return template.HTML(media)
 }
 
-func ParseContent(board activitypub.Actor, op string, content string, thread activitypub.ObjectBase) (template.HTML, error) {
+func ParseContent(board activitypub.Actor, op string, content string, thread activitypub.ObjectBase, id string, _type string) (template.HTML, error) {
 	// TODO: should escape more than just < and >, should also escape &, ", and '
 	nContent := strings.ReplaceAll(content, `<`, "&lt;")
 	nContent, err := ParseLinkComments(board, op, nContent, thread)
@@ -478,10 +478,29 @@ func ParseContent(board activitypub.Actor, op string, content string, thread act
 		return "", util.MakeError(err, "ParseContent")
 	}
 
+	if _type == "new" {
+		nContent = ParseTruncate(nContent, board, op, id)
+	}
 	nContent = ParseCommentQuotes(nContent)
 	nContent = strings.ReplaceAll(nContent, `/\&lt;`, ">")
 
 	return template.HTML(nContent), nil
+}
+
+func ParseTruncate(content string, board activitypub.Actor, op string, id string) string {
+	if strings.Count(content, "\r") > 30 {
+		content = strings.ReplaceAll(content, "\r\n", "\r")
+		lines := strings.SplitAfter(content, "\r")
+		content = ""
+
+		for i := 0; i < 30; i++ {
+			content += lines[i]
+		}
+
+		content += fmt.Sprintf("<a href=\"%s\">(view full post...)</a>", board.Id+"/"+util.ShortURL(board.Outbox, op)+"#"+util.ShortURL(board.Outbox+"/outbox", id))
+	}
+
+	return content
 }
 
 func ParseLinkComments(board activitypub.Actor, op string, content string, thread activitypub.ObjectBase) (string, error) {

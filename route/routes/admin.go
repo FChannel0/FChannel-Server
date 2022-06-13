@@ -129,13 +129,19 @@ func AdminIndex(ctx *fiber.Ctx) error {
 
 	adminData.Board.Post.Actor = actor.Id
 
+	adminData.Instance, _ = activitypub.GetActorFromDB(config.Domain)
+
 	adminData.PostBlacklist, _ = util.GetRegexBlacklist()
+
+	adminData.Meta.Description = adminData.Title
+	adminData.Meta.Url = adminData.Board.Actor.Id
+	adminData.Meta.Title = adminData.Title
 
 	adminData.Themes = &config.Themes
 
 	return ctx.Render("admin", fiber.Map{
 		"page": adminData,
-	})
+	}, "layouts/main")
 }
 
 func AdminFollow(ctx *fiber.Ctx) error {
@@ -255,6 +261,8 @@ func AdminActorIndex(ctx *fiber.Ctx) error {
 
 	data.Board.Post.Actor = actor.Id
 
+	data.Instance, _ = activitypub.GetActorFromDB(config.Domain)
+
 	data.AutoSubscribe, _ = actor.GetAutoSubscribe()
 
 	jannies, err := actor.GetJanitors()
@@ -262,6 +270,10 @@ func AdminActorIndex(ctx *fiber.Ctx) error {
 	if err != nil {
 		return util.MakeError(err, "AdminActorIndex")
 	}
+
+	data.Meta.Description = data.Title
+	data.Meta.Url = data.Board.Actor.Id
+	data.Meta.Title = data.Title
 
 	data.Themes = &config.Themes
 
@@ -274,7 +286,7 @@ func AdminActorIndex(ctx *fiber.Ctx) error {
 	return ctx.Render("manage", fiber.Map{
 		"page":    data,
 		"jannies": jannies,
-	})
+	}, "layouts/main")
 }
 
 func AdminAddJanny(ctx *fiber.Ctx) error {

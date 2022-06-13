@@ -44,6 +44,8 @@ type AdminPage struct {
 	PostBlacklist []util.PostBlacklist
 	AutoSubscribe bool
 	RecentPosts   []activitypub.ObjectBase
+	Instance      activitypub.Actor
+	Meta          Meta
 
 	Themes      *[]string
 	ThemeCookie string
