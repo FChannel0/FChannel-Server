@@ -9,7 +9,7 @@
   <h3 id="newpostbtn"  state="0" style="display: none; margin-bottom:100px;">[<a href="javascript:startNewPost()">Start a New Thread</a>]</h3>
   {{ end }} <!-- end if inreplyto-->
   <div id="newpost">
-    <form onsubmit="sessionStorage.setItem('element-closed-reply', true)" id="new-post" action="/{{ .Board.Name }}" method="post" enctype="multipart/form-data">
+    <form onsubmit="sessionStorage.setItem('element-closed-reply', true)" id="new-post" action="/post" method="post" enctype="multipart/form-data">
       <table id="postForm">
         <tr>
           <tr>
@@ -66,7 +66,7 @@
   {{ end }} <!-- end if inreplyto-->
   {{ $len := len .Posts }}
   <div id="newpost">
-    <form onsubmit="sessionStorage.setItem('element-closed-reply', true)" id="new-post" action="/{{ .Board.Name }}" method="post" enctype="multipart/form-data">
+    <form onsubmit="sessionStorage.setItem('element-closed-reply', true)" id="new-post" action="/post" method="post" enctype="multipart/form-data">
       <table id="postForm">
         <tr>
           <tr>

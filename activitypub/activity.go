@@ -51,7 +51,7 @@ func (activity Activity) AddFollowersTo() (Activity, error) {
 
 			bFollowers, err := reqActivity.GetCollection()
 			if err != nil {
-				return activity, util.MakeError(err, "AddFollowersTo")
+				continue
 			}
 
 			// get followers of activity actor followers
@@ -336,36 +336,6 @@ func (activity Activity) SetActorFollowing() (Activity, error) {
 	return activity, nil
 }
 
-func (activity Activity) MakeFollowingReq() (bool, error) {
-	actor, err := GetActor(activity.Object.Id)
-
-	if err != nil {
-		return false, util.MakeError(err, "MakeFollowingReq")
-	}
-
-	req, err := http.NewRequest("POST", actor.Inbox, nil)
-
-	if err != nil {
-		return false, util.MakeError(err, "MakeFollowingReq")
-	}
-
-	resp, err := util.RouteProxy(req)
-
-	if err != nil {
-		return false, util.MakeError(err, "MakeFollowingReq")
-	}
-
-	defer resp.Body.Close()
-
-	body, _ := ioutil.ReadAll(resp.Body)
-
-	var respActivity Activity
-
-	err = json.Unmarshal(body, &respActivity)
-
-	return respActivity.Type == "Accept", util.MakeError(err, "MakeFollowingReq")
-}
-
 func (activity Activity) MakeRequestInbox() error {
 	j, _ := json.MarshalIndent(activity, "", "\t")
 
@@ -381,35 +351,50 @@ func (activity Activity) MakeRequestInbox() error {
 				_, instance := GetActorAndInstance(actor.Id)
 
 				if actor.Inbox != "" {
-					req, err := http.NewRequest("POST", actor.Inbox, bytes.NewBuffer(j))
+					go func(actor Actor, activity Activity) error {
+						var status int
+						var try int
 
-					if err != nil {
-						return util.MakeError(err, "MakeRequest")
-					}
+						for try != 5 && status != 200 {
+							time.Sleep(time.Duration(try) * time.Minute)
 
-					date := time.Now().UTC().Format(time.RFC1123)
-					path := strings.Replace(actor.Inbox, instance, "", 1)
-					re := regexp.MustCompile("https?://(www.)?")
-					path = re.ReplaceAllString(path, "")
-					sig := fmt.Sprintf("(request-target): %s %s\nhost: %s\ndate: %s", "post", path, instance, date)
-					encSig, err := activity.Actor.ActivitySign(sig)
+							req, err := http.NewRequest("POST", actor.Inbox, bytes.NewBuffer(j))
 
-					if err != nil {
-						return util.MakeError(err, "MakeRequest")
-					}
+							if err != nil {
+								return util.MakeError(err, "MakeRequest")
+							}
 
-					signature := fmt.Sprintf("keyId=\"%s\",headers=\"(request-target) host date\",signature=\"%s\"", activity.Actor.PublicKey.Id, encSig)
+							date := time.Now().UTC().Format(time.RFC1123)
+							path := strings.Replace(actor.Inbox, instance, "", 1)
+							re := regexp.MustCompile("https?://(www.)?")
+							path = re.ReplaceAllString(path, "")
+							sig := fmt.Sprintf("(request-target): %s %s\nhost: %s\ndate: %s", "post", path, instance, date)
+							encSig, err := activity.Actor.ActivitySign(sig)
 
-					req.Header.Set("Content-Type", config.ActivityStreams)
-					req.Header.Set("Date", date)
-					req.Header.Set("Signature", signature)
-					req.Host = instance
+							if err != nil {
+								return util.MakeError(err, "MakeRequest")
+							}
 
-					_, err = util.RouteProxy(req)
+							signature := fmt.Sprintf("keyId=\"%s\",headers=\"(request-target) host date\",signature=\"%s\"", activity.Actor.PublicKey.Id, encSig)
 
-					if err != nil {
-						return util.MakeError(err, "MakeRequest")
-					}
+							req.Header.Set("Content-Type", config.ActivityStreams)
+							req.Header.Set("Date", date)
+							req.Header.Set("Signature", signature)
+							req.Host = instance
+
+							resp, err := util.RouteProxy(req)
+
+							if err != nil {
+								return util.MakeError(err, "MakeRequest")
+							}
+
+							status = resp.StatusCode
+							try += 1
+						}
+
+						return nil
+
+					}(actor, activity)
 				}
 			}
 		}
@@ -425,38 +410,58 @@ func (activity Activity) MakeRequestOutbox() error {
 		return util.MakeError(errors.New("invalid outbox"), "MakeRequestOutbox")
 	}
 
-	req, err := http.NewRequest("POST", activity.Actor.Outbox, bytes.NewBuffer(j))
-	if err != nil {
-		return util.MakeError(err, "MakeRequestOutbox")
-	}
+	go func(actor Actor, activity Activity) error {
+		var status int
+		var try int
 
-	re := regexp.MustCompile("https?://(www.)?")
+		for try != 5 && status != 200 {
+			time.Sleep(time.Duration(try) * time.Minute)
 
-	var instance string
-	if activity.Actor.Id == config.Domain {
-		instance = re.ReplaceAllString(config.Domain, "")
-	} else {
-		_, instance = GetActorAndInstance(activity.Actor.Id)
-	}
+			req, err := http.NewRequest("POST", activity.Actor.Outbox, bytes.NewBuffer(j))
 
-	date := time.Now().UTC().Format(time.RFC1123)
-	path := strings.Replace(activity.Actor.Outbox, instance, "", 1)
-	path = re.ReplaceAllString(path, "")
-	sig := fmt.Sprintf("(request-target): %s %s\nhost: %s\ndate: %s", "post", path, instance, date)
-	encSig, err := activity.Actor.ActivitySign(sig)
+			if err != nil {
+				return util.MakeError(err, "MakeRequestOutbox")
+			}
 
-	if err != nil {
-		return util.MakeError(err, "MakeRequestOutbox")
-	}
+			re := regexp.MustCompile("https?://(www.)?")
 
-	signature := fmt.Sprintf("keyId=\"%s\",headers=\"(request-target) host date\",signature=\"%s\"", activity.Actor.PublicKey.Id, encSig)
+			var instance string
+			if activity.Actor.Id == config.Domain {
+				instance = re.ReplaceAllString(config.Domain, "")
+			} else {
+				_, instance = GetActorAndInstance(activity.Actor.Id)
+			}
 
-	req.Header.Set("Content-Type", config.ActivityStreams)
-	req.Header.Set("Date", date)
-	req.Header.Set("Signature", signature)
-	req.Host = instance
+			date := time.Now().UTC().Format(time.RFC1123)
+			path := strings.Replace(activity.Actor.Outbox, instance, "", 1)
+			path = re.ReplaceAllString(path, "")
+			sig := fmt.Sprintf("(request-target): %s %s\nhost: %s\ndate: %s", "post", path, instance, date)
+			encSig, err := activity.Actor.ActivitySign(sig)
 
-	_, err = util.RouteProxy(req)
+			if err != nil {
+				return util.MakeError(err, "MakeRequestOutbox")
+			}
 
-	return util.MakeError(err, "MakeRequestOutbox")
+			signature := fmt.Sprintf("keyId=\"%s\",headers=\"(request-target) host date\",signature=\"%s\"", activity.Actor.PublicKey.Id, encSig)
+
+			req.Header.Set("Content-Type", config.ActivityStreams)
+			req.Header.Set("Date", date)
+			req.Header.Set("Signature", signature)
+			req.Host = instance
+
+			resp, err := util.RouteProxy(req)
+
+			if err != nil {
+				return util.MakeError(err, "MakeRequest")
+			}
+
+			status = resp.StatusCode
+			try += 1
+		}
+
+		return nil
+
+	}(*activity.Actor, activity)
+
+	return util.MakeError(nil, "MakeRequestOutbox")
 }
