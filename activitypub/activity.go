@@ -44,8 +44,20 @@ func (activity Activity) AddFollowersTo() (Activity, error) {
 			return activity, util.MakeError(err, "AddFollowersTo")
 		}
 
+		// get followers of activity actor
 		for _, k := range aFollowers.Items {
 			activity.To = append(activity.To, k.Id)
+			reqActivity := Activity{Id: k.Id + "/followers"}
+
+			bFollowers, err := reqActivity.GetCollection()
+			if err != nil {
+				return activity, util.MakeError(err, "AddFollowersTo")
+			}
+
+			// get followers of activity actor followers
+			for _, j := range bFollowers.Items {
+				activity.To = append(activity.To, j.Id)
+			}
 		}
 	}
 

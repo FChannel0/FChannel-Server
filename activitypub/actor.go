@@ -143,7 +143,7 @@ func (actor Actor) AutoFollow() error {
 }
 
 func (actor Actor) DeleteCache() error {
-	query := `select id from cacheactivitystream where id in (select id from cacheactivitystream where actor=$1)`
+	query := `select id from cacheactivitystream where id in (select id from cacheactivitystream where actor=$1 and id in (select id from replies where inreplyto='')) `
 	rows, err := config.DB.Query(query, actor.Id)
 
 	if err != nil {

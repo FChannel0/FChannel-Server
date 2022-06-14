@@ -56,12 +56,11 @@ func ActorInbox(ctx *fiber.Ctx) error {
 						break
 					}
 
-					if _, err := activity.Object.WriteCache(); err != nil {
+					if wantToCache, err := activity.Object.WantToCache(actor); !wantToCache {
 						return util.MakeError(err, "ActorInbox")
 					}
 
-					actor, err := activitypub.GetActorFromDB(e)
-					if err != nil {
+					if _, err := activity.Object.WriteCache(); err != nil {
 						return util.MakeError(err, "ActorInbox")
 					}
 

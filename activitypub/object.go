@@ -14,6 +14,37 @@ import (
 	"github.com/FChannel0/FChannel-Server/util"
 )
 
+func (obj ObjectBase) WantToCache(actor Actor) (bool, error) {
+	reqActivity := Activity{Id: obj.Actor + "/followers"}
+	objFollowers, err := reqActivity.GetCollection()
+
+	if err != nil {
+		return false, util.MakeError(err, "WantToCache")
+	}
+
+	actorFollowing, err := actor.GetFollowing()
+
+	if err != nil {
+		return false, util.MakeError(err, "WantToCache")
+	}
+
+	isOP, _ := obj.CheckIfOP()
+
+	for _, e := range objFollowers.Items {
+		if e.Id == actor.Id {
+			return true, nil
+		}
+
+		for _, k := range actorFollowing {
+			if e.Id == k.Id && !isOP && obj.InReplyTo[0].Id != "" {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
+}
+
 func (obj ObjectBase) CreateActivity(activityType string) (Activity, error) {
 	var newActivity Activity
 
@@ -1202,7 +1233,7 @@ func (obj NestedObjectBase) WritePreviewCache() error {
 
 func (obj ObjectBase) WriteReply() error {
 	for i, e := range obj.InReplyTo {
-		if isOP, err := obj.CheckIfOP(); err == nil && !isOP && i == 0 {
+		if isOP, err := obj.CheckIfOP(); !isOP && i == 0 {
 			var nObj ObjectBase
 			nObj.Id = e.Id
 
