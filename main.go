@@ -66,6 +66,7 @@ func main() {
 	app.Post("/"+config.Key+"/newspost", routes.NewsPost)
 	app.Get("/"+config.Key+"/newsdelete/:ts", routes.NewsDelete)
 	app.Post("/"+config.Key+"/:actor/addjanny", routes.AdminAddJanny)
+	app.Post("/"+config.Key+"/:actor/editsummary", routes.AdminEditSummary)
 	app.Get("/"+config.Key+"/:actor/deletejanny", routes.AdminDeleteJanny)
 	app.All("/"+config.Key+"/:actor/follow", routes.AdminFollow)
 	app.Get("/"+config.Key+"/:actor", routes.AdminActorIndex)

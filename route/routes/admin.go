@@ -355,6 +355,36 @@ func AdminAddJanny(ctx *fiber.Ctx) error {
 	return ctx.Redirect("/"+config.Key+"/"+redirect, http.StatusSeeOther)
 }
 
+func AdminEditSummary(ctx *fiber.Ctx) error {
+	id, pass := util.GetPasswordFromSession(ctx)
+	actor, _ := webfinger.GetActorFromPath(ctx.Path(), "/"+config.Key+"/")
+
+	if actor.Id == "" {
+		actor, _ = activitypub.GetActorByNameFromDB(config.Domain)
+	}
+
+	hasAuth, _type := util.HasAuth(pass, actor.Id)
+
+	if !hasAuth || _type != "admin" || (id != actor.Id && id != config.Domain) {
+		return util.MakeError(errors.New("Error"), "AdminEditSummary")
+	}
+
+	summary := ctx.FormValue("summary")
+
+	query := `update actor set summary=$1 where id=$2`
+	if _, err := config.DB.Exec(query, summary, actor.Id); err != nil {
+		return util.MakeError(err, "AdminEditSummary")
+	}
+
+	var redirect string
+	if actor.Name != "main" {
+		redirect = actor.Name
+	}
+
+	return ctx.Redirect("/"+config.Key+"/"+redirect, http.StatusSeeOther)
+
+}
+
 func AdminDeleteJanny(ctx *fiber.Ctx) error {
 	id, pass := util.GetPasswordFromSession(ctx)
 	actor, _ := webfinger.GetActorFromPath(ctx.Path(), "/"+config.Key+"/")
@@ -377,7 +407,6 @@ func AdminDeleteJanny(ctx *fiber.Ctx) error {
 	}
 
 	var redirect string
-	actor, _ = webfinger.GetActorFromPath(ctx.Path(), "/"+config.Key+"/")
 
 	if actor.Name != "main" {
 		redirect = actor.Name

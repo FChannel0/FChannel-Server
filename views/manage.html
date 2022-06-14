@@ -1,6 +1,11 @@
 <div style="text-align: center; margin: 0 auto; width: 400px;">
   <h1>Manage /{{ .page.Board.Name }}/</h1>
-  <!-- <div><a href="/{{ .Key }}/deleteboard?name={{ .Board.Name }}">[Delete Board]</a></div>     -->
+  <form id="summary-form" action="/{{ .page.Key }}/{{ .page.Board.Name }}/editsummary" method="post" enctype="application/x-www-form-urlencoded" style="margin-top: 5px;">
+    <input id="summary" name="summary" style="margin-bottom: 5px;" size="35" placeholder="{{ .page.Board.Actor.Summary }}"></input>
+    <input type="submit" value="Update Summary"><br>
+    <input type="hidden" name="actor" value="{{ .page.Board.Actor.Id }}">
+  </form>
+  <!-- <div><a href="/{{ .Key }}/deleteboard?name={{ .Board.Name }}">[Delete Board]</a></div> -->
   <ul style="display: inline-block; padding: 0;">
     {{ if .page.IsLocal }}
     <li style="display: inline-block;">[<a href="#following"> Subscribed </a>]</li>
