@@ -893,34 +893,32 @@ func (actor Actor) SetAutoSubscribe() error {
 }
 
 func (actor Actor) SendToFollowers(activity Activity) error {
-	nActor, err := GetActorFromDB(actor.Id)
+	followers, err := actor.GetFollower()
 
 	if err != nil {
 		return util.MakeError(err, "SendToFollowers")
 	}
 
-	activity.Actor = &nActor
-	followers, err := nActor.GetFollower()
-
-	if err != nil {
-		return util.MakeError(err, "SendToFollowers")
-	}
-
-	var to []string
+	var cc []string
 
 	for _, e := range followers {
+		var isTo = false
+
 		for _, k := range activity.To {
 			if e.Id != k {
-				to = append(to, e.Id)
+				isTo = true
 			}
+		}
+
+		if !isTo {
+			cc = append(cc, e.Id)
 		}
 	}
 
-	activity.To = to
+	activity.To = make([]string, 0)
+	activity.Cc = cc
 
-	if len(activity.Object.InReplyTo) > 0 {
-		err = activity.MakeRequestInbox()
-	}
+	err = activity.MakeRequestInbox()
 
 	return util.MakeError(err, "SendToFollowers")
 }
@@ -1168,4 +1166,34 @@ func (actor Actor) GetJanitors() ([]util.Verify, error) {
 	}
 
 	return list, nil
+}
+
+func (actor Actor) ProcessInboxCreate(activity Activity) error {
+	if local, _ := actor.IsLocal(); local {
+		if local, _ := activity.Actor.IsLocal(); !local {
+			reqActivity := Activity{Id: activity.Object.Id}
+			col, err := reqActivity.GetCollection()
+			if err != nil {
+				return util.MakeError(err, "ActorInbox")
+			}
+
+			if len(col.OrderedItems) < 1 {
+				return util.MakeError(errors.New("Object does not exist"), "ActorInbox")
+			}
+
+			if wantToCache, err := activity.Object.WantToCache(actor); !wantToCache {
+				return util.MakeError(err, "ActorInbox")
+			}
+
+			if _, err := activity.Object.WriteCache(); err != nil {
+				return util.MakeError(err, "ActorInbox")
+			}
+
+			if err := actor.ArchivePosts(); err != nil {
+				return util.MakeError(err, "ActorInbox")
+			}
+		}
+	}
+
+	return nil
 }

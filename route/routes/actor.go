@@ -44,39 +44,23 @@ func ActorInbox(ctx *fiber.Ctx) error {
 	case "Create":
 		for _, e := range activity.To {
 			actor := activitypub.Actor{Id: e}
-			if local, _ := actor.IsLocal(); local {
-				if local, _ := activity.Actor.IsLocal(); !local {
-					reqActivity := activitypub.Activity{Id: activity.Object.Id}
-					col, err := reqActivity.GetCollection()
-					if err != nil {
-						return util.MakeError(err, "ActorInbox")
-					}
+			if err := actor.ProcessInboxCreate(activity); err != nil {
+				return util.MakeError(err, "ActorInbox")
+			}
 
-					if len(col.OrderedItems) < 1 {
-						break
-					}
+			if err := actor.SendToFollowers(activity); err != nil {
+				return util.MakeError(err, "ActorInbox")
+			}
+		}
 
-					if wantToCache, err := activity.Object.WantToCache(actor); !wantToCache {
-						return util.MakeError(err, "ActorInbox")
-					}
-
-					if _, err := activity.Object.WriteCache(); err != nil {
-						return util.MakeError(err, "ActorInbox")
-					}
-
-					if err := actor.ArchivePosts(); err != nil {
-						return util.MakeError(err, "ActorInbox")
-					}
-
-					//SendToFollowers(e, activity)
-				}
-			} else if err != nil {
+		for _, e := range activity.Cc {
+			actor := activitypub.Actor{Id: e}
+			if err := actor.ProcessInboxCreate(activity); err != nil {
 				return util.MakeError(err, "ActorInbox")
 			}
 		}
 
 		break
-
 	case "Delete":
 		for _, e := range activity.To {
 			actor, err := activitypub.GetActorFromDB(e)
