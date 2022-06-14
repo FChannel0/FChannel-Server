@@ -374,6 +374,13 @@ func TemplateFunctions(engine *html.Engine) {
 		return returnString
 	})
 
+	engine.AddFunc("parseLinkTitle", func(board string, op string, content string) string {
+		nContent := post.ParseLinkTitle(board, op, content)
+		nContent = strings.ReplaceAll(nContent, `/\&lt;`, ">")
+
+		return nContent
+	})
+
 	engine.AddFunc("parseLink", func(board activitypub.Actor, link string) string {
 		var obj = activitypub.ObjectBase{
 			Id: link,

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
 	"github.com/FChannel0/FChannel-Server/util"
 )
@@ -8,6 +9,9 @@ import (
 type Reports struct {
 	ID     string
 	Count  int
+	Actor  activitypub.Actor
+	Object activitypub.ObjectBase
+	OP     string
 	Reason []string
 }
 
@@ -102,12 +106,27 @@ func GetLocalReport(board string) (map[string]Reports, error) {
 			continue
 		}
 
+		var obj = activitypub.ObjectBase{Id: r.ID}
+
+		col, _ := obj.GetCollectionFromPath()
+
+		OP, _ := obj.GetOP()
+
 		reported[r.ID] = Reports{
 			ID:     r.ID,
 			Count:  1,
+			Object: col.OrderedItems[0],
+			OP:     OP,
+			Actor:  activitypub.Actor{Name: board, Outbox: config.Domain + "/" + board + "/outbox"},
 			Reason: []string{r.Reason},
 		}
 	}
 
 	return reported, nil
 }
+
+type ReportsSortDesc []Reports
+
+func (a ReportsSortDesc) Len() int           { return len(a) }
+func (a ReportsSortDesc) Less(i, j int) bool { return a[i].Object.Updated.After(a[j].Object.Updated) }
+func (a ReportsSortDesc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }

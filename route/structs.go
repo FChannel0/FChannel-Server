@@ -38,7 +38,6 @@ type AdminPage struct {
 	Boards        []webfinger.Board
 	Following     []string
 	Followers     []string
-	Reported      map[string]db.Reports
 	Domain        string
 	IsLocal       bool
 	PostBlacklist []util.PostBlacklist

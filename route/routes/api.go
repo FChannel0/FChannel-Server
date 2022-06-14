@@ -30,7 +30,7 @@ func RouteImages(ctx *fiber.Ctx, media string) error {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return util.MakeError(err, "RouteImages")
+		return nil
 	}
 	defer resp.Body.Close()
 

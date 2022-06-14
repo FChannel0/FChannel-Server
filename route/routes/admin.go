@@ -6,6 +6,8 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"regexp"
+	"sort"
 	"time"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
@@ -119,6 +121,24 @@ func AdminIndex(ctx *fiber.Ctx) error {
 	var adminData route.AdminPage
 	adminData.Following = following
 	adminData.Followers = followers
+
+	var reported = make(map[string][]db.Reports)
+
+	for _, e := range following {
+		re := regexp.MustCompile(`.*/(.+)$`)
+		boards := re.FindStringSubmatch(e)
+		reports, _ := db.GetLocalReport(boards[1])
+
+		for _, k := range reports {
+			reported[k.Actor.Name] = append(reported[k.Actor.Name], k)
+		}
+	}
+
+	for k, e := range reported {
+		sort.Sort(db.ReportsSortDesc(e))
+		reported[k] = e
+	}
+
 	adminData.Actor = actor.Id
 	adminData.Key = config.Key
 	adminData.Domain = config.Domain
@@ -140,7 +160,8 @@ func AdminIndex(ctx *fiber.Ctx) error {
 	adminData.Themes = &config.Themes
 
 	return ctx.Render("admin", fiber.Map{
-		"page": adminData,
+		"page":    adminData,
+		"reports": reported,
 	}, "layouts/main")
 }
 
@@ -248,10 +269,21 @@ func AdminActorIndex(ctx *fiber.Ctx) error {
 
 	data.Following = following
 	data.Followers = followers
-	data.Reported, _ = db.GetLocalReport(actor.Name)
+
+	reports, _ := db.GetLocalReport(actor.Name)
+
+	var reported = make(map[string][]db.Reports)
+	for _, k := range reports {
+		reported[k.Actor.Name] = append(reported[k.Actor.Name], k)
+	}
+
+	for k, e := range reported {
+		sort.Sort(db.ReportsSortDesc(e))
+		reported[k] = e
+	}
+
 	data.Domain = config.Domain
 	data.IsLocal, _ = actor.IsLocal()
-
 	data.Title = "Manage /" + actor.Name + "/"
 	data.Boards = webfinger.Boards
 	data.Board.Name = actor.Name
@@ -286,6 +318,7 @@ func AdminActorIndex(ctx *fiber.Ctx) error {
 	return ctx.Render("manage", fiber.Map{
 		"page":    data,
 		"jannies": jannies,
+		"reports": reported,
 	}, "layouts/main")
 }
 

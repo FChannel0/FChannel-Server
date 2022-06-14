@@ -14,10 +14,10 @@
     </select>
   </form>
   <ul style="display: inline-block; padding: 0;">
+    <li style="display: inline-block;">[<a href="#reported">Reported</a>]</li>
     <li style="display: inline-block;">[<a href="#news">Create News</a>]</li>
     <li style="display: inline-block;">[<a href="#regex">Post Blacklist</a>]</li>
     <!-- <li style="display: inline-block;"><a href="javascript:show('followers')">Followers</a></li> -->
-    <!-- <li style="display: inline-block;"><a href="#reported">Reported</a></li>             -->
   </ul>
 </div>
 
@@ -41,6 +41,29 @@
   <ul style="display: inline-block; padding: 0; margin: 0; list-style-type: none;">
     {{ range .page.Followers }}
     <li><a href="http://localhost:3000/g">{{ . }}</a></li>
+    {{ end }}
+  </ul>
+</div>
+
+<div id="reported" class="box2" style="margin-bottom: 25px; padding: 12px;">
+  <h4 style="margin: 0; margin-bottom: 5px;">Reported</h4>
+  <ul style="display: inline-block; padding: 0; margin: 0; list-style-type: none;">
+    {{ $domain := .page.Domain }}
+    {{ range .reports }}
+    <h4 style="margin: 0;"><a href="{{ print $domain "/" (index . 0).Actor.Name }}">/{{ (index . 0).Actor.Name }}/</a></h4>
+    {{ range . }}
+    <li style="padding: 12px;">
+      <div style="margin-bottom: 5px;">{{ .Object.Updated | timeToReadableLong }}</div>
+      <a id="rpost" post="{{ .ID }}" title="{{ parseLinkTitle .Actor.Outbox .OP .Object.Content}}" href="/{{ parseLink .Actor .ID }}">{{ shortURL .Actor.Outbox .ID }}</a> - <b>{{ .Count }}</b> [<a href="/delete?id={{ .ID }}&board={{ .Actor.Name }}&manage=t">Remove Post</a>] {{ if (index .Object.Attachment 0).Id }} [<a href="/banmedia?id={{ .ID }}&board={{ .Actor.Name }}">Ban Media</a>] [<a href="/deleteattach?id={{ .ID }}&board={{ .Actor.Name }}&manage=t">Remove Attachment</a>]{{ end }} [<a href="/report?id={{ .ID }}&close=1&board={{ .Actor.Name }}">Close</a>]
+      <ul>
+        {{ range .Reason }}
+        <li>
+          <span>"{{ . }}" </span>
+        </li>
+        {{ end }}
+      </ul>
+    </li>
+    {{ end }}
     {{ end }}
   </ul>
 </div>
