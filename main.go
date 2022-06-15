@@ -25,13 +25,13 @@ func main() {
 
 	// Routing and templates
 	template := html.New("./views", ".html")
-	template.Debug(true)
 
 	route.TemplateFunctions(template)
 
 	app := fiber.New(fiber.Config{
-		AppName: "FChannel",
-		Views:   template,
+		AppName:      "FChannel",
+		Views:        template,
+		ServerHeader: "FChannel/" + config.InstanceName,
 	})
 
 	app.Use(logger.New())
