@@ -26,13 +26,14 @@ emailpass:
 
 ## enter proxy ip and port if you want to have tor connections supported
 ## 127.0.0.1:9050 default
-
 torproxy:
 
 ## Change to true if you  want your instance to be added to the public instance index
-
 publicindex:false
 
 ## add your instance salt here for secure tripcodes
-
 instancesalt:
+
+## this is the key used to access moderation pages leave empty to randomly generate each restart
+## share with other admin or jannies if you are having others to moderate
+modkey:

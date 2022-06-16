@@ -33,10 +33,12 @@ var PostCountPerPage = 10
 var SupportedFiles = []string{"image/gif", "image/jpeg", "image/png", "image/webp", "image/apng", "video/mp4", "video/ogg", "video/webm", "audio/mpeg", "audio/ogg", "audio/wav", "audio/wave", "audio/x-wav"}
 var Log = log.New(os.Stdout, "", log.Ltime)
 var MediaHashs = make(map[string]string)
-var Key string
+var Key = GetConfigValue("modkey", "")
 var Themes []string
 var DB *sql.DB
 
+// TODO Change this to some other config format like YAML
+// to save into a struct and only read once
 func GetConfigValue(value string, ifnone string) string {
 	file, err := os.Open("config/config-init")
 

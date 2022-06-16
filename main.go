@@ -143,8 +143,10 @@ func Init() {
 		config.Log.Println(err)
 	}
 
-	if config.Key, err = util.CreateKey(32); err != nil {
-		config.Log.Println(err)
+	if config.Key == "" {
+		if config.Key, err = util.CreateKey(32); err != nil {
+			config.Log.Println(err)
+		}
 	}
 
 	if err = util.LoadThemes(); err != nil {
