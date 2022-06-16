@@ -192,6 +192,8 @@ func AdminFollow(ctx *fiber.Ctx) error {
 		redirect = actor.Name
 	}
 
+	time.Sleep(time.Duration(500) * time.Millisecond)
+
 	return ctx.Redirect("/"+config.Key+"/"+redirect, http.StatusSeeOther)
 }
 
@@ -230,6 +232,9 @@ func AdminAddBoard(ctx *fiber.Ctx) error {
 	newActorActivity.Object.Sensitive = board.Restricted
 
 	newActorActivity.MakeRequestOutbox()
+
+	time.Sleep(time.Duration(500) * time.Millisecond)
+
 	return ctx.Redirect("/"+config.Key, http.StatusSeeOther)
 }
 
