@@ -93,15 +93,16 @@ func main() {
 	app.Get("/api/media", routes.Media)
 
 	// Board actor routes
-	app.Post("/post", routes.ActorPost)
+	app.Post("/post", routes.MakeActorPost)
 	app.Get("/:actor/catalog", routes.ActorCatalog)
 	app.Post("/:actor/inbox", routes.ActorInbox)
-	app.All("/:actor/outbox", routes.ActorOutbox)
+	app.Get("/:actor/outbox", routes.GetActorOutbox)
+	app.Post("/:actor/outbox", routes.PostActorOutbox)
 	app.Get("/:actor/following", routes.ActorFollowing)
-	app.All("/:actor/followers", routes.ActorFollowers)
+	app.Get("/:actor/followers", routes.ActorFollowers)
 	app.Get("/:actor/archive", routes.ActorArchive)
-	app.Get("/:actor", routes.ActorOutboxGet)
-	app.Get("/:actor/:post", routes.ActorPostGet)
+	app.Get("/:actor", routes.ActorPosts)
+	app.Get("/:actor/:post", routes.ActorPost)
 
 	db.PrintAdminAuth()
 

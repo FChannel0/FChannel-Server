@@ -2,6 +2,7 @@ package routes
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -170,7 +171,7 @@ func ActorInbox(ctx *fiber.Ctx) error {
 	return nil
 }
 
-func ActorOutbox(ctx *fiber.Ctx) error {
+func PostActorOutbox(ctx *fiber.Ctx) error {
 	//var activity activitypub.Activity
 	actor, err := webfinger.GetActorFromPath(ctx.Path(), "/")
 	if err != nil {
@@ -195,7 +196,7 @@ func ActorFollowers(ctx *fiber.Ctx) error {
 	return actor.GetFollowersResp(ctx)
 }
 
-func ActorPost(ctx *fiber.Ctx) error {
+func MakeActorPost(ctx *fiber.Ctx) error {
 	header, _ := ctx.FormFile("file")
 
 	if ctx.FormValue("inReplyTo") == "" && header == nil {
@@ -356,7 +357,7 @@ func ActorPost(ctx *fiber.Ctx) error {
 	return ctx.Redirect(config.Domain+"/"+ctx.FormValue("boardName"), 301)
 }
 
-func ActorPostGet(ctx *fiber.Ctx) error {
+func ActorPost(ctx *fiber.Ctx) error {
 	actor, err := activitypub.GetActorByNameFromDB(ctx.Params("actor"))
 
 	if err != nil {
@@ -533,7 +534,7 @@ func ActorCatalog(ctx *fiber.Ctx) error {
 	}, "layouts/main")
 }
 
-func ActorOutboxGet(ctx *fiber.Ctx) error {
+func ActorPosts(ctx *fiber.Ctx) error {
 	actor, err := activitypub.GetActorByNameFromDB(ctx.Params("actor"))
 
 	if err != nil {
@@ -668,4 +669,22 @@ func ActorArchive(ctx *fiber.Ctx) error {
 	return ctx.Render("archive", fiber.Map{
 		"page": returnData,
 	}, "layouts/main")
+}
+
+func GetActorOutbox(ctx *fiber.Ctx) error {
+	actor, _ := webfinger.GetActorFromPath(ctx.Path(), "/")
+
+	collection, _ := actor.GetCollection()
+	collection.AtContext.Context = "https://www.w3.org/ns/activitystreams"
+	collection.Actor = actor
+
+	collection.TotalItems, _ = actor.GetPostTotal()
+	collection.TotalImgs, _ = actor.GetImgTotal()
+
+	enc, _ := json.Marshal(collection)
+
+	ctx.Response().Header.Add("Content-Type", config.ActivityStreams)
+	_, err := ctx.Write(enc)
+
+	return err
 }

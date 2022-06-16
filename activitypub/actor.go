@@ -594,7 +594,7 @@ func (actor Actor) GetFollowersResp(ctx *fiber.Ctx) error {
 
 	following.AtContext.Context = "https://www.w3.org/ns/activitystreams"
 	following.Type = "Collection"
-	following.TotalItems, err = actor.GetFollowingTotal()
+	following.TotalItems, err = actor.GetFollowersTotal()
 
 	if err != nil {
 		return util.MakeError(err, "GetFollowersResp")
