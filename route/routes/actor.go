@@ -13,6 +13,7 @@ import (
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
+	"github.com/FChannel0/FChannel-Server/db"
 	"github.com/FChannel0/FChannel-Server/post"
 	"github.com/FChannel0/FChannel-Server/route"
 	"github.com/FChannel0/FChannel-Server/util"
@@ -373,7 +374,7 @@ func ActorPost(ctx *fiber.Ctx) error {
 	re := regexp.MustCompile("\\w+$")
 	postId := re.FindString(ctx.Path())
 
-	inReplyTo := actor.Id + "/" + postId
+	inReplyTo, _ := db.GetPostIDFromNum(postId)
 
 	// check if actually OP if not redirect to op to get full thread
 	var obj = activitypub.ObjectBase{Id: inReplyTo}

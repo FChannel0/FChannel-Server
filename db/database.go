@@ -417,3 +417,17 @@ func InitInstance() error {
 
 	return nil
 }
+
+func GetPostIDFromNum(num string) (string, error) {
+	var postID string
+
+	query := `select id from activitystream where id like $1`
+	if err := config.DB.QueryRow(query, "%"+num).Scan(&postID); err != nil {
+		query = `select id from cacheactivitystream where id like $1`
+		if err := config.DB.QueryRow(query, "%"+num).Scan(&postID); err != nil {
+			return "", util.MakeError(err, "GetPostIDFromNum")
+		}
+	}
+
+	return postID, nil
+}
