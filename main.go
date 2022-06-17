@@ -84,7 +84,8 @@ func main() {
 	app.Get("/poparchive", routes.BoardPopArchive)
 	app.Get("/autosubscribe", routes.BoardAutoSubscribe)
 	app.All("/blacklist", routes.BoardBlacklist)
-	app.All("/report", routes.BoardReport)
+	app.All("/report", routes.ReportPost)
+	app.Get("/make-report", routes.ReportGet)
 
 	// Webfinger routes
 	app.Get("/.well-known/webfinger", routes.Webfinger)

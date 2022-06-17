@@ -6,9 +6,13 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/FChannel0/FChannel-Server/activitypub"
 	"github.com/FChannel0/FChannel-Server/config"
+	"github.com/FChannel0/FChannel-Server/route"
+	"github.com/FChannel0/FChannel-Server/webfinger"
+
 	"github.com/FChannel0/FChannel-Server/db"
 	"github.com/FChannel0/FChannel-Server/post"
 	"github.com/FChannel0/FChannel-Server/util"
@@ -437,7 +441,7 @@ func BoardBlacklist(ctx *fiber.Ctx) error {
 	return ctx.Redirect("/"+config.Key+"#regex", http.StatusSeeOther)
 }
 
-func BoardReport(ctx *fiber.Ctx) error {
+func ReportPost(ctx *fiber.Ctx) error {
 	id := ctx.FormValue("id")
 	board := ctx.FormValue("board")
 	reason := ctx.FormValue("comment")
@@ -449,20 +453,6 @@ func BoardReport(ctx *fiber.Ctx) error {
 		return util.MakeError(err, "BoardReport")
 	}
 	_, auth := util.GetPasswordFromSession(ctx)
-
-	var captcha = ctx.FormValue("captchaCode") + ":" + ctx.FormValue("captcha")
-
-	if len(reason) > 100 {
-		return ctx.Status(403).Render("403", fiber.Map{
-			"message": "Report comment limit 100 characters",
-		})
-	}
-
-	if ok, _ := post.CheckCaptcha(captcha); !ok && close != "1" {
-		return ctx.Status(403).Render("403", fiber.Map{
-			"message": "Invalid captcha",
-		})
-	}
 
 	var obj = activitypub.ObjectBase{Id: id}
 
@@ -506,6 +496,26 @@ func BoardReport(ctx *fiber.Ctx) error {
 		return ctx.Redirect("/"+board+"/"+util.RemoteShort(obj.Id), http.StatusSeeOther)
 	}
 
+	var captcha = ctx.FormValue("captchaCode") + ":" + ctx.FormValue("captcha")
+
+	if len(reason) > 100 {
+		return ctx.Status(403).Render("403", fiber.Map{
+			"message": "Report comment limit 100 characters",
+		})
+	}
+
+	if len(strings.TrimSpace(reason)) == 0 {
+		return ctx.Status(403).Render("403", fiber.Map{
+			"message": "Report reason required",
+		})
+	}
+
+	if ok, _ := post.CheckCaptcha(captcha); !ok && close != "1" {
+		return ctx.Status(403).Render("403", fiber.Map{
+			"message": "Invalid captcha",
+		})
+	}
+
 	if err := db.CreateLocalReport(obj.Id, board, reason); err != nil {
 		config.Log.Println(err)
 		return ctx.Status(404).Render("404", fiber.Map{
@@ -514,4 +524,42 @@ func BoardReport(ctx *fiber.Ctx) error {
 	}
 
 	return ctx.Redirect(id, http.StatusSeeOther)
+}
+
+func ReportGet(ctx *fiber.Ctx) error {
+	actor, _ := activitypub.GetActor(ctx.Query("actor"))
+
+	var data route.PageData
+	data.Board.Actor = actor
+	data.Board.Name = actor.Name
+	data.Board.PrefName = actor.PreferredUsername
+	data.Board.Summary = actor.Summary
+	data.Board.InReplyTo = ctx.Query("post")
+	data.Board.To = actor.Outbox
+	data.Board.Restricted = actor.Restricted
+
+	capt, err := util.GetRandomCaptcha()
+
+	if err != nil {
+		return util.MakeError(err, "OutboxGet")
+	}
+
+	data.Board.Captcha = config.Domain + "/" + capt
+	data.Board.CaptchaCode = post.GetCaptchaCode(data.Board.Captcha)
+
+	data.Meta.Description = data.Board.Summary
+	data.Meta.Url = data.Board.Actor.Id
+	data.Meta.Title = data.Title
+
+	data.Instance, err = activitypub.GetActorFromDB(config.Domain)
+
+	data.Themes = &config.Themes
+	data.ThemeCookie = route.GetThemeCookie(ctx)
+
+	data.Key = config.Key
+	data.Board.ModCred, _ = util.GetPasswordFromSession(ctx)
+	data.Board.Domain = config.Domain
+	data.Boards = webfinger.Boards
+
+	return ctx.Render("report", fiber.Map{"page": data}, "layouts/main")
 }

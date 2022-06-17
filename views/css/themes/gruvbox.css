@@ -20,7 +20,7 @@ body {
   font-size: 0.9em;
 }
 
-.popup-box {
+.popup-box, #report-box {
   border: 4px solid #928374;
   background-color: #3c3836;
 }
@@ -135,6 +135,13 @@ input[type="text"] {
 
 .popup-box {
   position: fixed;
+  min-width: 300px;
+  width: min-content;
+  z-index: 9;
+  display: block;
+}
+
+#report-box {
   min-width: 300px;
   width: min-content;
   z-index: 9;

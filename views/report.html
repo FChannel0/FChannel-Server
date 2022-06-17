@@ -1,0 +1,29 @@
+{{ template "partials/top" .page }}
+
+<div style="height: 500px; width: 420px; margin: 0 auto; margin-top:75px;">
+  <a href="{{ .page.Board.Actor.Id }}/{{ shortURL .page.Board.Actor.Outbox .page.Board.InReplyTo }}">[Back]</a>
+  <div id="report-box">
+    <div id="report-header" style="text-align: center; display: inline-block; z-index: 0;">Report Post No. {{ shortURL .page.Board.Actor.Outbox .page.Board.InReplyTo }}</div>
+    <form id="report-post" action="/report" method="post">
+      <label for="comment">Reason:</label><br>
+      <textarea id="report-comment" name="comment" rows="12" cols="54" style="width: 396px;" maxlength="100" oninput="sessionStorage.setItem('element-report-comment', document.getElementById('report-comment').value)"></textarea>
+      <br>
+      <input id="report-submit" type="submit" value="Report" style="float: right;">
+      <input type="hidden" id="report-inReplyTo-box" name="id" value="{{ .page.Board.InReplyTo }}">
+      <input type="hidden" id="sendTo" name="sendTo" value="{{ .page.Board.To }}">
+      <input type="hidden" id="boardName" name="board" value="{{ .page.Board.Name }}">
+      <input type="hidden" name="close" value="0">
+      <input type="hidden" id="captchaCode" name="captchaCode" value="{{ .page.Board.CaptchaCode }}">
+      <div style="width: 202px; margin: 0 auto; padding-top: 12px;">
+        <label for="captcha">Captcha:</label><br>
+        <input style="display: inline-block;"  type="text" id="captcha" name="captcha" autocomplete="off"><br>
+      </div>
+      <div style="width: 230px; margin: 0 auto;">
+        <img src="{{ .page.Board.Captcha }}">
+      </div>
+    </form>
+  </div>
+</div>
+
+{{ template "partials/footer" .page }}
+{{ template "partials/general_scripts" .page }}
