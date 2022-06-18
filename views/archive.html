@@ -27,7 +27,7 @@
     <td>[<a href="/poparchive?id={{ $e.Id }}&board={{ $board.Name }}">Pop</a>]</td>
     {{ end }}
     <td>{{ shortURL $board.Actor.Outbox $e.Id }}</td>
-    <td style="overflow: hidden; word-wrap: break-word; text-overflow: ellipsis;">{{ shortExcerpt $e }}</td>
+    <td style="overflow: hidden; word-wrap: break-word; text-overflow: ellipsis; padding-left: 5px;">{{ shortExcerpt $e }}</td>
     <td style="text-align: center;">[<a href="/{{ $board.Actor.Name }}/{{ shortURL $board.Actor.Outbox $e.Id }}">View</a>]</td>
   </tr>
   {{ else }}
@@ -36,7 +36,7 @@
     <td>[<a href="/poparchive?id={{ $e.Id }}">Pop</a>]</td>
     {{ end }}
     <td>{{ shortURL $board.Actor.Outbox $e.Id }}</td>
-    <td style="overflow: hidden; word-wrap: break-word; text-overflow: ellipsis;">{{ shortExcerpt $e }}</td>
+    <td style="overflow: hidden; word-wrap: break-word; text-overflow: ellipsis; padding-left: 5px;">{{ shortExcerpt $e }}</td>
     <td style="text-align: center;">[<a href="/{{ $board.Actor.Name }}/{{ shortURL $board.Actor.Outbox $e.Id }}">View</a>]</td>
   </tr>
   {{ end }}

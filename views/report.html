@@ -1,4 +1,7 @@
-{{ template "partials/top" .page }}
+<div style="max-width: 800px; margin: 0 auto;">
+  <h1 style="text-align: center;">/{{ .page.Board.Name }}/ - {{ .page.Board.PrefName }}</h1>
+  <p style="text-align: center;">{{ .page.Board.Summary }}</p>
+</div>
 
 <div style="height: 500px; width: 420px; margin: 0 auto; margin-top:75px;">
   <a href="{{ .page.Board.Actor.Id }}/{{ shortURL .page.Board.Actor.Outbox .page.Board.InReplyTo }}">[Back]</a>

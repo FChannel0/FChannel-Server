@@ -349,7 +349,7 @@ func TemplateFunctions(engine *html.Engine) {
 		return template.HTML(link)
 	})
 
-	engine.AddFunc("shortExcerpt", func(post activitypub.ObjectBase) string {
+	engine.AddFunc("shortExcerpt", func(post activitypub.ObjectBase) template.HTML {
 		var returnString string
 
 		if post.Name != "" {
@@ -366,6 +366,9 @@ func TemplateFunctions(engine *html.Engine) {
 			returnString = match[0] + "..."
 		}
 
+		returnString = strings.ReplaceAll(returnString, "<", "&lt;")
+		returnString = strings.ReplaceAll(returnString, ">", "&gt;")
+
 		re = regexp.MustCompile(`(^.+\|)`)
 
 		match = re.FindStringSubmatch(returnString)
@@ -375,7 +378,7 @@ func TemplateFunctions(engine *html.Engine) {
 			returnString = strings.Replace(returnString, "|", ":", 1)
 		}
 
-		return returnString
+		return template.HTML(returnString)
 	})
 
 	engine.AddFunc("parseLinkTitle", func(board string, op string, content string) string {
