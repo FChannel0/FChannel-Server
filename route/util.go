@@ -150,17 +150,21 @@ func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
 				}
 			}
 
-			activity, err := nObj.CreateActivity("Create")
-			if err != nil {
-				return util.MakeError(err, "ParseOutboxRequest")
-			}
+			go func(nObj activitypub.ObjectBase) {
+				activity, err := nObj.CreateActivity("Create")
+				if err != nil {
+					config.Log.Printf("ParseOutboxRequest Create Activity: %s", err)
+				}
 
-			activity, err = activity.AddFollowersTo()
-			if err != nil {
-				return util.MakeError(err, "ParseOutboxRequest")
-			}
+				activity, err = activity.AddFollowersTo()
+				if err != nil {
+					config.Log.Printf("ParseOutboxRequest Add FollowersTo: %s", err)
+				}
 
-			go activity.MakeRequestInbox()
+				if err := activity.MakeRequestInbox(); err != nil {
+					config.Log.Printf("ParseOutboxRequest MakeRequestInbox: %s", err)
+				}
+			}(nObj)
 
 			var id string
 			op := len(nObj.InReplyTo) - 1

@@ -31,6 +31,9 @@ func main() {
 	app := fiber.New(fiber.Config{
 		AppName:      "FChannel",
 		Views:        template,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  60 * time.Second,
 		ServerHeader: "FChannel/" + config.InstanceName,
 	})
 

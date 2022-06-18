@@ -332,7 +332,6 @@ func MakeActorPost(ctx *fiber.Ctx) error {
 	body, _ := ioutil.ReadAll(resp.Body)
 
 	if resp.StatusCode == 200 {
-
 		var obj activitypub.ObjectBase
 
 		obj = post.ParseOptions(ctx, obj)
