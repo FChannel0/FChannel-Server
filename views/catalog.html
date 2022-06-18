@@ -30,7 +30,7 @@
       </div>
     </div>
     <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/{{ shortURL $board.Actor.Outbox .Id}}">
-      <div id="media-{{ .Id }}" style="width:180px;"> {{ parseAttachment . true }}</div>
+      <div id="media-{{ .Id }}" style="width:180px;"><div id="status" style="position: absolute;">{{ if .Sticky }}<span id="sticky"><img src="/static/pin.png"></span>{{ end }}{{ if .Locked }}<span id="lock"><img src="/static/locked.png"></span>{{ end }}</div>{{ parseAttachment . true }}</div>
     </a>
     <script>
       media = document.getElementById("media-{{ .Id }}")

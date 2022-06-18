@@ -4,8 +4,10 @@
   {{ $len := len .Posts }}
   {{ if eq $len 0 }}
   {{ if eq .PostType "reply" }}
+  {{ if eq (index .Posts 0).Locked false }}
   <h3 id="newpostbtn"  state="0" style="display: none; margin-bottom:100px;">[<a href="javascript:startNewPost()">Post a Reply</a>]</h3>
-  {{ else if eq .PostType "new" }}
+  {{ end }}
+  {{ else if and (eq .PostType "new") }}
   <h3 id="newpostbtn"  state="0" style="display: none; margin-bottom:100px;">[<a href="javascript:startNewPost()">Start a New Thread</a>]</h3>
   {{ end }} <!-- end if inreplyto-->
   <div id="newpost">
@@ -60,7 +62,9 @@
 
   {{ if eq (index .Posts 0).Type "Note" }}
   {{ if .Board.InReplyTo }}
+  {{ if eq (index .Posts 0).Locked false }}
   <h3 id="newpostbtn"  state="0" style="text-align: center; margin-top: 80px; display: none; margin-bottom:100px;">[<a href="javascript:startNewPost()">Post a Reply</a>]</h3>
+  {{ end }}
   {{ else  }}
   <h3 id="newpostbtn"  state="0" style="text-align: center; margin-top: 80px; display: none; margin-bottom:100px;">[<a href="javascript:startNewPost()">Start a New Thread</a>]</h3>
   {{ end }} <!-- end if inreplyto-->

@@ -145,6 +145,8 @@ type ObjectBase struct {
 	Duration     string            `json:"duration,omitempty"`
 	Size         int64             `json:"size,omitempty"`
 	Sensitive    bool              `json:"sensitive,omitempty"`
+	Sticky       bool              `json:"sticky,omitempty"`
+	Locked       bool              `json:"locked,omitempty"`
 }
 
 type CryptoCur struct {

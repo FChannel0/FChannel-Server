@@ -139,6 +139,12 @@ func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
 
 			nObj.Actor = config.Domain + "/" + actor.Name
 
+			if locked, _ := nObj.InReplyTo[0].IsLocked(); locked {
+				ctx.Response().Header.SetStatusCode(403)
+				_, err := ctx.Write([]byte("thread is locked"))
+				return util.MakeError(err, "ParseOutboxRequest")
+			}
+
 			nObj, err = nObj.Write()
 			if err != nil {
 				return util.MakeError(err, "ParseOutboxRequest")

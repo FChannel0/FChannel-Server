@@ -17,6 +17,8 @@
     [<a href="/banmedia?id={{ .Id }}&board={{ $board.Actor.Name }}">Ban Media</a>]
     [<a href="/deleteattach?id={{ .Id }}&board={{ $board.Actor.Name }}">Delete Attachment</a>]
     [<a href="/marksensitive?id={{ .Id }}&board={{ $board.Actor.Name }}">Mark Sensitive</a>]
+    [<a href="/sticky?id={{ .Id }}&board={{ $board.Actor.Name }}">Sticky</a>]
+    [<a href="/lock?id={{ .Id }}&board={{ $board.Actor.Name }}">Lock</a>]
     {{ end }}
     <span style="display: block;">File: <a id="{{ .Id }}-img" href="{{ proxy (index .Attachment 0).Href}}">{{ shortImg (index .Attachment 0).Name  }}</a><span id="{{ .Id }}-size"> ({{ convertSize (index .Attachment 0).Size  }})</span></span>
     <div id="hide-{{ .Id }}" style="display: none;">[Hide]</div>
@@ -48,7 +50,7 @@
     <span class="subject"><b>{{ .Name }}</b></span>
     <span class="name"><b>{{ if .AttributedTo }} {{.AttributedTo }} {{ else }} Anonymous {{ end }}</b></span>
     <span class="tripcode"> {{ .TripCode }} </span>
-    <span class="timestamp" data-utc="{{.Published | timeToUnix}}">{{ .Published | timeToReadableLong }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/{{ shortURL $board.Actor.Outbox $opId }}">No.</a> <a id="{{ .Id }}-link" title="{{ .Id }}" {{ if eq .Type "Note" }} href="javascript:quote('{{ $board.Actor.Id }}', '{{ $opId }}', '{{ .Id }}')" {{ end }}>{{ shortURL $board.Actor.Outbox .Id }}</a> {{ if ne .Type "Tombstone" }}[<a href="/make-report?actor={{ $board.Actor.Id }}&post={{ .Id }}">Report</a>]{{ end }}</span>
+     <span class="timestamp" data-utc="{{.Published | timeToUnix}}">{{ .Published | timeToReadableLong }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/{{ shortURL $board.Actor.Outbox $opId }}#{{ shortURL $board.Actor.Outbox .Id }}">No.</a> <a id="{{ .Id }}-link" title="{{ .Id }}"   {{ if eq .Locked false }} {{ if eq .Type "Note" }} href="javascript:quote('{{ $board.Actor.Id }}', '{{ $opId }}', '{{ .Id }}')" {{ end }} {{ end }}>{{ shortURL $board.Actor.Outbox .Id }}</a> <span id="status" style="margin-right: 5px;">{{ if .Sticky }}<span id="sticky"><img src="/static/pin.png"></span>{{ end }} {{ if .Locked }} <span id="lock"><img src="/static/locked.png"></span>{{ end }}</span>{{ if ne .Type "Tombstone" }}[<a href="/make-report?actor={{ $board.Actor.Id }}&post={{ .Id }}">Report</a>]{{ end }}</span>
     <p id="{{ .Id }}-content" style="white-space: pre-wrap; margin: 10px 30px 10px 30px;">{{ parseContent $board.Actor $opId .Content $thread .Id $page.PostType }}</p>
     {{ if .Replies }}
     {{ $replies := .Replies }}
@@ -70,6 +72,8 @@
           [<a href="/banmedia?id={{ .Id }}&board={{ $board.Actor.Name }}">Ban Media</a>]
           [<a href="/deleteattach?id={{ .Id }}&board={{ $board.Actor.Name }}">Delete Attachment</a>]
           [<a href="/marksensitive?id={{ .Id }}&board={{ $board.Actor.Name }}">Mark Sensitive</a>]
+          [<a href="/sticky?id={{ .Id }}&board={{ $board.Actor.Name }}">Sticky</a>]
+          [<a href="/lock?id={{ .Id }}&board={{ $board.Actor.Name }}">Lock</a>]
           {{ end }}
           <span style="display: block;">File <a id="{{ .Id }}-img" href="{{ proxy (index .Attachment 0).Href}}">{{ shortImg (index .Attachment 0).Name  }}</a> <span id="{{ .Id }}-size">({{ convertSize (index .Attachment 0).Size  }})</span></span>
           <div id="hide-{{ .Id }}" style="display: none;">[Hide]</div>
@@ -103,7 +107,7 @@
           <span class="subject"><b>{{ .Name }}</b></span>
           <span class="name"><b>{{ if .AttributedTo }} {{.AttributedTo }} {{ else }} Anonymous {{ end }}</b></span>
           <span class="tripcode"> {{ .TripCode }} </span>
-          <span class="timestamp" data-utc="{{ .Published | timeToUnix }}">{{ .Published | timeToReadableLong }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/{{ shortURL $board.Actor.Outbox $opId }}#{{ shortURL $board.Actor.Outbox .Id }}">No. </a><a id="{{ .Id }}-link" title="{{ .Id }}" {{ if eq .Type "Note" }} href="javascript:quote('{{ $board.Actor.Id }}', '{{ $opId }}', '{{ .Id }}')" {{ end }}>{{ shortURL $board.Actor.Outbox .Id }}</a> {{ if ne .Type "Tombstone" }}[<a href="/make-report?actor={{ $board.Actor.Id }}&post={{ .Id }}">Report</a>]{{ end }}</span>
+          <span class="timestamp" data-utc="{{ .Published | timeToUnix }}">{{ .Published | timeToReadableLong }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/{{ shortURL $board.Actor.Outbox $opId }}#{{ shortURL $board.Actor.Outbox .Id }}">No. </a><a id="{{ .Id }}-link" title="{{ .Id }}" {{ if eq $thread.Locked false }} {{ if eq .Type "Note" }} href="javascript:quote('{{ $board.Actor.Id }}', '{{ $opId }}', '{{ .Id }}')" {{ end }} {{ end }}>{{ shortURL $board.Actor.Outbox .Id }}</a> {{ if ne .Type "Tombstone" }}[<a href="/make-report?actor={{ $board.Actor.Id }}&post={{ .Id }}">Report</a>]{{ end }}</span>
           {{ $parentId := .Id }}
           {{ if .Replies.OrderedItems }}
           {{ range .Replies.OrderedItems }}

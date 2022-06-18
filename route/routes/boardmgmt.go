@@ -563,3 +563,99 @@ func ReportGet(ctx *fiber.Ctx) error {
 
 	return ctx.Render("report", fiber.Map{"page": data}, "layouts/main")
 }
+
+func Sticky(ctx *fiber.Ctx) error {
+	id := ctx.Query("id")
+	board := ctx.Query("board")
+
+	actor, _ := activitypub.GetActorByNameFromDB(board)
+
+	_, auth := util.GetPasswordFromSession(ctx)
+
+	if id == "" || auth == "" {
+		return util.MakeError(errors.New("no auth"), "Sticky")
+	}
+
+	var obj = activitypub.ObjectBase{Id: id}
+	col, _ := obj.GetCollectionFromPath()
+
+	if len(col.OrderedItems) < 1 {
+		if has, _ := util.HasAuth(auth, actor.Id); !has {
+			return util.MakeError(errors.New("no auth"), "Sticky")
+		}
+
+		obj.MarkSticky(actor.Id)
+
+		return ctx.Redirect("/"+board, http.StatusSeeOther)
+	}
+
+	actor.Id = col.OrderedItems[0].Actor
+
+	var OP string
+	if len(col.OrderedItems[0].InReplyTo) > 0 && col.OrderedItems[0].InReplyTo[0].Id != "" {
+		OP = col.OrderedItems[0].InReplyTo[0].Id
+	} else {
+		OP = id
+	}
+
+	if has, _ := util.HasAuth(auth, actor.Id); !has {
+		return util.MakeError(errors.New("no auth"), "Sticky")
+	}
+
+	obj.MarkSticky(actor.Id)
+
+	var op = activitypub.ObjectBase{Id: OP}
+	if local, _ := op.IsLocal(); !local {
+		return ctx.Redirect("/"+board+"/"+util.RemoteShort(OP), http.StatusSeeOther)
+	} else {
+		return ctx.Redirect(OP, http.StatusSeeOther)
+	}
+}
+
+func Lock(ctx *fiber.Ctx) error {
+	id := ctx.Query("id")
+	board := ctx.Query("board")
+
+	actor, _ := activitypub.GetActorByNameFromDB(board)
+
+	_, auth := util.GetPasswordFromSession(ctx)
+
+	if id == "" || auth == "" {
+		return util.MakeError(errors.New("no auth"), "Lock")
+	}
+
+	var obj = activitypub.ObjectBase{Id: id}
+	col, _ := obj.GetCollectionFromPath()
+
+	if len(col.OrderedItems) < 1 {
+		if has, _ := util.HasAuth(auth, actor.Id); !has {
+			return util.MakeError(errors.New("no auth"), "Lock")
+		}
+
+		obj.MarkLocked(actor.Id)
+
+		return ctx.Redirect("/"+board, http.StatusSeeOther)
+	}
+
+	actor.Id = col.OrderedItems[0].Actor
+
+	var OP string
+	if len(col.OrderedItems[0].InReplyTo) > 0 && col.OrderedItems[0].InReplyTo[0].Id != "" {
+		OP = col.OrderedItems[0].InReplyTo[0].Id
+	} else {
+		OP = id
+	}
+
+	if has, _ := util.HasAuth(auth, actor.Id); !has {
+		return util.MakeError(errors.New("no auth"), "Lock")
+	}
+
+	obj.MarkLocked(actor.Id)
+
+	var op = activitypub.ObjectBase{Id: OP}
+	if local, _ := op.IsLocal(); !local {
+		return ctx.Redirect("/"+board+"/"+util.RemoteShort(OP), http.StatusSeeOther)
+	} else {
+		return ctx.Redirect(OP, http.StatusSeeOther)
+	}
+}

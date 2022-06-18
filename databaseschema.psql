@@ -245,3 +245,13 @@ timestamp TIMESTAMP default NOW()
 );
 
 ALTER TABLE boardaccess ADD COLUMN IF NOT EXISTS label varchar(50) default 'Anon';
+
+CREATE TABLE IF NOT EXISTS sticky(
+actor_id varchar(100),
+activity_id varchar(100)
+);
+
+CREATE TABLE IF NOT EXISTS locked(
+actor_id varchar(100),
+activity_id varchar(100)
+);

@@ -367,6 +367,9 @@ func (obj ObjectBase) GetCollectionLocal() (Collection, error) {
 			return nColl, util.MakeError(err, "GetCollectionLocal")
 		}
 
+		post.Sticky, _ = post.IsSticky()
+		post.Locked, _ = post.IsLocked()
+
 		post.Actor = actor.Id
 
 		if post.InReplyTo, err = post.GetInReplyTo(); err != nil {
@@ -461,6 +464,9 @@ func (obj ObjectBase) GetCollectionFromPath() (Collection, error) {
 	if err = config.DB.QueryRow(query, obj.Id).Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &post.Attachment[0].Id, &post.Preview.Id, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
 		return nColl, nil
 	}
+
+	post.Sticky, _ = post.IsSticky()
+	post.Locked, _ = post.IsLocked()
 
 	post.Actor = actor.Id
 
@@ -1360,4 +1366,97 @@ func (obj ObjectBase) WriteWithAttachment(attachment ObjectBase) {
 		config.Log.Println("error inserting new activity with attachment")
 		panic(e)
 	}
+}
+
+func (obj ObjectBase) MarkSticky(actorID string) error {
+	var count int
+
+	var query = `select count(id) from replies where inreplyto='' and id=$1`
+	if err := config.DB.QueryRow(query, obj.Id).Scan(&count); err != nil {
+		return util.MakeError(err, "MarkSticky")
+	}
+
+	if count == 1 {
+		var nCount int
+		query = `select count(activity_id) from sticky where activity_id=$1`
+		if err := config.DB.QueryRow(query, obj.Id).Scan(&nCount); err != nil {
+			return util.MakeError(err, "MarkSticky")
+		}
+
+		if nCount > 0 {
+			query = `delete from sticky where activity_id=$1`
+			if _, err := config.DB.Exec(query, obj.Id); err != nil {
+				return util.MakeError(err, "MarkSticky")
+			}
+		} else {
+			query = `insert into sticky (actor_id, activity_id) values ($1, $2)`
+			if _, err := config.DB.Exec(query, actorID, obj.Id); err != nil {
+				return util.MakeError(err, "MarkSticky")
+			}
+		}
+	}
+
+	return nil
+}
+
+func (obj ObjectBase) MarkLocked(actorID string) error {
+	var count int
+
+	var query = `select count(id) from replies where inreplyto='' and id=$1`
+	if err := config.DB.QueryRow(query, obj.Id).Scan(&count); err != nil {
+		return util.MakeError(err, "MarkLocked")
+	}
+
+	if count == 1 {
+		var nCount int
+
+		query = `select count(activity_id) from locked where activity_id=$1`
+		if err := config.DB.QueryRow(query, obj.Id).Scan(&nCount); err != nil {
+			return util.MakeError(err, "MarkLocked")
+		}
+
+		if nCount > 0 {
+			query = `delete from locked where activity_id=$1`
+			if _, err := config.DB.Exec(query, obj.Id); err != nil {
+				return util.MakeError(err, "MarkLocked")
+			}
+		} else {
+			query = `insert into locked (actor_id, activity_id) values ($1, $2)`
+			if _, err := config.DB.Exec(query, actorID, obj.Id); err != nil {
+				return util.MakeError(err, "MarkLocked")
+			}
+		}
+	}
+
+	return nil
+}
+
+func (obj ObjectBase) IsSticky() (bool, error) {
+	var count int
+
+	query := `select count(activity_id) from sticky where activity_id=$1 `
+	if err := config.DB.QueryRow(query, obj.Id).Scan(&count); err != nil {
+		return false, util.MakeError(err, "IsSticky")
+	}
+
+	if count != 0 {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (obj ObjectBase) IsLocked() (bool, error) {
+	var count int
+
+	query := `select count(activity_id) from locked where activity_id=$1 `
+	if err := config.DB.QueryRow(query, obj.Id).Scan(&count); err != nil {
+		return false, util.MakeError(err, "IsSticky")
+	}
+
+	if count != 0 {
+		return true, nil
+	}
+
+	return false, nil
 }

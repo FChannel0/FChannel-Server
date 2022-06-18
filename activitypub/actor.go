@@ -214,9 +214,16 @@ func (actor Actor) GetCatalogCollection() (Collection, error) {
 	var err error
 	var rows *sql.Rows
 
-	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc limit 165`
+	query := `select x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' and id not in (select activity_id from sticky where actor_id=$1) union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' and id not in (select activity_id from sticky where actor_id=$1) union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' and id not in (select activity_id from sticky where actor_id=$1)) as x order by x.updated desc limit 165`
+
 	if rows, err = config.DB.Query(query, actor.Id); err != nil {
 		return nColl, util.MakeError(err, "GetCatalogCollection")
+	}
+
+	stickies, _ := actor.GetStickies()
+
+	for _, e := range stickies.OrderedItems {
+		result = append(result, e)
 	}
 
 	defer rows.Close()
@@ -236,6 +243,7 @@ func (actor Actor) GetCatalogCollection() (Collection, error) {
 			return nColl, util.MakeError(err, "GetCatalogCollection")
 		}
 
+		post.Locked, _ = post.IsLocked()
 		post.Actor = actor.Id
 
 		var replies CollectionBase
@@ -277,9 +285,22 @@ func (actor Actor) GetCollectionPage(page int) (Collection, error) {
 	var err error
 	var rows *sql.Rows
 
-	query := `select count (x.id) over(), x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc limit 15 offset $2`
+	query := `select count (x.id) over(), x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' and id not in (select activity_id from sticky where actor_id=$1) union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' and id not in (select activity_id from sticky where actor_id=$1) union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where id not in (select activity_id from sticky where actor_id=$1) and actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note') as x order by x.updated desc limit $2 offset $3`
 
-	if rows, err = config.DB.Query(query, actor.Id, page*15); err != nil {
+	limit := 15
+
+	if page == 0 {
+		stickies, _ := actor.GetStickies()
+		limit = limit - stickies.TotalItems
+
+		for _, e := range stickies.OrderedItems {
+			result = append(result, e)
+		}
+	}
+
+	offset := page * limit
+
+	if rows, err = config.DB.Query(query, actor.Id, limit, offset); err != nil {
 		return nColl, util.MakeError(err, "GetCollectionPage")
 	}
 
@@ -301,6 +322,7 @@ func (actor Actor) GetCollectionPage(page int) (Collection, error) {
 			return nColl, util.MakeError(err, "GetCollectionPage")
 		}
 
+		post.Locked, _ = post.IsLocked()
 		post.Actor = actor.Id
 
 		post.Replies, post.Replies.TotalItems, post.Replies.TotalImgs, err = post.GetRepliesLimit(5)
@@ -358,6 +380,9 @@ func (actor Actor) GetCollection() (Collection, error) {
 		if err := rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &post.Attachment[0].Id, &post.Preview.Id, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
 			return nColl, util.MakeError(err, "GetCollection")
 		}
+
+		post.Sticky, _ = post.IsSticky()
+		post.Locked, _ = post.IsLocked()
 
 		post.Actor = actor.Id
 
@@ -1181,6 +1206,10 @@ func (actor Actor) ProcessInboxCreate(activity Activity) error {
 				return util.MakeError(errors.New("Object does not exist"), "ActorInbox")
 			}
 
+			if locked, _ := activity.Object.InReplyTo[0].IsLocked(); locked {
+				return util.MakeError(errors.New("Object locked"), "ActorInbox")
+			}
+
 			if wantToCache, err := activity.Object.WantToCache(actor); !wantToCache {
 				return util.MakeError(err, "ActorInbox")
 			}
@@ -1196,4 +1225,58 @@ func (actor Actor) ProcessInboxCreate(activity Activity) error {
 	}
 
 	return nil
+}
+
+func (actor Actor) GetStickies() (Collection, error) {
+	var nColl Collection
+	var result []ObjectBase
+
+	query := `select count (x.id) over(), x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' and id in (select activity_id from sticky where actor_id=$1) union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' and id in (select activity_id from sticky where actor_id=$1)) as x order by x.updated desc limit 15`
+
+	rows, err := config.DB.Query(query, actor.Id)
+
+	if err != nil {
+		return nColl, util.MakeError(err, "GetStickies")
+	}
+
+	var count int
+	defer rows.Close()
+	for rows.Next() {
+		var post ObjectBase
+		var actor Actor
+
+		var attch ObjectBase
+		post.Attachment = append(post.Attachment, attch)
+
+		var prev NestedObjectBase
+		post.Preview = &prev
+
+		err = rows.Scan(&count, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &post.Attachment[0].Id, &post.Preview.Id, &actor.Id, &post.TripCode, &post.Sensitive)
+
+		if err != nil {
+			return nColl, util.MakeError(err, "GetStickies")
+		}
+
+		post.Sticky = true
+		post.Locked, _ = post.IsLocked()
+		post.Actor = actor.Id
+
+		var postCnt int
+		var imgCnt int
+		post.Replies, postCnt, imgCnt, _ = post.GetRepliesLimit(5)
+
+		post.Replies.TotalItems = postCnt
+		post.Replies.TotalImgs = imgCnt
+
+		post.Attachment, _ = post.Attachment[0].GetAttachment()
+
+		post.Preview, _ = post.Preview.GetPreview()
+
+		result = append(result, post)
+	}
+
+	nColl.TotalItems = count
+	nColl.OrderedItems = result
+
+	return nColl, nil
 }

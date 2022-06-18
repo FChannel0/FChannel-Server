@@ -89,6 +89,8 @@ func main() {
 	app.All("/blacklist", routes.BoardBlacklist)
 	app.All("/report", routes.ReportPost)
 	app.Get("/make-report", routes.ReportGet)
+	app.Get("/sticky", routes.Sticky)
+	app.Get("/lock", routes.Lock)
 
 	// Webfinger routes
 	app.Get("/.well-known/webfinger", routes.Webfinger)
