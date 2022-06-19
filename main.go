@@ -2811,7 +2811,6 @@ func AddInstanceToIndexDB(db *sql.DB, actor string) {
 
 func GetCollectionFromReq(path string) Collection {
 	req, err := http.NewRequest("GET", path, nil)
-
 	CheckError(err, "error with getting collection from req")
 
 	req.Header.Set("Accept", activitystreams)
@@ -2826,11 +2825,7 @@ func GetCollectionFromReq(path string) Collection {
 
 	var respCollection Collection
 
-	err = json.Unmarshal(body, &respCollection)
-
-	if err != nil {
-		panic(err)
-	}
+	_ = json.Unmarshal(body, &respCollection)
 
 	return respCollection
 }
