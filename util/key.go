@@ -42,7 +42,7 @@ func GetCookieKey() (string, error) {
 		defer file.Close()
 
 		config.CookieKey = encryptcookie.GenerateKey()
-		file.WriteString("cookiekey:" + config.CookieKey)
+		file.WriteString("\ncookiekey:" + config.CookieKey)
 	}
 
 	return config.CookieKey, nil

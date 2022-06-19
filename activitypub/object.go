@@ -3,6 +3,7 @@ package activitypub
 import (
 	"database/sql"
 	"fmt"
+	"net/smtp"
 	"os"
 	"os/exec"
 	"regexp"
@@ -1459,4 +1460,24 @@ func (obj ObjectBase) IsLocked() (bool, error) {
 	}
 
 	return false, nil
+}
+
+func (obj ObjectBase) SendEmailNotify() error {
+	actor, _ := GetActorFromDB(obj.Actor)
+
+	from := config.SiteEmail
+	pass := config.SiteEmailPassword
+	to := ""
+	body := fmt.Sprintf("New post: %s", config.Domain+"/"+actor.Name+"/"+util.ShortURL(actor.Outbox, obj.Id))
+
+	msg := "From: " + from + "\n" +
+		"To: " + to + "\n" +
+		"Subject: Image Board Post\n\n" +
+		body
+
+	err := smtp.SendMail(config.SiteEmailServer+":"+config.SiteEmailPort,
+		smtp.PlainAuth("", from, pass, config.SiteEmailServer),
+		from, []string{to}, []byte(msg))
+
+	return util.MakeError(err, "SendEmailNotify")
 }

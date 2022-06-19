@@ -172,6 +172,14 @@ func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
 				}
 			}(nObj)
 
+			go func(obj activitypub.ObjectBase) {
+				err := obj.SendEmailNotify()
+
+				if err != nil {
+					config.Log.Println(err)
+				}
+			}(nObj)
+
 			var id string
 			op := len(nObj.InReplyTo) - 1
 			if op >= 0 {

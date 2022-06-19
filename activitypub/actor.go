@@ -1221,6 +1221,16 @@ func (actor Actor) ProcessInboxCreate(activity Activity) error {
 			if err := actor.ArchivePosts(); err != nil {
 				return util.MakeError(err, "ActorInbox")
 			}
+
+			activity.Object.Actor = actor.Id
+
+			go func(obj ObjectBase) {
+				err := obj.SendEmailNotify()
+
+				if err != nil {
+					config.Log.Println(err)
+				}
+			}(activity.Object)
 		}
 	}
 
