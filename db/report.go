@@ -110,6 +110,10 @@ func GetLocalReport(board string) (map[string]Reports, error) {
 
 		col, _ := obj.GetCollectionFromPath()
 
+		if len(col.OrderedItems) == 0 {
+			continue
+		}
+
 		OP, _ := obj.GetOP()
 
 		reported[r.ID] = Reports{
