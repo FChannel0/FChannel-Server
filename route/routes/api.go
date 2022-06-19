@@ -35,7 +35,7 @@ func RouteImages(ctx *fiber.Ctx, media string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		fileBytes, err := ioutil.ReadFile("./static/notfound.png")
+		fileBytes, err := ioutil.ReadFile("./views/notfound.png")
 		if err != nil {
 			return util.MakeError(err, "RouteImages")
 		}

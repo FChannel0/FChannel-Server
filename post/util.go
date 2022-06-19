@@ -472,15 +472,17 @@ func ParseAttachment(obj activitypub.ObjectBase, catalog bool) template.HTML {
 func ParseContent(board activitypub.Actor, op string, content string, thread activitypub.ObjectBase, id string, _type string) (template.HTML, error) {
 	// TODO: should escape more than just < and >, should also escape &, ", and '
 	nContent := strings.ReplaceAll(content, `<`, "&lt;")
+
+	if _type == "new" {
+		nContent = ParseTruncate(nContent, board, op, id)
+	}
+
 	nContent, err := ParseLinkComments(board, op, nContent, thread)
 
 	if err != nil {
 		return "", util.MakeError(err, "ParseContent")
 	}
 
-	if _type == "new" {
-		nContent = ParseTruncate(nContent, board, op, id)
-	}
 	nContent = ParseCommentQuotes(nContent)
 	nContent = strings.ReplaceAll(nContent, `/\&lt;`, ">")
 
@@ -497,7 +499,7 @@ func ParseTruncate(content string, board activitypub.Actor, op string, id string
 			content += lines[i]
 		}
 
-		content += fmt.Sprintf("<a href=\"%s\">(view full post...)</a>", board.Id+"/"+util.ShortURL(board.Outbox, op)+"#"+util.ShortURL(board.Outbox+"/outbox", id))
+		content += fmt.Sprintf("<a href=\"%s\">(view full post...)</a>", board.Id+"/"+util.ShortURL(board.Outbox, op)+"#"+util.ShortURL(board.Outbox, id))
 	}
 
 	return content

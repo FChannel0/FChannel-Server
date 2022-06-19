@@ -25,6 +25,7 @@
       </ul>
     </td>
 
+    {{ if gt (len .page.Posts) 0 }}
     {{ if eq (index .page.Posts 0).Type "Note" }}
     <td style="text-align: center;">
       <span>[<a id="reply-content" href="javascript:quote('{{ .page.Board.Actor.Id }}', '{{ (index .page.Posts 0).Id }}', 'reply')">Post a Reply</a>]</span>
@@ -35,6 +36,7 @@
       {{ $replies := (index .page.Posts 0).Replies }}
       <span id="threadStats" data-total="{{ $replies.TotalItems }}" data-imgs="{{ $replies.TotalImgs }}">{{ $replies.TotalItems }} / {{ $replies.TotalImgs }}</span>
     </td>
+    {{ end }}
   </tr>
 </table>
 
