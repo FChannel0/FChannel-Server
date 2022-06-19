@@ -24,6 +24,9 @@ emailport:
 emailaddress:
 emailpass:
 
+## comma seperated emails To
+emailnotify:
+
 ## enter proxy ip and port if you want to have tor connections supported
 ## 127.0.0.1:9050 default
 torproxy:

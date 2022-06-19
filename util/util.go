@@ -238,7 +238,7 @@ func CreatedNeededDirectories() error {
 }
 
 func LoadThemes() error {
-	themes, err := ioutil.ReadDir("./static/css/themes")
+	themes, err := ioutil.ReadDir("./views/css/themes")
 
 	if err != nil {
 		MakeError(err, "LoadThemes")

@@ -1463,11 +1463,15 @@ func (obj ObjectBase) IsLocked() (bool, error) {
 }
 
 func (obj ObjectBase) SendEmailNotify() error {
+	if setup := util.IsEmailSetup(); !setup {
+		return nil
+	}
+
 	actor, _ := GetActorFromDB(obj.Actor)
 
 	from := config.SiteEmail
 	pass := config.SiteEmailPassword
-	to := ""
+	to := config.SiteEmailNotifyTo
 	body := fmt.Sprintf("New post: %s", config.Domain+"/"+actor.Name+"/"+util.ShortURL(actor.Outbox, obj.Id))
 
 	msg := "From: " + from + "\n" +
