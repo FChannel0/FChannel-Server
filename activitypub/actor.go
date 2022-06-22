@@ -1206,12 +1206,18 @@ func (actor Actor) ProcessInboxCreate(activity Activity) error {
 				return util.MakeError(errors.New("Object does not exist"), "ActorInbox")
 			}
 
-			if locked, _ := activity.Object.InReplyTo[0].IsLocked(); locked {
-				return util.MakeError(errors.New("Object locked"), "ActorInbox")
+			if len(activity.Object.InReplyTo) > 0 {
+				if locked, _ := activity.Object.InReplyTo[0].IsLocked(); locked {
+					return util.MakeError(errors.New("Object locked"), "ActorInbox")
+				}
 			}
 
 			if wantToCache, err := activity.Object.WantToCache(actor); !wantToCache {
 				return util.MakeError(err, "ActorInbox")
+			}
+
+			if col, _ := activity.Object.GetCollectionLocal(); len(col.OrderedItems) != 0 {
+				return nil
 			}
 
 			if _, err := activity.Object.WriteCache(); err != nil {
@@ -1241,7 +1247,19 @@ func (actor Actor) GetStickies() (Collection, error) {
 	var nColl Collection
 	var result []ObjectBase
 
-	query := `select count (x.id) over(), x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive from (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' and id in (select activity_id from sticky where actor_id=$1) union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' union select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' and id in (select activity_id from sticky where actor_id=$1)) as x order by x.updated desc limit 15`
+	query := `
+select count
+(x.id) over(), x.id, x.name, x.content, x.type, x.published, x.updated, x.attributedto, x.attachment, x.preview, x.actor, x.tripcode, x.sensitive
+	from
+	 (select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream
+		where actor=$1 and id in (select id from replies where inreplyto='') and type='Note' and id in (select activity_id from sticky where actor_id=$1)
+	union
+		select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from activitystream
+		where actor in (select following from following where id=$1) and id in (select id from replies where inreplyto='') and type='Note' and id in (select activity_id from sticky where actor_id=$1)
+	union
+		select id, name, content, type, published, updated, attributedto, attachment, preview, actor, tripcode, sensitive from cacheactivitystream where actor in (select following from following where id=$1)
+		and id in (select id from replies where inreplyto='') and type='Note' and id in (select activity_id from sticky where actor_id=$1)
+) as x order by x.updated desc limit 15`
 
 	rows, err := config.DB.Query(query, actor.Id)
 

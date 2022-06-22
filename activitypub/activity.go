@@ -392,6 +392,8 @@ func (activity Activity) MakeRequestInbox() error {
 				}(actor, activity)
 			}
 		}
+
+		time.Sleep(150 * time.Millisecond)
 	}
 
 	return nil
