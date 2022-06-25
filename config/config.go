@@ -20,7 +20,6 @@ var SiteEmailServer = GetConfigValue("emailserver", "") //mail.fchan.xyz
 var SiteEmailPort = GetConfigValue("emailport", "")     //587
 var SiteEmailNotifyTo = GetConfigValue("emailnotify", "")
 var TorProxy = GetConfigValue("torproxy", "") //127.0.0.1:9050
-var PublicIndexing = strings.ToLower(GetConfigValue("publicindex", "false"))
 var Salt = GetConfigValue("instancesalt", "")
 var DBHost = GetConfigValue("dbhost", "localhost")
 var DBPort, _ = strconv.Atoi(GetConfigValue("dbport", "5432"))

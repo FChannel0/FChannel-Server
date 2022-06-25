@@ -41,6 +41,8 @@ func MediaProxy(url string) string {
 func RouteProxy(req *http.Request) (*http.Response, error) {
 	var proxyType = GetPathProxyType(req.URL.Host)
 
+	req.Header.Set("User-Agent", "FChannel/"+config.InstanceName)
+
 	if proxyType == "tor" {
 		proxyUrl, err := url.Parse("socks5://" + config.TorProxy)
 

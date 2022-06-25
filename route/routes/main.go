@@ -24,16 +24,6 @@ func Index(ctx *fiber.Ctx) error {
 
 	var data route.PageData
 
-	reqActivity := activitypub.Activity{Id: "https://fchan.xyz/followers"}
-	col, err := reqActivity.GetCollection()
-	if err != nil {
-		return util.MakeError(err, "Index")
-	}
-
-	if len(col.Items) > 0 {
-		data.InstanceIndex = col.Items
-	}
-
 	data.NewsItems, err = db.GetNews(3)
 	if err != nil {
 		return util.MakeError(err, "Index")

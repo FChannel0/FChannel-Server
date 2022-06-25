@@ -408,11 +408,6 @@ func InitInstance() error {
 		if _, err := CreateNewBoard(*activitypub.CreateNewActor("", config.InstanceName, config.InstanceSummary, config.AuthReq, false)); err != nil {
 			return util.MakeError(err, "InitInstance")
 		}
-
-		if config.PublicIndexing == "true" {
-			// TODO: comment out later
-			//AddInstanceToIndex(config.Domain)
-		}
 	}
 
 	return nil

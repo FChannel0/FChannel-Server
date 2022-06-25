@@ -19,7 +19,6 @@ type PageData struct {
 	Key               string
 	PostId            string
 	Instance          activitypub.Actor
-	InstanceIndex     []activitypub.ObjectBase
 	ReturnTo          string
 	NewsItems         []db.NewsItem
 	BoardRemainer     []int

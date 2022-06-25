@@ -70,13 +70,13 @@ and to fix errors reported by `go vet` and make your code better with
 
   `dbpass:password`     Database password for dbuser.
 
+
   `torproxy:127.0.0.1:9050`     Tor proxy route and port, leave blank if you do not want to support
 
-  `publicindex:true`     Add instance to the public instance index at https://fchan.xyz, if you do not want to be added set this value to `false` If you are on the public index and want to be removed get in contact with the FChan dev to be removed.
+  `instancesalt:put your salt string here`     Used for secure tripcodes currently.
 
-  `instancesalt:put your salt string here` Used for secure tripcodes currently.
+  `modkey:3358bed397c1f32cf7532fa37a8778`     Set a static modkey instead of one randomly generated on restart.
 
-  Currently e-mail is not implemented to do anything special, but the code is in place
 
   `emailserver:mail.fchan.xyz`
 
@@ -85,6 +85,8 @@ and to fix errors reported by `go vet` and make your code better with
   `emailaddress:contact@fchan.xyz`
 
   `emailpass:password`
+
+  `emailnotify:email1@so.co, email2@bo.uo`     Comma seperated emails To.
 
 ### Local testing
 
