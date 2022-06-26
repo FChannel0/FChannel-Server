@@ -381,50 +381,21 @@ func ActorPost(ctx *fiber.Ctx) error {
 		return ctx.Redirect(config.Domain+"/"+actor.Name+"/"+util.ShortURL(actor.Outbox, OP)+"#"+util.ShortURL(actor.Outbox, inReplyTo), http.StatusMovedPermanently)
 	}
 
+	collection, err := obj.GetCollectionFromPath()
+
+	if err != nil {
+		return ctx.Status(404).Render("404", fiber.Map{})
+	}
+
 	var data route.PageData
 
-	re = regexp.MustCompile("f(\\w|[!@#$%^&*<>])+-(\\w|[!@#$%^&*<>])+")
+	if collection.Actor.Id != "" {
+		data.Board.Post.Actor = collection.Actor.Id
+		data.Board.InReplyTo = inReplyTo
+	}
 
-	if re.MatchString(ctx.Path()) { // if non local actor post
-		name := activitypub.GetActorFollowNameFromPath(ctx.Path())
-
-		followActors, err := actor.GetFollowFromName(name)
-		if err != nil {
-			return util.MakeError(err, "PostGet")
-		}
-
-		followCollection, err := activitypub.GetActorsFollowPostFromId(followActors, postId)
-		if err != nil {
-			return util.MakeError(err, "PostGet")
-		}
-
-		if len(followCollection.OrderedItems) > 0 {
-			data.Board.InReplyTo = followCollection.OrderedItems[0].Id
-			data.Posts = append(data.Posts, followCollection.OrderedItems[0])
-
-			actor, err := activitypub.FingerActor(data.Board.InReplyTo)
-			if err != nil {
-				return util.MakeError(err, "PostGet")
-			}
-
-			data.Board.Post.Actor = actor.Id
-		}
-	} else {
-		obj := activitypub.ObjectBase{Id: inReplyTo}
-		collection, err := obj.GetCollectionFromPath()
-
-		if err != nil {
-			return ctx.Status(404).Render("404", fiber.Map{})
-		}
-
-		if collection.Actor.Id != "" {
-			data.Board.Post.Actor = collection.Actor.Id
-			data.Board.InReplyTo = inReplyTo
-		}
-
-		if len(collection.OrderedItems) > 0 {
-			data.Posts = append(data.Posts, collection.OrderedItems[0])
-		}
+	if len(collection.OrderedItems) > 0 {
+		data.Posts = append(data.Posts, collection.OrderedItems[0])
 	}
 
 	data.Board.Name = actor.Name
