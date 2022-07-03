@@ -50,7 +50,7 @@ func AdminVerify(ctx *fiber.Ctx) error {
 	body := string(rBody)
 
 	if resp.StatusCode != 200 {
-		return ctx.Redirect("/"+config.Key, http.StatusPermanentRedirect)
+		return ctx.Redirect("/", http.StatusPermanentRedirect)
 	}
 
 	ctx.Cookie(&fiber.Cookie{
