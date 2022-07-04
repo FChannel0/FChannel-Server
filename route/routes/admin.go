@@ -29,7 +29,7 @@ func AdminVerify(ctx *fiber.Ctx) error {
 
 	j, _ := json.Marshal(&verify)
 
-	req, err := http.NewRequest("POST", config.Domain+"/auth", bytes.NewBuffer(j))
+	req, err := http.NewRequest("POST", config.Domain+"/"+config.Key+"/auth", bytes.NewBuffer(j))
 
 	if err != nil {
 		return util.MakeError(err, "AdminVerify")
@@ -94,7 +94,7 @@ func AdminIndex(ctx *fiber.Ctx) error {
 	}
 
 	if id == "" || (id != actor.Id && id != config.Domain) {
-		return ctx.Render("verify", fiber.Map{})
+		return ctx.Render("verify", fiber.Map{"key": config.Key})
 	}
 
 	actor, err := activitypub.GetActor(config.Domain)
@@ -252,7 +252,7 @@ func AdminActorIndex(ctx *fiber.Ctx) error {
 	hasAuth, data.Board.ModCred = util.HasAuth(pass, actor.Id)
 
 	if !hasAuth || (id != actor.Id && id != config.Domain) {
-		return ctx.Render("verify", fiber.Map{})
+		return ctx.Render("verify", fiber.Map{"key": config.Key})
 	}
 
 	reqActivity := activitypub.Activity{Id: actor.Following}
