@@ -63,7 +63,7 @@ func main() {
 	app.All("/"+config.Key+"/", routes.AdminIndex)
 	app.Post("/"+config.Key+"/verify", routes.AdminVerify)
 	app.Post("/"+config.Key+"/auth", routes.AdminAuth)
-	app.Get("/"+config.Key+"/follow", routes.AdminFollow)
+	app.All("/"+config.Key+"/follow", routes.AdminFollow)
 	app.Post("/"+config.Key+"/addboard", routes.AdminAddBoard)
 	app.Post("/"+config.Key+"/newspost", routes.NewsPost)
 	app.Get("/"+config.Key+"/newsdelete/:ts", routes.NewsDelete)
