@@ -3,6 +3,7 @@ package routes
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -231,9 +232,9 @@ func MakeActorPost(ctx *fiber.Ctx) error {
 		}
 	}
 
-	if len(ctx.FormValue("comment")) > 2000 {
+	if len(ctx.FormValue("comment")) > 4500 {
 		return ctx.Render("403", fiber.Map{
-			"message": "Comment limit 2000 characters",
+			"message": "Comment limit 4500 characters",
 		})
 	}
 
@@ -277,6 +278,10 @@ func MakeActorPost(ctx *fiber.Ctx) error {
 
 	form, _ := ctx.MultipartForm()
 
+	if form.Value == nil {
+		return util.MakeError(errors.New("form value nil"), "ActorPost")
+	}
+
 	for key, r0 := range form.Value {
 		if key == "captcha" {
 			err := we.WriteField(key, ctx.FormValue("captchaCode")+":"+ctx.FormValue("captcha"))
@@ -303,7 +308,7 @@ func MakeActorPost(ctx *fiber.Ctx) error {
 		}
 	}
 
-	if ctx.FormValue("inReplyTo") == "" && reply != "" {
+	if (ctx.FormValue("inReplyTo") == "" || ctx.FormValue("inReplyTo") == "NaN") && reply != "" {
 		err := we.WriteField("inReplyTo", reply)
 		if err != nil {
 			return util.MakeError(err, "ActorPost")
