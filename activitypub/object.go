@@ -1277,7 +1277,7 @@ func (obj ObjectBase) WriteReply() error {
 		}
 
 		if update {
-			if err := e.WriteUpdate(); err != nil {
+			if err := e.WriteUpdate(obj.Published); err != nil {
 				return util.MakeError(err, "WriteReply")
 			}
 		}
@@ -1321,21 +1321,21 @@ func (obj ObjectBase) WriteCache() (ObjectBase, error) {
 
 	if obj.Replies.OrderedItems != nil {
 		for _, e := range obj.Replies.OrderedItems {
-			e._WriteCache()
+			e.WriteCache()
 		}
 	}
 
 	return obj, nil
 }
 
-func (obj ObjectBase) WriteUpdate() error {
+func (obj ObjectBase) WriteUpdate(updated time.Time) error {
 	query := `update activitystream set updated=$1 where id=$2`
-	if _, err := config.DB.Exec(query, time.Now().UTC().Format(time.RFC3339), obj.Id); err != nil {
+	if _, err := config.DB.Exec(query, updated, obj.Id); err != nil {
 		return util.MakeError(err, "WriteUpdate")
 	}
 
 	query = `update cacheactivitystream set updated=$1 where id=$2`
-	_, err := config.DB.Exec(query, time.Now().UTC().Format(time.RFC3339), obj.Id)
+	_, err := config.DB.Exec(query, updated, obj.Id)
 	return util.MakeError(err, "WriteUpdate")
 }
 

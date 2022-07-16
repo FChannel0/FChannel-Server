@@ -255,3 +255,6 @@ CREATE TABLE IF NOT EXISTS locked(
 actor_id varchar(100),
 activity_id varchar(100)
 );
+
+ALTER TABLE activitystream ALTER COLUMN content TYPE varchar(4500);
+ALTER TABLE cacheactivitystream ALTER COLUMN content TYPE varchar(4500);

@@ -6,7 +6,7 @@
   <form onsubmit="sessionStorage.setItem('element-closed-reply', true)"  id="reply-post" action="/post" method="post" enctype="multipart/form-data">
     <input id="reply-name" name="name" type="text" placeholder="Name" maxlength="100">
     <input id="reply-options" name="options" type="text" placeholder="Options" maxlength="100">
-    <textarea id="reply-comment" name="comment" maxlength="2000" oninput="sessionStorage.setItem('element-reply-comment', document.getElementById('reply-comment').value)"></textarea>
+    <textarea id="reply-comment" name="comment" maxlength="4500" oninput="sessionStorage.setItem('element-reply-comment', document.getElementById('reply-comment').value)"></textarea>
     <input id="reply-file" name="file" type="file">
     <input id="reply-submit" type="submit" value="Reply" style="float: right;">
     <input type="hidden" id="inReplyTo-box" name="inReplyTo" value="{{ .Board.InReplyTo }}">
