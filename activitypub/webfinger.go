@@ -74,15 +74,21 @@ func FingerActor(path string) (Actor, error) {
 	if ActorCache[actor+"@"+instance].Id != "" {
 		nActor = ActorCache[actor+"@"+instance]
 	} else {
-		resp, _ := FingerRequest(actor, instance)
+		resp, err := FingerRequest(actor, instance)
+		if err != nil {
+			return nActor, util.MakeError(err, "FingerActor finger request")
+		}
 
 		if resp != nil && resp.StatusCode == 200 {
 			defer resp.Body.Close()
 
-			body, _ := ioutil.ReadAll(resp.Body)
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return nActor, util.MakeError(err, "FingerActor read resp")
+			}
 
 			if err := json.Unmarshal(body, &nActor); err != nil {
-				return nActor, util.MakeError(err, "FingerActor")
+				return nActor, util.MakeError(err, "FingerActor unmarshal")
 			}
 
 			ActorCache[actor+"@"+instance] = nActor
@@ -104,15 +110,16 @@ func FingerRequest(actor string, instance string) (*http.Response, error) {
 
 	resp, err := util.RouteProxy(req)
 	if err != nil {
-		return resp, nil
+		return resp, err
 	}
 
 	var finger Webfinger
 
 	if resp.StatusCode == 200 {
-		defer resp.Body.Close()
-
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return resp, err
+		}
 
 		if err := json.Unmarshal(body, &finger); err != nil {
 			return resp, util.MakeError(err, "FingerRequest")
