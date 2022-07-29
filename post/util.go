@@ -287,12 +287,10 @@ func ObjectFromForm(ctx *fiber.Ctx, obj activitypub.ObjectBase) (activitypub.Obj
 	if originalPost.Id != "" {
 		if local, _ := activity.IsLocal(); !local {
 			actor, err := activitypub.FingerActor(originalPost.Id)
-			if err != nil {
-				return obj, util.MakeError(err, "ObjectFromForm")
-			}
-
-			if !util.IsInStringArray(obj.To, actor.Id) {
-				obj.To = append(obj.To, actor.Id)
+			if err == nil { // Keep things moving if it fails
+				if !util.IsInStringArray(obj.To, actor.Id) {
+					obj.To = append(obj.To, actor.Id)
+				}
 			}
 		} else if err != nil {
 			return obj, util.MakeError(err, "ObjectFromForm")

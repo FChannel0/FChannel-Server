@@ -41,7 +41,11 @@ func (activity Activity) AddFollowersTo() (Activity, error) {
 		reqActivity := Activity{Id: e + "/followers"}
 		aFollowers, err := reqActivity.GetCollection()
 		if err != nil {
-			return activity, util.MakeError(err, "AddFollowersTo")
+			// Safely fail so we can continue to federate
+			config.Log.Printf("failed to get collection from %s: %v", reqActivity.Id, err)
+			continue
+
+			// return activity, util.MakeError(err, "AddFollowersTo")
 		}
 
 		// get followers of activity actor
