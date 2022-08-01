@@ -3,6 +3,7 @@ package config
 import (
 	"bufio"
 	"database/sql"
+	"github.com/caarlos0/env/v6"
 	"gopkg.in/yaml.v3"
 	"log"
 	"os"
@@ -11,75 +12,43 @@ import (
 )
 
 type InstanceConfig struct {
-	Domain      string `yaml:"domain"`
-	Port        int    `yaml:"port"`
-	Protocol    string `yaml:"protocol"`
-	Name        string `yaml:"name"`
-	Summary     string `yaml:"summary"`
-	Salt        string `yaml:"salt"`
-	MaxFilesize int64  `yaml:"max_filesize"`
+	Domain      string `yaml:"domain"       env:"DOMAIN"         envDefault:"fchan.xyz"`
+	Port        int    `yaml:"port"         env:"PORT"           envDefault:"3000"`
+	Protocol    string `yaml:"protocol"     env:"PROTOCOL"       envDefault:"https"`
+	Name        string `yaml:"name"         env:"NAME"           envDefault:"FChan"`
+	Summary     string `yaml:"summary"      env:"SUMMARY"`
+	Salt        string `yaml:"salt"         env:"SALT"`
+	MaxFilesize int64  `yaml:"max_filesize" env:"FILESIZE_LIMIT" envDefault:"8"`
 }
 type EmailConfig struct {
-	Address  string   `yaml:"address"`
-	Password string   `yaml:"password"`
-	Host     string   `yaml:"post"`
-	Port     int      `yaml:"Port"`
-	Notify   []string `yaml:"Notify"`
+	Address  string   `yaml:"address"  env:"ADDRESS"`
+	Password string   `yaml:"password" env:"PASSWORD"`
+	Host     string   `yaml:"post"     env:"HOST"`
+	Port     int      `yaml:"Port"     env:"PORT"`
+	Notify   []string `yaml:"Notify"   env:"NOTIFY"    envSeparator:","`
 }
 type DatabaseConfig struct {
-	Host     string `yaml:"host"`
-	Port     int    `yaml:"port"`
-	Name     string `yaml:"name"`
-	User     string `yaml:"user"`
-	Password string `yaml:"password"`
+	Host     string `yaml:"host"     env:"HOST" envDefault:"localhost"`
+	Port     int    `yaml:"port"     env:"PORT" envDefault:"5432"`
+	Name     string `yaml:"name"     env:"NAME" envDefault:"postgres"`
+	User     string `yaml:"user"     env:"USER" envDefault:"postgres"`
+	Password string `yaml:"password" env:"PASS"`
 }
 
 type AllConfig struct {
-	Instance       InstanceConfig `yaml:"instance"`
-	Email          EmailConfig    `yaml:"email"`
-	Database       DatabaseConfig `yaml:"database"`
-	TorProxy       string         `yaml:"tor_proxy"`
-	CookieKey      string         `yaml:"cookie_key,omitempty"`
-	AuthReq        []string       `yaml:"auth_req"`
-	PostPerPage    int            `yaml:"posts_per_page"`
-	SupportedFiles []string       `yaml:"supported_files"`
-	ModKey         string         `yaml:"mod_key"`
+	Instance       InstanceConfig `yaml:"instance"             envPrefix:"INSTANCE_"`
+	Email          EmailConfig    `yaml:"email"                envPrefix:"EMAIL_"`
+	Database       DatabaseConfig `yaml:"database"             envPrefix:"DB_"`
+	TorProxy       string         `yaml:"tor_proxy"            env:"TOR_PROXY"`
+	CookieKey      string         `yaml:"cookie_key,omitempty" env:"COOKIE_KEY"`
+	AuthReq        []string       `yaml:"auth_req"             env:"AUTH_REQ"        envSeparator:","`
+	PostPerPage    int            `yaml:"posts_per_page"       env:"POSTS_PER_PAGE"                   envDefault:"10" `
+	SupportedFiles []string       `yaml:"supported_files"      env:"SUPPORTED_FILES" envSeparator:"," envDefault:"image/gif,image/jpeg,image/png,image/webp,image/png,video/mp4,video/ogg,video/webm,audio/mpeg,audio/ogg,audio/wav,audio/wave,audio/x-wav"`
+	ModKey         string         `yaml:"mod_key"              env:"MOD_KEY"`
 }
 
-var yamlData = AllConfig{
-	Instance: InstanceConfig{
-		Domain:      "",
-		Port:        3000,
-		Protocol:    "https",
-		Name:        "",
-		Summary:     "",
-		Salt:        "",
-		MaxFilesize: 8,
-	},
-	Email: EmailConfig{
-		Address:  "",
-		Password: "",
-		Host:     "localhost",
-		Port:     587,
-		Notify:   []string{},
-	},
-	Database: DatabaseConfig{
-		Host:     "localhost",
-		Port:     5432,
-		Name:     "postgres",
-		User:     "postgres",
-		Password: "",
-	},
-	TorProxy:    "127.0.0.1:9050",
-	CookieKey:   "",
-	AuthReq:     []string{"captcha", "Email", "passphrase"},
-	PostPerPage: 10,
-	SupportedFiles: []string{
-		"image/gif", "image/jpeg", "image/png", "image/webp", "image/apng",
-		"video/mp4", "video/ogg", "video/webm",
-		"audio/mpeg", "audio/ogg", "audio/wav", "audio/wave", "audio/x-wav"},
-	ModKey: "",
-}
+var ConfigFile string
+var configData AllConfig
 
 var Port string
 var TP string
@@ -116,89 +85,108 @@ var DB *sql.DB
 
 func LoadConfig() {
 
-	file, err := os.ReadFile("config/config-init.yaml")
-
-	if os.IsNotExist(err) {
-		Log.Println("Failed to read config/config-init.yaml, creating new")
-		if _, err := os.Stat("config/config-init"); err == nil {
-			migrateOldConfig()
-		}
-
-		data, err2 := yaml.Marshal(&yamlData)
-		if err2 != nil {
-			Log.Fatalln(err2)
-		}
-
-		err2 = os.WriteFile("config/config-init.yaml", data, 0640)
-		if err2 != nil {
-			Log.Fatalln(err2)
-		}
-
-		Log.Println("New config written to config/config-init.yaml")
-	} else if err != nil {
-		Log.Fatalln(err)
+	filePath, set := os.LookupEnv("CONFIG")
+	err := env.Parse(&configData)
+	if err != nil {
+		log.Fatalln(err)
 	}
 
-	err = yaml.Unmarshal(file, &yamlData)
+	if set {
+		loadFromYAML(filePath)
+	} else {
+		filePath = "config/config-init.yaml" // Default to this path
+
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			if info, err := os.Stat("config/config-init"); !os.IsNotExist(err) {
+				// If config/config-init.yaml doesn't exist, but config/config-init does, run migration
+				migrateOldConfig()
+				data, err := yaml.Marshal(&configData)
+				if err != nil {
+					Log.Println(err)
+				}
+
+				err = os.WriteFile(filePath, data, info.Mode())
+				if err != nil {
+					log.Println(err)
+				}
+
+				Log.Println("New config written to config/config-init.yaml")
+
+			}
+		} else if err == nil {
+			loadFromYAML(filePath)
+		}
+	}
+	ConfigFile = filePath
+
+	// Instance configuration
+	TP = configData.Instance.Protocol + "://"
+	Domain = TP + configData.Instance.Domain
+	Port = ":" + strconv.Itoa(configData.Instance.Port)
+	InstanceName = configData.Instance.Name
+	InstanceSummary = configData.Instance.Summary
+	MaxFilesize = configData.Instance.MaxFilesize
+
+	// Email configuration
+	SiteEmail = configData.Email.Address
+	SiteEmailPassword = configData.Email.Password
+	SiteEmailServer = configData.Email.Host
+	SiteEmailPort = strconv.Itoa(configData.Email.Port)
+	SiteEmailNotifyTo = strings.Join(configData.Email.Notify, ",")
+
+	// Database configuration
+	DBHost = configData.Database.Host
+	DBPort = configData.Database.Port
+	DBName = configData.Database.Name
+	DBUser = configData.Database.User
+	DBPassword = configData.Database.Password
+
+	// Other configuration
+	TorProxy = configData.TorProxy
+	CookieKey = configData.CookieKey
+	AuthReq = configData.AuthReq
+	PostCountPerPage = configData.PostPerPage
+	SupportedFiles = configData.SupportedFiles
+	Key = configData.ModKey
+
+	Log.Println("Config loaded")
+}
+
+func loadFromYAML(filePath string) {
+	file, err := os.ReadFile(filePath)
 	if err != nil {
 		Log.Fatalln(err)
 	}
-
-	// Instance configuration
-	TP = yamlData.Instance.Protocol + "://"
-	Domain = TP + yamlData.Instance.Domain
-	Port = ":" + strconv.Itoa(yamlData.Instance.Port)
-	InstanceName = yamlData.Instance.Name
-	InstanceSummary = yamlData.Instance.Summary
-	MaxFilesize = yamlData.Instance.MaxFilesize
-
-	// Email configuration
-	SiteEmail = yamlData.Email.Address
-	SiteEmailPassword = yamlData.Email.Password
-	SiteEmailServer = yamlData.Email.Host
-	SiteEmailPort = strconv.Itoa(yamlData.Email.Port)
-	SiteEmailNotifyTo = strings.Join(yamlData.Email.Notify, ",")
-
-	// Database configuration
-	DBHost = yamlData.Database.Host
-	DBPort = yamlData.Database.Port
-	DBName = yamlData.Database.Name
-	DBUser = yamlData.Database.User
-	DBPassword = yamlData.Database.Password
-
-	// Other configuration
-	TorProxy = yamlData.TorProxy
-	CookieKey = yamlData.CookieKey
-	AuthReq = yamlData.AuthReq
-	PostCountPerPage = yamlData.PostPerPage
-	SupportedFiles = yamlData.SupportedFiles
-	Key = yamlData.ModKey
+	err = yaml.Unmarshal(file, &configData)
+	if err != nil {
+		Log.Fatalln(err)
+	}
 }
 
 func migrateOldConfig() {
-	Log.Println("config/config-init found, migrating old config")
+	Log.Println("Migrating config/config-init")
 
-	yamlData.Instance.Port, _ = strconv.Atoi(getConfigValue("instanceport", "3000"))
-	yamlData.Instance.Protocol = strings.TrimSuffix(getConfigValue("instancetp", "https"), "://")
-	yamlData.Instance.Name = getConfigValue("instancename", "")
-	yamlData.Instance.Summary = getConfigValue("instancesummary", "")
-	yamlData.Instance.Salt = getConfigValue("instancesalt", "")
+	configData.Instance.Port, _ = strconv.Atoi(getConfigValue("instanceport", "3000"))
+	configData.Instance.Protocol = strings.TrimSuffix(getConfigValue("instancetp", "https"), "://")
+	configData.Instance.Name = getConfigValue("instancename", "")
+	configData.Instance.Summary = getConfigValue("instancesummary", "")
+	configData.Instance.Salt = getConfigValue("instancesalt", "")
 
-	yamlData.Email.Address = getConfigValue("emailaddress", "")
-	yamlData.Email.Password = getConfigValue("emailpass", "")
-	yamlData.Email.Host = getConfigValue("emailserver", "")
-	yamlData.Email.Port, _ = strconv.Atoi(getConfigValue("emailport", "587"))
-	yamlData.Email.Notify = strings.Split(getConfigValue("emailnotify", ""), ",")
+	configData.Email.Address = getConfigValue("emailaddress", "")
+	configData.Email.Password = getConfigValue("emailpass", "")
+	configData.Email.Host = getConfigValue("emailserver", "")
+	configData.Email.Port, _ = strconv.Atoi(getConfigValue("emailport", "587"))
+	configData.Email.Notify = strings.Split(getConfigValue("emailnotify", ""), ",")
 
-	yamlData.Database.Host = getConfigValue("dbhost", "localhost")
-	yamlData.Database.Port, _ = strconv.Atoi(getConfigValue("dbport", "5432"))
-	yamlData.Database.Name = getConfigValue("dbname", "postgres")
-	yamlData.Database.User = getConfigValue("dbuser", "postgres")
-	yamlData.Database.Password = getConfigValue("dbpass", "")
+	configData.Database.Host = getConfigValue("dbhost", "localhost")
+	configData.Database.Port, _ = strconv.Atoi(getConfigValue("dbport", "5432"))
+	configData.Database.Name = getConfigValue("dbname", "postgres")
+	configData.Database.User = getConfigValue("dbuser", "postgres")
+	configData.Database.Password = getConfigValue("dbpass", "")
 
-	yamlData.TorProxy = getConfigValue("TorProxy", "127.0.0.1:9050")
-	yamlData.CookieKey = getConfigValue("CookieKey", "")
-	yamlData.ModKey = getConfigValue("ModKey", "")
+	configData.TorProxy = getConfigValue("TorProxy", "127.0.0.1:9050")
+	configData.CookieKey = getConfigValue("CookieKey", "")
+	configData.ModKey = getConfigValue("ModKey", "")
 }
 
 func getConfigValue(value string, ifnone string) string {

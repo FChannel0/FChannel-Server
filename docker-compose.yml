@@ -19,12 +19,14 @@ services:
       - ./pem/:/app/pem/
       - ./static/:/app/static/
     environment:
-      INSTANCE_DOMAIN: 192.168.1.205
-      INSTANCE_PROTOCOL: http
-      INSTANCE_NAME: LChan
-      INSTANCE_FILESIZE_LIMIT: 64
+      INSTANCE_DOMAIN: localhost
+      INSTANCE_PROTOCOL: https
+      INSTANCE_NAME: FChan
+      INSTANCE_FILESIZE_LIMIT: 8
+
+      COOKIE_KEY: ""
 
       DB_HOST: db
       DB_PASS: hackme
     ports:
-      - 80:3000
+      - 3000:3000

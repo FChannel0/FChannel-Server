@@ -4,6 +4,7 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"os"
@@ -38,13 +39,21 @@ func GetCookieKey() (string, error) {
 
 		config.CookieKey = encryptcookie.GenerateKey()
 		log.Println("Generated new Cookie Key: ", config.CookieKey)
-		if file, err = os.OpenFile("config/config-init.yaml", os.O_APPEND|os.O_WRONLY, 0644); err != nil {
+		if file, err = os.OpenFile(config.ConfigFile, os.O_APPEND|os.O_WRONLY, 0644); err != nil {
+			log.Println(fmt.Sprintf("Failed to write key to %s", config.ConfigFile))
+			log.Println("If you are running in Docker, define it in COOKIE_KEY environment variable")
+			log.Fatalln(err)
 			return "", MakeError(err, "GetCookieKey")
 		}
 
 		defer file.Close()
 
-		file.WriteString("\ncookie_key: " + config.CookieKey)
+		_, err = file.WriteString("\ncookie_key: " + config.CookieKey)
+		if err != nil {
+			log.Println(fmt.Sprintf("Failed to write key to %s", config.ConfigFile))
+			log.Println("If you are running in Docker, define it in COOKIE_KEY environment variable")
+			return "", MakeError(err, "GetCookieKey")
+		}
 	}
 
 	return config.CookieKey, nil

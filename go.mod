@@ -9,4 +9,5 @@ require (
 	github.com/simia-tech/crypt v0.5.0
 	golang.org/x/text v0.3.6
 	gopkg.in/yaml.v3 v3.0.1
+	github.com/caarlos0/env/v6 v6.9.3
 )

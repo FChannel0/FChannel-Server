@@ -7,14 +7,13 @@ RUN apk --no-cache add make git
 RUN make debug
 
 FROM alpine:3.14
-RUN apk --no-cache add imagemagick exiv2 ttf-opensans gettext
+RUN apk --no-cache add imagemagick exiv2 ttf-opensans
 WORKDIR /app
 
 COPY --from=builder /build/fchan /app
 COPY static/ /app/static/
 COPY views/ /app/views/
 COPY databaseschema.psql /app
-COPY config-init.yaml.docker /app/config-init.yaml.template
 
 ENV INSTANCE_DOMAIN="localhost"
 ENV INSTANCE_PORT=3000
@@ -41,9 +40,8 @@ ENV COOKIE_KEY=""
 ENV AUTH_REQ="captcha,Email,passphrase"
 ENV POSTS_PER_PAGE=10
 ENV SUPPORTED_FILES="image/gif,image/jpeg,image/png,image/webp,image/png,video/mp4,video/ogg,video/webm,audio/mpeg,audio/ogg,audio/wav,audio/wave,audio/x-wav"
-ENV MODKEY=""
+ENV MOD_KEY=""
 
 EXPOSE ${INSTANCE_PORT}
 
-COPY entrypoint.sh /app/entrypoint.sh
-CMD ["sh", "entrypoint.sh"]
+CMD ["/app/fchan"]
