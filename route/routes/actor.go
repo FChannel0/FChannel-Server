@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -215,7 +216,7 @@ func MakeActorPost(ctx *fiber.Ctx) error {
 
 	if file != nil && header.Size > (config.MaxFilesize<<20) {
 		return ctx.Render("403", fiber.Map{
-			"message": strconv.FormatInt(config.MaxFilesize, 10) + "MiB max file size",
+			"message": fmt.Sprintf("%d MiB max file size", config.MaxFilesize),
 		})
 	}
 
