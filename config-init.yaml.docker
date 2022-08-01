@@ -1,0 +1,26 @@
+instance:
+    domain: ${INSTANCE_DOMAIN}
+    port: ${INSTANCE_PORT}
+    protocol: ${INSTANCE_PROTOCOL}
+    name: ${INSTANCE_NAME}
+    summary: ${INSTANCE_SUMMARY}
+    salt: ${INSTANCE_SALT}
+    filesize_limit: ${INSTANCE_FILESIZE_LIMIT}
+email:
+    address: ${EMAIL_ADDRESS}
+    password: ${EMAIL_PASSWORD}
+    host: ${EMAIL_HOST}
+    port: ${EMAIL_PORT}
+    notify: [${EMAIL_NOTIFY}]
+database:
+    host: ${DB_HOST}
+    port: ${DB_PORT}
+    name: ${DB_NAME}
+    user: ${DB_USER}
+    password: ${DB_PASS}
+tor_proxy: ${TOR_PROXY}
+cookie_key: ${COOKIE_KEY}
+auth_req: [${AUTH_REQ}]
+posts_per_page: ${POSTS_PER_PAGE}
+supported_files: [${SUPPORTED_FILES}]
+mod_key: ${MODKEY}

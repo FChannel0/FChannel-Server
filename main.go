@@ -34,6 +34,7 @@ func main() {
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
+		BodyLimit:    int(config.MaxFilesize << 20),
 		ServerHeader: "FChannel/" + config.InstanceName,
 	})
 
@@ -118,6 +119,7 @@ func Init() {
 	var actor activitypub.Actor
 	var err error
 
+	config.LoadConfig()
 	rand.Seed(time.Now().UnixNano())
 
 	if err = util.CreatedNeededDirectories(); err != nil {

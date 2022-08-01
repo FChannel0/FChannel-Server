@@ -7,3 +7,5 @@ config$
 config/config-init
 clientkey
 pem/
+/fchan
+/config/config-init*

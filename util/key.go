@@ -4,6 +4,7 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"errors"
+	"log"
 	"math/rand"
 	"os"
 	"strings"
@@ -35,14 +36,15 @@ func GetCookieKey() (string, error) {
 		var file *os.File
 		var err error
 
-		if file, err = os.OpenFile("config/config-init", os.O_APPEND|os.O_WRONLY, 0644); err != nil {
+		config.CookieKey = encryptcookie.GenerateKey()
+		log.Println("Generated new Cookie Key: ", config.CookieKey)
+		if file, err = os.OpenFile("config/config-init.yaml", os.O_APPEND|os.O_WRONLY, 0644); err != nil {
 			return "", MakeError(err, "GetCookieKey")
 		}
 
 		defer file.Close()
 
-		config.CookieKey = encryptcookie.GenerateKey()
-		file.WriteString("\ncookiekey:" + config.CookieKey)
+		file.WriteString("\ncookie_key: " + config.CookieKey)
 	}
 
 	return config.CookieKey, nil

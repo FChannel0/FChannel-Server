@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -109,9 +110,9 @@ func ParseOutboxRequest(ctx *fiber.Ctx, actor activitypub.Actor) error {
 			if header != nil {
 				f, _ := header.Open()
 				defer f.Close()
-				if header.Size > (7 << 20) {
+				if header.Size > (config.MaxFilesize << 20) {
 					ctx.Response().Header.SetStatusCode(403)
-					_, err := ctx.Write([]byte("7MB max file size"))
+					_, err := ctx.Write([]byte(strconv.FormatInt(config.MaxFilesize, 10) + "MiB max file size"))
 					return util.MakeError(err, "ParseOutboxRequest")
 				} else if isBanned, err := post.IsMediaBanned(f); err == nil && isBanned {
 					config.Log.Println("media banned")

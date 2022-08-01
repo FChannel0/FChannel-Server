@@ -1,22 +1,30 @@
-version: '3'
+version: '3.9'
 services:
-  postgres:
-    image: postgres:13.4-alpine
+  db:
+    image: postgres:alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: fchan
       POSTGRES_PASSWORD: hackme
-      POSTGRES_DB: fchan
+    expose:
+    - 5432
     volumes:
-      - ./pgdata:/var/lib/postgresql/data
-  fchan:
+      - ./pgdata/:/var/lib/postgresql/data/
+  app:
     build: ./
+    depends_on:
+      - db
     restart: unless-stopped
     volumes:
-      - ./config:/app/config
       - ./public/:/app/public/
       - ./pem/:/app/pem/
+      - ./static/:/app/static/
+    environment:
+      INSTANCE_DOMAIN: 192.168.1.205
+      INSTANCE_PROTOCOL: http
+      INSTANCE_NAME: LChan
+      INSTANCE_FILESIZE_LIMIT: 64
+
+      DB_HOST: db
+      DB_PASS: hackme
     ports:
-      - "3000:3000"
-    links:
-      - postgres
+      - 80:3000
