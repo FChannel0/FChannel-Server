@@ -16,7 +16,7 @@ type InstanceConfig struct {
 	Port        int    `yaml:"port"         env:"PORT"           envDefault:"3000"`
 	Protocol    string `yaml:"protocol"     env:"PROTOCOL"       envDefault:"https"`
 	Name        string `yaml:"name"         env:"NAME"           envDefault:"FChan"`
-	Summary     string `yaml:"summary"      env:"SUMMARY"`
+	Summary     string `yaml:"summary"      env:"SUMMARY"        envDefault:"FChan is a federated image board instance."`
 	Salt        string `yaml:"salt"         env:"SALT"`
 	MaxFilesize int64  `yaml:"max_filesize" env:"FILESIZE_LIMIT" envDefault:"8"`
 }
