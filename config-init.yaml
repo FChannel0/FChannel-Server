@@ -31,7 +31,6 @@ database:
 
 ## enter proxy ip and port if you want to have tor connections supported
 tor_proxy: 127.0.0.1:9050
-cookie_key: ""
 auth_req:
     - captcha
     - Email
@@ -55,3 +54,6 @@ supported_files:
 ## this is the key used to access moderation pages leave empty to randomly generate each restart
 ## share with other admin or jannies if you are having others to moderate
 mod_key: ""
+
+## Automatically generated on first run
+#cookie_key: ""
