@@ -56,7 +56,7 @@
     {{ range . }}
     <li style="padding: 12px;">
       <div style="margin-bottom: 5px;">{{ .Object.Updated | timeToReadableLong }}</div>
-      <a id="rpost" post="{{ .ID }}" title="{{ parseLinkTitle .Actor.Outbox .OP .Object.Content}}" href="/{{ parseLink .Actor .ID }}">{{ shortURL .Actor.Outbox .ID }}</a> - <b>{{ .Count }}</b> [<a href="/delete?id={{ .ID }}&board={{ .Actor.Name }}&manage=t">Remove Post</a>] {{ if (index .Object.Attachment 0).Id }} [<a href="/banmedia?id={{ .ID }}&board={{ .Actor.Name }}">Ban Media</a>] [<a href="/deleteattach?id={{ .ID }}&board={{ .Actor.Name }}&manage=t">Remove Attachment</a>]{{ end }} [<a href="/report?id={{ .ID }}&close=1&board={{ .Actor.Name }}">Close</a>]
+      <a id="rpost" post="{{ .ID }}" title="{{ parseLinkTitle .Actor.Outbox .OP .Object.Content}}" href="/{{ parseLink .Actor .ID }}">{{ shortURL .Actor.Outbox .ID }}</a> - <b>{{ .Count }}</b> [<a href="/delete?id={{ .ID }}&board={{ .Actor.Name }}&manage=t">Remove Post</a>] {{ if gt (len .Object.Attachment) 0 }} [<a href="/banmedia?id={{ .ID }}&board={{ .Actor.Name }}">Ban Media</a>] [<a href="/deleteattach?id={{ .ID }}&board={{ .Actor.Name }}&manage=t">Remove Attachment</a>]{{ end }} [<a href="/report?id={{ .ID }}&close=1&board={{ .Actor.Name }}">Close</a>]
       <ul>
         {{ range .Reason }}
         <li>

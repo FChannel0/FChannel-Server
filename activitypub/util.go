@@ -93,9 +93,10 @@ func CreateNewActor(board string, prefName string, summary string, authReq []str
 func CreateObject(objType string) ObjectBase {
 	var nObj ObjectBase
 
+	now := time.Now().UTC()
 	nObj.Type = objType
-	nObj.Published = time.Now().UTC()
-	nObj.Updated = time.Now().UTC()
+	nObj.Published = now
+	nObj.Updated = &now
 
 	return nObj
 }
@@ -288,7 +289,7 @@ func GetActorByNameFromDB(name string) (Actor, error) {
 		return nActor, util.MakeError(err, "GetActorFromDB")
 	}
 
-	if nActor.Id != "" && nActor.PublicKey.PublicKeyPem == "" {
+	if nActor.Id != "" && nActor.PublicKey == nil {
 		if err := CreatePublicKeyFromPrivate(&nActor, publicKeyPem); err != nil {
 			return nActor, util.MakeError(err, "GetActorByNameFromDB")
 		}

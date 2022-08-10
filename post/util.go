@@ -363,7 +363,7 @@ func ResizeAttachmentToPreview() error {
 			nPreview.MediaType = mediatype
 			nPreview.Size = int64(size)
 			nPreview.Published = published
-			nPreview.Updated = published
+			nPreview.Updated = &published
 			re = regexp.MustCompile(`/public/.+`)
 			objFile := re.FindString(href)
 
@@ -508,7 +508,7 @@ func ParseLinkComments(board activitypub.Actor, op string, content string, threa
 	match := re.FindAllStringSubmatch(content, -1)
 
 	//add url to each matched reply
-	for i, _ := range match {
+	for i := range match {
 		isOP := ""
 		domain := match[i][2]
 		link := strings.Replace(match[i][0], ">>", "", 1)
@@ -537,14 +537,12 @@ func ParseLinkComments(board activitypub.Actor, op string, content string, threa
 			if quoteTitle == "" {
 				obj := activitypub.ObjectBase{Id: parsedLink}
 				col, err := obj.GetCollectionFromPath()
-				if err != nil {
-					return "", util.MakeError(err, "ParseLinkComments")
-				}
-
-				if len(col.OrderedItems) > 0 {
-					quoteTitle = ParseLinkTitle(board.Outbox, op, col.OrderedItems[0].Content)
-				} else {
-					quoteTitle = ParseLinkTitle(board.Outbox, op, parsedLink)
+				if err == nil {
+					if len(col.OrderedItems) > 0 {
+						quoteTitle = ParseLinkTitle(board.Outbox, op, col.OrderedItems[0].Content)
+					} else {
+						quoteTitle = ParseLinkTitle(board.Outbox, op, parsedLink)
+					}
 				}
 			}
 		}

@@ -50,7 +50,13 @@ func (activity Activity) AddFollowersTo() (Activity, error) {
 
 		// get followers of activity actor
 		for _, k := range aFollowers.Items {
-			activity.To = append(activity.To, k.Id)
+			if !util.IsInStringArray(activity.To, k.Id) {
+				activity.To = append(activity.To, k.Id)
+			} else {
+				// We've already been here
+				continue
+			}
+
 			reqActivity := Activity{Id: k.Id + "/followers"}
 
 			bFollowers, err := reqActivity.GetCollection()
@@ -60,27 +66,12 @@ func (activity Activity) AddFollowersTo() (Activity, error) {
 
 			// get followers of activity actor followers
 			for _, j := range bFollowers.Items {
-				activity.To = append(activity.To, j.Id)
+				if !util.IsInStringArray(activity.To, j.Id) {
+					activity.To = append(activity.To, j.Id)
+				}
 			}
 		}
 	}
-
-	var nActivity Activity
-
-	for _, e := range activity.To {
-		var alreadyTo = false
-		for _, k := range nActivity.To {
-			if e == k || e == activity.Actor.Id {
-				alreadyTo = true
-			}
-		}
-
-		if !alreadyTo {
-			nActivity.To = append(nActivity.To, e)
-		}
-	}
-
-	activity.To = nActivity.To
 
 	return activity, nil
 }
@@ -106,9 +97,11 @@ func (activity Activity) CheckValid() (Collection, bool, error) {
 	}
 	defer resp.Body.Close()
 
-	body, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != 200 {
+		return respCollection, false, nil
+	}
 
-	if err := json.Unmarshal(body, &respCollection); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&respCollection); err != nil {
 		return respCollection, false, util.MakeError(err, "CheckValid")
 	}
 
