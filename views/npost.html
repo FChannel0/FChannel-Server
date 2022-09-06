@@ -33,8 +33,8 @@
     {{ end }}
 
     <td>
-      {{ $replies := (index .page.Posts 0).Replies }}
-      <span id="threadStats" data-total="{{ $replies.TotalItems }}" data-imgs="{{ $replies.TotalImgs }}">{{ $replies.TotalItems }} / {{ $replies.TotalImgs }}</span>
+      {{ $replies := (index .page.Posts 0).Replies}}
+      <span id="threadStats" data-total="{{if $replies}}$replies.TotalItems{{else}}0{{end}}" data-imgs="{{if $replies}}$replies.TotalImgs{{else}}0{{end}}">{{if $replies}}$replies.TotalItems{{else}}0{{end}} / {{if $replies}}$replies.TotalImgs{{else}}0{{end}}</span>
     </td>
     {{ end }}
   </tr>

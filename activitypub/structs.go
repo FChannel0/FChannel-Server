@@ -79,7 +79,7 @@ type Actor struct {
 	Followers         string       `json:"followers,omitempty"`
 	Name              string       `json:"name,omitempty"`
 	PreferredUsername string       `json:"preferredUsername,omitempty"`
-	PublicKey         PublicKeyPem `json:"publicKey,omitempty"`
+	PublicKey         *PublicKeyPem `json:"publicKey,omitempty"`
 	Summary           string       `json:"summary,omitempty"`
 	AuthRequirement   []string     `json:"authrequirement,omitempty"`
 	Restricted        bool         `json:"restricted"`
@@ -126,10 +126,10 @@ type ObjectBase struct {
 	Location     string            `json:"location,omitempty"`
 	Preview      *NestedObjectBase `json:"preview,omitempty"`
 	Published    time.Time         `json:"published,omitempty"`
-	Updated      time.Time         `json:"updated,omitempty"`
+	Updated      *time.Time         `json:"updated,omitempty"`
 	Object       *NestedObjectBase `json:"object,omitempty"`
 	Attachment   []ObjectBase      `json:"attachment,omitempty"`
-	Replies      CollectionBase    `json:"replies,omitempty"`
+	Replies      *CollectionBase    `json:"replies,omitempty"`
 	StartTime    string            `json:"startTime,omitempty"`
 	Summary      string            `json:"summary,omitempty"`
 	Tag          []ObjectBase      `json:"tag,omitempty"`
@@ -172,14 +172,14 @@ type NestedObjectBase struct {
 	Image        string          `json:"image,omitempty"`
 	InReplyTo    []ObjectBase    `json:"inReplyTo,omitempty"`
 	Location     string          `json:"location,omitempty"`
-	Preview      ObjectBase      `json:"preview,omitempty"`
+	Preview      *ObjectBase      `json:"preview,omitempty"`
 	Published    time.Time       `json:"published,omitempty"`
 	Attachment   []ObjectBase    `json:"attachment,omitempty"`
 	Replies      *CollectionBase `json:"replies,omitempty"`
 	StartTime    string          `json:"startTime,omitempty"`
 	Summary      string          `json:"summary,omitempty"`
 	Tag          []ObjectBase    `json:"tag,omitempty"`
-	Updated      time.Time       `json:"updated,omitempty"`
+	Updated      *time.Time       `json:"updated,omitempty"`
 	Deleted      string          `json:"deleted,omitempty"`
 	Url          []ObjectBase    `json:"url,omitempty"`
 	Href         string          `json:"href,omitempty"`
@@ -193,7 +193,7 @@ type NestedObjectBase struct {
 }
 
 type CollectionBase struct {
-	Actor        Actor        `json:"actor,omitempty"`
+	Actor        *Actor        `json:"actor,omitempty"`
 	Summary      string       `json:"summary,omitempty"`
 	Type         string       `json:"type,omitempty"`
 	TotalItems   int          `json:"totalItems,omitempty"`
@@ -210,7 +210,16 @@ type Collection struct {
 type ObjectBaseSortDesc []ObjectBase
 
 func (a ObjectBaseSortDesc) Len() int           { return len(a) }
-func (a ObjectBaseSortDesc) Less(i, j int) bool { return a[i].Updated.After(a[j].Updated) }
+func (a ObjectBaseSortDesc) Less(i, j int) bool {
+	if a[i].Updated == nil && a[j].Updated == nil {
+		return true
+	} else if a[i].Updated == nil {
+		return false
+	} else if a[j].Updated == nil {
+		return true
+	}
+	return a[i].Updated.After(*a[j].Updated)
+}
 func (a ObjectBaseSortDesc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 type ObjectBaseSortAsc []ObjectBase

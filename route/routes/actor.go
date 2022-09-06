@@ -68,11 +68,12 @@ func ActorInbox(ctx *fiber.Ctx) error {
 		for _, e := range activity.To {
 			actor, err := activitypub.GetActorFromDB(e)
 			if err != nil {
-				return util.MakeError(err, "ActorInbox")
+				continue // try again
+				// return util.MakeError(err, "ActorInbox")
 			}
 
 			if actor.Id != "" && actor.Id != config.Domain {
-				if activity.Object.Replies.OrderedItems != nil {
+				if activity.Object.Replies != nil {
 					for _, k := range activity.Object.Replies.OrderedItems {
 						if err := k.Tombstone(); err != nil {
 							return util.MakeError(err, "ActorInbox")
@@ -439,7 +440,9 @@ func ActorPost(ctx *fiber.Ctx) error {
 		data.Meta.Description = data.Posts[0].Content
 		data.Meta.Url = data.Posts[0].Id
 		data.Meta.Title = data.Posts[0].Name
-		data.Meta.Preview = data.Posts[0].Preview.Href
+		if data.Posts[0].Preview != nil {
+			data.Meta.Preview = data.Posts[0].Preview.Href
+		}
 	}
 
 	data.Themes = &config.Themes
@@ -652,7 +655,7 @@ func GetActorOutbox(ctx *fiber.Ctx) error {
 
 	collection, _ := actor.GetCollection()
 	collection.AtContext.Context = "https://www.w3.org/ns/activitystreams"
-	collection.Actor = actor
+	collection.Actor = &actor
 
 	collection.TotalItems, _ = actor.GetPostTotal()
 	collection.TotalImgs, _ = actor.GetImgTotal()

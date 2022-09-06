@@ -134,13 +134,13 @@ accepting your posts from your board from this site. Good luck ;)`)
 	return nil
 }
 
-func GetActorPemFromDB(pemID string) (PublicKeyPem, error) {
-	var pem PublicKeyPem
+func GetActorPemFromDB(pemID string) (*PublicKeyPem, error) {
+	pem := &PublicKeyPem{}
 
 	query := `select id, owner, file from publickeypem where id=$1`
 
 	if err := config.DB.QueryRow(query, pemID).Scan(&pem.Id, &pem.Owner, &pem.PublicKeyPem); err != nil {
-		return pem, util.MakeError(err, "GetActorPemFromDB")
+		return nil, util.MakeError(err, "GetActorPemFromDB")
 	}
 
 	dir, _ := os.Getwd()

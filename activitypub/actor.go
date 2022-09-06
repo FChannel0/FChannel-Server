@@ -184,7 +184,7 @@ func (actor Actor) GetAllArchive(offset int) (Collection, error) {
 			return nColl, util.MakeError(err, "GetAllArchive")
 		}
 
-		post.Replies, _, _, err = post.GetReplies()
+		post.Replies, err = post.GetReplies()
 
 		result = append(result, post)
 	}
@@ -232,12 +232,10 @@ func (actor Actor) GetCatalogCollection() (Collection, error) {
 		var actor Actor
 
 		var attch ObjectBase
-		post.Attachment = append(post.Attachment, attch)
 
 		var prev NestedObjectBase
-		post.Preview = &prev
 
-		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &post.Attachment[0].Id, &post.Preview.Id, &actor.Id, &post.TripCode, &post.Sensitive)
+		err = rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attch.Id, &prev.Id, &actor.Id, &post.TripCode, &post.Sensitive)
 
 		if err != nil {
 			return nColl, util.MakeError(err, "GetCatalogCollection")
@@ -246,9 +244,7 @@ func (actor Actor) GetCatalogCollection() (Collection, error) {
 		post.Locked, _ = post.IsLocked()
 		post.Actor = actor.Id
 
-		var replies CollectionBase
-
-		post.Replies = replies
+		post.Replies = &CollectionBase{}
 
 		post.Replies.TotalItems, post.Replies.TotalImgs, err = post.GetRepliesCount()
 
@@ -256,16 +252,18 @@ func (actor Actor) GetCatalogCollection() (Collection, error) {
 			return nColl, util.MakeError(err, "GetCatalogCollection")
 		}
 
-		post.Attachment, err = post.Attachment[0].GetAttachment()
-
-		if err != nil {
-			return nColl, util.MakeError(err, "GetCatalogCollection")
+		if attch.Id != "" {
+			post.Attachment, err = attch.GetAttachment()
+			if err != nil {
+				return nColl, util.MakeError(err, "GetCatalogCollection")
+			}
 		}
 
-		post.Preview, err = post.Preview.GetPreview()
-
-		if err != nil {
-			return nColl, util.MakeError(err, "GetCatalogCollection")
+		if prev.Id != "" {
+			post.Preview, err = prev.GetPreview()
+			if err != nil {
+				return nColl, util.MakeError(err, "GetCatalogCollection")
+			}
 		}
 
 		result = append(result, post)
@@ -311,12 +309,10 @@ func (actor Actor) GetCollectionPage(page int) (Collection, error) {
 		var actor Actor
 
 		var attch ObjectBase
-		post.Attachment = append(post.Attachment, attch)
 
 		var prev NestedObjectBase
-		post.Preview = &prev
 
-		err = rows.Scan(&count, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &post.Attachment[0].Id, &post.Preview.Id, &actor.Id, &post.TripCode, &post.Sensitive)
+		err = rows.Scan(&count, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attch.Id, &prev.Id, &actor.Id, &post.TripCode, &post.Sensitive)
 
 		if err != nil {
 			return nColl, util.MakeError(err, "GetCollectionPage")
@@ -325,22 +321,28 @@ func (actor Actor) GetCollectionPage(page int) (Collection, error) {
 		post.Locked, _ = post.IsLocked()
 		post.Actor = actor.Id
 
-		post.Replies, post.Replies.TotalItems, post.Replies.TotalImgs, err = post.GetRepliesLimit(5)
+		post.Replies, err = post.GetRepliesLimit(5)
 
 		if err != nil {
 			return nColl, util.MakeError(err, "GetCollectionPage")
 		}
 
-		post.Attachment, err = post.Attachment[0].GetAttachment()
+		if attch.Id != "" {
+			post.Attachment, err = attch.GetAttachment()
+			if err != nil {
+				return nColl, util.MakeError(err, "GetCollectionPage")
+			}
+		}
 
 		if err != nil {
 			return nColl, util.MakeError(err, "GetCollectionPage")
 		}
 
-		post.Preview, err = post.Preview.GetPreview()
-
-		if err != nil {
-			return nColl, util.MakeError(err, "GetCollectionPage")
+		if prev.Id != "" {
+			post.Preview, err = prev.GetPreview()
+			if err != nil {
+				return nColl, util.MakeError(err, "GetCollectionPage")
+			}
 		}
 
 		result = append(result, post)
@@ -372,12 +374,10 @@ func (actor Actor) GetCollection() (Collection, error) {
 		var actor Actor
 
 		var attch ObjectBase
-		post.Attachment = append(post.Attachment, attch)
 
 		var prev NestedObjectBase
-		post.Preview = &prev
 
-		if err := rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &post.Attachment[0].Id, &post.Preview.Id, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
+		if err := rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attch.Id, &prev.Id, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
 			return nColl, util.MakeError(err, "GetCollection")
 		}
 
@@ -386,22 +386,24 @@ func (actor Actor) GetCollection() (Collection, error) {
 
 		post.Actor = actor.Id
 
-		post.Replies, post.Replies.TotalItems, post.Replies.TotalImgs, err = post.GetReplies()
+		post.Replies, err = post.GetReplies()
 
 		if err != nil {
 			return nColl, util.MakeError(err, "GetCollection")
 		}
 
-		post.Attachment, err = post.Attachment[0].GetAttachment()
-
-		if err != nil {
-			return nColl, util.MakeError(err, "GetCollection")
+		if attch.Id != "" {
+			post.Attachment, err = attch.GetAttachment()
+			if err != nil {
+				return nColl, util.MakeError(err, "GetCollection")
+			}
 		}
 
-		post.Preview, err = post.Preview.GetPreview()
-
-		if err != nil {
-			return nColl, util.MakeError(err, "GetCollection")
+		if prev.Id != "" {
+			post.Preview, err = prev.GetPreview()
+			if err != nil {
+				return nColl, util.MakeError(err, "GetCollection")
+			}
 		}
 
 		result = append(result, post)
@@ -430,34 +432,34 @@ func (actor Actor) GetCollectionType(nType string) (Collection, error) {
 		var actor Actor
 
 		var attch ObjectBase
-		post.Attachment = append(post.Attachment, attch)
 
 		var prev NestedObjectBase
-		post.Preview = &prev
 
-		if err := rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &post.Attachment[0].Id, &post.Preview.Id, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
+		if err := rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attch.Id, &prev.Id, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
 			return nColl, util.MakeError(err, "GetCollectionType")
 		}
 
 		post.Actor = actor.Id
 
-		var replies CollectionBase
-
-		post.Replies = replies
+		post.Replies = &CollectionBase{}
 
 		post.Replies.TotalItems, post.Replies.TotalImgs, err = post.GetRepliesCount()
 		if err != nil {
 			return nColl, util.MakeError(err, "GetCollectionType")
 		}
 
-		post.Attachment, err = post.Attachment[0].GetAttachment()
-		if err != nil {
-			return nColl, util.MakeError(err, "GetCollectionType")
+		if attch.Id != "" {
+			post.Attachment, err = attch.GetAttachment()
+			if err != nil {
+				return nColl, util.MakeError(err, "GetCollectionType")
+			}
 		}
 
-		post.Preview, err = post.Preview.GetPreview()
-		if err != nil {
-			return nColl, util.MakeError(err, "GetCollectionType")
+		if prev.Id != "" {
+			post.Preview, err = prev.GetPreview()
+			if err != nil {
+				return nColl, util.MakeError(err, "GetCollectionType")
+			}
 		}
 
 		result = append(result, post)
@@ -485,34 +487,34 @@ func (actor Actor) GetCollectionTypeLimit(nType string, limit int) (Collection, 
 		var actor Actor
 
 		var attch ObjectBase
-		post.Attachment = append(post.Attachment, attch)
 
 		var prev NestedObjectBase
-		post.Preview = &prev
 
-		if err := rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &post.Attachment[0].Id, &post.Preview.Id, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
+		if err := rows.Scan(&post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attch.Id, &prev.Id, &actor.Id, &post.TripCode, &post.Sensitive); err != nil {
 			return nColl, util.MakeError(err, "GetCollectionTypeLimit")
 		}
 
 		post.Actor = actor.Id
 
-		var replies CollectionBase
-
-		post.Replies = replies
+		post.Replies = &CollectionBase{}
 
 		post.Replies.TotalItems, post.Replies.TotalImgs, err = post.GetRepliesCount()
 		if err != nil {
 			return nColl, util.MakeError(err, "GetCollectionTypeLimit")
 		}
 
-		post.Attachment, err = post.Attachment[0].GetAttachment()
-		if err != nil {
-			return nColl, util.MakeError(err, "GetCollectionTypeLimit")
+		if attch.Id != "" {
+			post.Attachment, err = attch.GetAttachment()
+			if err != nil {
+				return nColl, util.MakeError(err, "GetCollectionTypeLimit")
+			}
 		}
 
-		post.Preview, err = post.Preview.GetPreview()
-		if err != nil {
-			return nColl, util.MakeError(err, "GetCollectionTypeLimit")
+		if prev.Id != "" {
+			post.Preview, err = post.Preview.GetPreview()
+			if err != nil {
+				return nColl, util.MakeError(err, "GetCollectionTypeLimit")
+			}
 		}
 
 		result = append(result, post)
@@ -705,7 +707,7 @@ func (actor Actor) GetOutbox(ctx *fiber.Ctx) error {
 
 	collection.OrderedItems = c.OrderedItems
 	collection.AtContext.Context = "https://www.w3.org/ns/activitystreams"
-	collection.Actor = actor
+	collection.Actor = &actor
 
 	collection.TotalItems, err = actor.GetPostTotal()
 
@@ -1120,7 +1122,7 @@ func (actor Actor) WantToServePage(page int) (Collection, error) {
 		return collection, util.MakeError(err, "WantToServePage")
 	}
 
-	collection.Actor = actor
+	collection.Actor = &actor
 
 	return collection, nil
 }
@@ -1274,12 +1276,10 @@ select count
 		var actor Actor
 
 		var attch ObjectBase
-		post.Attachment = append(post.Attachment, attch)
 
 		var prev NestedObjectBase
-		post.Preview = &prev
 
-		err = rows.Scan(&count, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &post.Attachment[0].Id, &post.Preview.Id, &actor.Id, &post.TripCode, &post.Sensitive)
+		err = rows.Scan(&count, &post.Id, &post.Name, &post.Content, &post.Type, &post.Published, &post.Updated, &post.AttributedTo, &attch.Id, &prev.Id, &actor.Id, &post.TripCode, &post.Sensitive)
 
 		if err != nil {
 			return nColl, util.MakeError(err, "GetStickies")
@@ -1289,16 +1289,24 @@ select count
 		post.Locked, _ = post.IsLocked()
 		post.Actor = actor.Id
 
-		var postCnt int
-		var imgCnt int
-		post.Replies, postCnt, imgCnt, _ = post.GetRepliesLimit(5)
+		post.Replies, err = post.GetRepliesLimit(5)
+		if err != nil {
+			return nColl, err
+		}
 
-		post.Replies.TotalItems = postCnt
-		post.Replies.TotalImgs = imgCnt
+		if attch.Id != "" {
+			post.Attachment, err = attch.GetAttachment()
+			if err != nil {
+				return nColl, util.MakeError(err, "GetStickies")
+			}
+		}
 
-		post.Attachment, _ = post.Attachment[0].GetAttachment()
-
-		post.Preview, _ = post.Preview.GetPreview()
+		if prev.Id != "" {
+			post.Preview, err = prev.GetPreview()
+			if err != nil {
+				return nColl, err
+			}
+		}
 
 		result = append(result, post)
 	}

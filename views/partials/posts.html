@@ -67,7 +67,7 @@
           {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}
           [<a href="/delete?id={{ .Id }}&board={{ $board.Actor.Name }}">Delete Post</a>]
           {{ end }}
-          {{ if (index .Attachment 0).Id }}
+          {{ if and (gt (len .Attachment) 0) (index .Attachment 0).Id }}
           {{ if eq $board.ModCred $board.Domain $board.Actor.Id }}
           [<a href="/banmedia?id={{ .Id }}&board={{ $board.Actor.Name }}">Ban Media</a>]
           [<a href="/deleteattach?id={{ .Id }}&board={{ $board.Actor.Name }}">Delete Attachment</a>]
@@ -109,7 +109,7 @@
           <span class="tripcode"> {{ .TripCode }} </span>
           <span class="timestamp" data-utc="{{ .Published | timeToUnix }}">{{ .Published | timeToReadableLong }} <a id="{{ .Id }}-anchor" href="/{{ $board.Name }}/{{ shortURL $board.Actor.Outbox $opId }}#{{ shortURL $board.Actor.Outbox .Id }}">No. </a><a id="{{ .Id }}-link" title="{{ .Id }}" {{ if eq $thread.Locked false }} {{ if eq .Type "Note" }} href="javascript:quote('{{ $board.Actor.Id }}', '{{ $opId }}', '{{ .Id }}')" {{ end }} {{ end }}>{{ shortURL $board.Actor.Outbox .Id }}</a> {{ if ne .Type "Tombstone" }}[<a href="/make-report?actor={{ $board.Actor.Id }}&post={{ .Id }}">Report</a>]{{ end }}</span>
           {{ $parentId := .Id }}
-          {{ if .Replies.OrderedItems }}
+          {{ if and .Replies .Replies.OrderedItems }}
           {{ range .Replies.OrderedItems }}
           <span id="{{$parentId}}-replyto-{{.Id}}">{{ parseReplyLink $board.Actor.Id $opId .Id .Content }}</span>
           {{ end }}

@@ -132,5 +132,14 @@ func GetLocalReport(board string) (map[string]Reports, error) {
 type ReportsSortDesc []Reports
 
 func (a ReportsSortDesc) Len() int           { return len(a) }
-func (a ReportsSortDesc) Less(i, j int) bool { return a[i].Object.Updated.After(a[j].Object.Updated) }
+func (a ReportsSortDesc) Less(i, j int) bool {
+    if a[i].Object.Updated == nil && a[j].Object.Updated == nil {
+            return true
+    } else if a[i].Object.Updated == nil {
+            return false
+    } else if a[j].Object.Updated == nil {
+            return true
+    }
+	return a[i].Object.Updated.After(*a[j].Object.Updated)
+}
 func (a ReportsSortDesc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
